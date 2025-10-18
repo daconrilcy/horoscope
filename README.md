@@ -1,8 +1,13 @@
-#! Documentation
+# Documentation
 
-Toute la documentation se trouve désormais dans le dossier `docs/`.
+Ce dépôt regroupe la documentation dans le dossier `docs/`.
 
-- Index de la doc: `docs/README.md`
+## Index
+
 - Présentation du projet: `docs/PROJECT.md`
-- Environnements et settings: `docs/ENV-SETTINGS.md`
+- Environnements et configuration (`.env`, `settings.py`): `docs/ENV-SETTINGS.md`
 
+## Navigation rapide
+
+- Projet → `docs/PROJECT.md`
+- Environnements/Settings → `docs/ENV-SETTINGS.md`
