@@ -6,6 +6,10 @@ from backend.domain.uncertainty import precision_score
 
 
 class InternalAstroEngine:
+    def __init__(self, seed: int | None = None):
+        # Allow deterministic behavior when a seed is provided
+        self._rng = random.Random(seed)
+
     def compute_natal_chart(self, birth: BirthInput) -> dict[str, Any]:
         return {
             "name": birth.name,
@@ -18,9 +22,9 @@ class InternalAstroEngine:
         axes = ["SUN", "MARS", "ASC", "MERCURY", "SATURN", "MC", "VENUS", "JUPITER", "NN"]
         transits = []
         for _i in range(6):
-            axis = random.choice(axes)
-            intensity = round(random.uniform(0.5, 1.5), 2)
-            friction = round(random.uniform(0.0, 0.6), 2)
+            axis = self._rng.choice(axes)
+            intensity = round(self._rng.uniform(0.5, 1.5), 2)
+            friction = round(self._rng.uniform(0.0, 0.6), 2)
             weight = 1.0
             snippet_id = f"TODAY_{axis}_EN"
             transits.append(

@@ -13,7 +13,7 @@ class Container:
         infra_dir = os.path.normpath(os.path.join(base_dir, "..", "infra"))
         content_path = os.path.join(infra_dir, "content.json")
         self.content_repo = JSONContentRepository(path=content_path)
-        self.astro = InternalAstroEngine()
+        self.astro = InternalAstroEngine(seed=self.settings.ASTRO_SEED)
         if self.settings.REDIS_URL:
             try:
                 self.chart_repo = RedisChartRepo(self.settings.REDIS_URL)

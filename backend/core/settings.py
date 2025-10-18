@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str | None = None
     REDIS_URL: str | None = None
     REQUIRE_REDIS: bool = False
+    ASTRO_SEED: int | None = None
 
 
 def get_settings() -> Settings:
