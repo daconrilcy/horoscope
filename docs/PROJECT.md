@@ -1,8 +1,8 @@
-# Horoscope Backend (FastAPI + Docker)
+#! Horoscope Backend (FastAPI + Docker)
 
 Backend FastAPI avec Docker Compose (API + Postgres + Redis). Structure inspirée DDD/Clean.
 
-## Prérequis
+## Pré-requis
 - Python 3.12+
 - Docker + Docker Compose
 - PowerShell (Windows) ou Bash (macOS/Linux)
@@ -24,7 +24,7 @@ Backend FastAPI avec Docker Compose (API + Postgres + Redis). Structure inspiré
 - `backend/scripts/dev.ps1` (PowerShell)
   - Équivalent Windows natif; auto-active `.venv` si présent; charge `.env` (supporte `export KEY=...` et commentaires inline non quotés). Si besoin: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
 - Variables:
-  - `HOST` (défaut: `0.0.0.0`) et `PORT` (défaut: `8000`) surchargent l’écoute.
+  - `HOST` (défaut: `0.0.0.0`) et `PORT` (défaut: `8000`) surchargent l'écoute.
 
 ## Docker Compose
 Fichier: `docker/docker-compose.yml`
@@ -53,7 +53,7 @@ Exemples:
 
 ## Arborescence
 - `backend/api/` routes et schémas IO
-- `backend/app/` création de l’app FastAPI
+- `backend/app/` création de l'app FastAPI
 - `backend/core/` config, logging, DI
 - `backend/domain/` modèles métier et services
 - `backend/infra/` accès techniques (DB, cache, HTTP)
@@ -67,3 +67,4 @@ Exemples:
 
 Exemples curl
 - `curl -s http://localhost:8000/health | jq .`
+
