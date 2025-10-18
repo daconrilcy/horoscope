@@ -1,3 +1,6 @@
+# Objectif du fichier: Décrire l'objectif de .pre-commit-config.yaml
+# TODO: compléter cette description.
+
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9

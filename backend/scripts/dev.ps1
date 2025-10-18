@@ -1,3 +1,6 @@
+# Objectif du fichier: Décrire l'objectif de dev.ps1
+# TODO: compléter cette description.
+
 <#
 PowerShell dev script to run FastAPI with reload.
 - Resolves repo root from script location

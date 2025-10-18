@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Objectif du fichier: Décrire l'objectif de dev.sh
+# TODO: compléter cette description.
+
 set -euo pipefail
 
 # Resolve repository root (works from any cwd)

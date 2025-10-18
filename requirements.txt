@@ -1,3 +1,6 @@
+# Objectif du fichier: Décrire l'objectif de requirements.txt
+# TODO: compléter cette description.
+
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.8.0
@@ -14,3 +17,5 @@ anyio>=4.4.0
 # new deps
 redis>=5.0.8
 reportlab>=4.2.5
+# Objectif du fichier: dépendances Python requises pour le backend.
+# TODO: préciser versions épinglées si nécessaire.

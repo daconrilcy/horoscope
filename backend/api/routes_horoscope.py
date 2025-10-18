@@ -16,12 +16,26 @@ service = HoroscopeService(container.astro, container.content_repo, container.ch
 
 @router.post("/natal", response_model=NatalResponse)
 def create_natal(payload: BirthRequest):
+    """Calcule et enregistre un thème natal à partir d'une requête.
+
+    Paramètres:
+    - payload: `BirthRequest` contenant les informations de naissance.
+
+    Retour: `NatalResponse` (id, propriétaire, et données de carte).
+    """
     chart = service.compute_natal(BirthInput(**payload.model_dump()))
     return chart
 
 
 @router.get("/today/{chart_id}", response_model=TodayResponse)
 def get_today(chart_id: str):
+    """Retourne les informations quotidiennes pour un thème existant.
+
+    Paramètres:
+    - chart_id: identifiant du thème natal préalablement créé.
+
+    Retour: `TodayResponse` avec leaders, influences, EAO et extraits.
+    """
     try:
         data = service.get_today(chart_id, user=None)
         return data
@@ -31,6 +45,13 @@ def get_today(chart_id: str):
 
 @router.get("/pdf/natal/{chart_id}", response_class=StreamingResponse)
 def pdf_natal(chart_id: str):
+    """Génère un PDF sommaire du thème natal.
+
+    Paramètres:
+    - chart_id: identifiant du thème natal.
+
+    Retour: `StreamingResponse` PDF inline (application/pdf).
+    """
     chart = container.chart_repo.get(chart_id)
     if not chart:
         raise HTTPException(status_code=404, detail="Chart not found")

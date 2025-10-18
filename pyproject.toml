@@ -1,3 +1,6 @@
+# Objectif du fichier: Décrire l'objectif de pyproject.toml
+# TODO: compléter cette description.
+
 [project]
 name = "horoscope-backend"
 version = "0.1.0"
@@ -21,3 +24,5 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+# Objectif du fichier: configuration de projet et outils (pytest, ruff, etc.).
+# TODO: compléter les métadonnées et les scripts si besoin.

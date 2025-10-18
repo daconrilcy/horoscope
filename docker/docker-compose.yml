@@ -1,3 +1,7 @@
+# Objectif du fichier: Décrire l'objectif de docker-compose.yml
+# TODO: compléter cette description.
+
+## Objectif: orchestrer l'API (service api) et Redis pour le dev local.
 services:
   api:
     build:
