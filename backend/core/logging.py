@@ -2,7 +2,8 @@
 
 Objectif du module
 ------------------
-- Fournir une configuration de logs structurés lisibles en développement.
+- Fournir une configuration de logs structurés lisibles en développement
+  via `structlog.dev.ConsoleRenderer` et des métadonnées (niveau, timestamp).
 """
 
 import logging
@@ -12,7 +13,11 @@ import structlog
 
 
 def setup_logging():
-    """Configure structlog pour produire des logs détaillés et filtrables."""
+    """Configure structlog pour produire des logs détaillés et filtrables.
+
+    Processors principaux: timestamp ISO, niveau, stackinfo, exceptions formattées,
+    rendu console convivial pour le développement.
+    """
     timestamper = structlog.processors.TimeStamper(fmt="ISO")
     structlog.configure(
         processors=[
@@ -26,4 +31,3 @@ def setup_logging():
         logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
         cache_logger_on_first_use=True,
     )
-

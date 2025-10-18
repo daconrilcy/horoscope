@@ -1,10 +1,7 @@
-
 """
-Module C:/dev/astro/v1/backend/api/__init__.py
+API package: expose les routers et schémas utilisés par l'application.
 
-Objectif du module: Expose les routes et structures de l'API.
-
-TODO:
-- Préciser le rôle exact et exemples d'utilisation.
+Contenu:
+- routes_*: endpoints FastAPI
+- schemas: modèles Pydantic des requêtes/réponses
 """
-

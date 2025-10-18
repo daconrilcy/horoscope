@@ -2,7 +2,8 @@
 
 Objectif du module
 ------------------
-- Centraliser les paramètres (env/.env) via Pydantic Settings.
+- Centraliser les paramètres (env/.env) via Pydantic Settings
+- Résoudre le fichier `.env` à utiliser selon la stratégie: ENV_FILE > .env.{APP_ENV} > .env
 """
 
 import os
@@ -54,4 +55,3 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Construit et retourne la configuration de l'application."""
     return Settings()
-
