@@ -2,8 +2,8 @@ import uuid
 from datetime import date as _date
 from typing import Any
 
-from domain.entities import BirthInput, User
-from domain.today_heuristic import energy_attention_opportunity, pick_today
+from backend.domain.entities import BirthInput, User
+from backend.domain.today_heuristic import energy_attention_opportunity, pick_today
 
 
 class HoroscopeService:

@@ -8,13 +8,13 @@ Responsabilités du module:
 - Monter les routers (santé et horoscope)
 """
 
-from api.routes_health import router as health_router
-from api.routes_horoscope import router as horoscope_router
-from core.container import container
-from core.logging import setup_logging
+from backend.api.routes_health import router as health_router
+from backend.api.routes_horoscope import router as horoscope_router
+from backend.core.container import container
+from backend.core.logging import setup_logging
 from fastapi import FastAPI
-from middlewares.request_id import RequestIDMiddleware
-from middlewares.timing import TimingMiddleware
+from backend.middlewares.request_id import RequestIDMiddleware
+from backend.middlewares.timing import TimingMiddleware
 
 
 def create_app() -> FastAPI:

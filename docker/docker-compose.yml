@@ -13,10 +13,10 @@ services:
       - ../.env.example
     environment:
       - REDIS_URL=redis://redis:6379/0
-      - PYTHONPATH=/app/backend
+      - REQUIRE_REDIS=false
     volumes:
       - ..:/app:cached
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       - redis
 

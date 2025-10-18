@@ -1,9 +1,12 @@
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
+from backend.core.container import container
+from backend.infra.astro.fake_deterministic import FakeDeterministicAstro
 
 
 def test_natal_to_today_and_pdf():
+    container.astro = FakeDeterministicAstro()  # override déterministe pour le test
     client = TestClient(app)
     birth = {
         "name": "Test User",

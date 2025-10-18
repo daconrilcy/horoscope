@@ -19,4 +19,3 @@ class BirthInput(BaseModel):
     lat: float
     lon: float
     time_certainty: TimeCertainty = "exact"
-

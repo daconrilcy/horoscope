@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[AnyHttpUrl] | list[str] = []
     DATABASE_URL: str | None = None
     REDIS_URL: str | None = None
+    REQUIRE_REDIS: bool = False
 
 
 def get_settings() -> Settings:

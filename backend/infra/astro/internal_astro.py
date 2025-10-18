@@ -1,8 +1,8 @@
 import random
 from typing import Any
 
-from domain.entities import BirthInput
-from domain.uncertainty import precision_score
+from backend.domain.entities import BirthInput
+from backend.domain.uncertainty import precision_score
 
 
 class InternalAstroEngine:

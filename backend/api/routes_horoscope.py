@@ -1,14 +1,15 @@
 import io
+import re
 
-from core.container import container
-from domain.entities import BirthInput
-from domain.services import HoroscopeService
+from backend.core.container import container
+from backend.domain.entities import BirthInput
+from backend.domain.services import HoroscopeService
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas as pdfcanvas
 
-from api.schemas import BirthRequest, NatalResponse, TodayResponse
+from backend.api.schemas import BirthRequest, NatalResponse, TodayResponse
 
 router = APIRouter(prefix="/horoscope", tags=["horoscope"])
 service = HoroscopeService(container.astro, container.content_repo, container.chart_repo)
@@ -55,6 +56,10 @@ def pdf_natal(chart_id: str):
     chart = container.chart_repo.get(chart_id)
     if not chart:
         raise HTTPException(status_code=404, detail="Chart not found")
+    def _safe(s: str) -> str:
+        s = re.sub(r"[\x00-\x1f\x7f]", "", str(s))[:200]
+        return s
+
     buffer = io.BytesIO()
     c = pdfcanvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -62,9 +67,10 @@ def pdf_natal(chart_id: str):
     c.setFont("Helvetica-Bold", 18)
     c.drawString(50, height - 80, "Natal Chart Summary")
     c.setFont("Helvetica", 12)
-    c.drawString(50, height - 110, f"Owner: {chart['owner']}")
+    owner = _safe(chart["owner"]) if "owner" in chart else "?"
+    c.drawString(50, height - 110, f"Owner: {owner}")
     c.drawString(50, height - 130, f"Precision Score: {chart['chart'].get('precision_score', 1)}")
-    factors = ", ".join(f.get('axis', '?') for f in chart['chart'].get('factors', []))
+    factors = ", ".join(_safe(f.get("axis", "?")) for f in chart["chart"].get("factors", []))
     c.drawString(50, height - 150, f"Factors: {factors}")
     c.showPage()
     c.save()

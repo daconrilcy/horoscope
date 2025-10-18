@@ -11,3 +11,19 @@ Ce dépôt regroupe la documentation dans le dossier `docs/`.
 
 - Projet → `docs/PROJECT.md`
 - Environnements/Settings → `docs/ENV-SETTINGS.md`
+
+## Dev local (sans Docker)
+
+Pour exécuter en local avec des imports `backend.*` robustes, définissez `PYTHONPATH` vers le dossier `backend` avant d'exécuter vos commandes Python:
+
+- Windows PowerShell:
+
+```
+$env:PYTHONPATH="backend"
+```
+
+- macOS/Linux:
+
+```
+export PYTHONPATH=backend
+```

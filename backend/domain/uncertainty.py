@@ -1,4 +1,4 @@
-from domain.entities import TimeCertainty
+from backend.domain.entities import TimeCertainty
 
 
 def precision_score(time_certainty: TimeCertainty) -> int:
@@ -10,4 +10,3 @@ def precision_score(time_certainty: TimeCertainty) -> int:
         "unknown": 1,
     }
     return mapping.get(time_certainty, 1)
-
