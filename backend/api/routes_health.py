@@ -1,10 +1,5 @@
 """
-Module C:/dev/astro/v1/backend/api/routes_health.py
-
-Objectif du module: Expose les routes et structures de l'API.
-
-TODO:
-- Préciser le rôle exact et exemples d'utilisation.
+Endpoint de santé pour vérifier la disponibilité de l'API.
 """
 
 from fastapi import APIRouter
