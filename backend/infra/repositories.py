@@ -42,3 +42,40 @@ class RedisChartRepo:
         key = f"chart:{chart_id}"
         raw = self.client.get(key)
         return json.loads(raw) if raw else None
+
+
+class InMemoryUserRepo:
+    """Dépôt utilisateurs en mémoire (email indexée par scan simple)."""
+
+    def __init__(self):
+        self._db: dict[str, dict[str, Any]] = {}
+
+    def get_by_email(self, email: str) -> dict[str, Any] | None:
+        return next((u for u in self._db.values() if u.get("email") == email), None)
+
+    def save(self, user: dict[str, Any]) -> dict[str, Any]:
+        self._db[user["id"]] = user
+        return user
+
+
+class RedisUserRepo:
+    """Dépôt utilisateurs via Redis avec index email->id (hash)."""
+
+    def __init__(self, url: str):
+        self.client = redis.Redis.from_url(url, decode_responses=True)
+        self.idx_key = "user:idx:email"
+
+    def get_by_email(self, email: str) -> dict[str, Any] | None:
+        user_id = self.client.hget(self.idx_key, email)
+        if not user_id:
+            return None
+        raw = self.client.get(f"user:{user_id}")
+        return json.loads(raw) if raw else None
+
+    def save(self, user: dict[str, Any]) -> dict[str, Any]:
+        key = f"user:{user['id']}"
+        pipe = self.client.pipeline()
+        pipe.set(key, json.dumps(user))
+        pipe.hset(self.idx_key, user["email"], user["id"])
+        pipe.execute()
+        return user

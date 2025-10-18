@@ -54,7 +54,7 @@ class HoroscopeService:
         - chart_id: identifiant du thème stocké.
         - user: utilisateur (réservé évolutions futures).
 
-        Retour: dict contenant `date`, `leaders`, `influences`, `eao`, `snippets`, `precision_score`.
+        Retour: dict contenant `date`, `leaders`, `influences`, `eao`, `snippets`, `precision_score`
         """
         chart = self.charts.get(chart_id)
         if not chart:

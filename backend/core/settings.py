@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     REDIS_URL: str | None = None
     REQUIRE_REDIS: bool = False
     ASTRO_SEED: int | None = None
+    # JWT/Auth
+    JWT_SECRET: str = "dev-secret-change-me"
+    JWT_ALG: str = "HS256"
+    JWT_EXPIRES_MIN: int = 60
 
 
 def get_settings() -> Settings:

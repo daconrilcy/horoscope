@@ -1,0 +1,539 @@
+
+# Title
+Phase 2 Implementation — Auth, Entitlements, PDF Cache, Redis Repos, Monitoring
+
+# Summary
+Implement Phase 2 capabilities for the Horoscope backend:
+- JWT authentication (signup/login) and protected routes
+- Entitlements gating (Free vs Plus)
+- Redis-backed repositories (Users + Natal Charts) with in-memory fallback
+- PDF generation service with Redis caching
+- Prometheus metrics (/metrics) and timing on key routes
+- Deterministic tests for the new features
+- Keep all imports as `from backend...`
+
+# Preconditions
+- Project layout rooted at `backend/` (api, app, core, domain, infra, middlewares, tests).
+- FastAPI running locally (or via Docker) with the v2.0 Core Loop already merged.
+- You can modify `requirements.txt`, Docker files, and environment variables.
+
+# Goals
+- Secure API (JWT) with role-free entitlements (string flags).
+- Scalable persistence (Redis) for users and natal charts.
+- Fast, cached PDF generation.
+- Basic observability (Prometheus).
+- All tests green.
+
+# Milestones
+1) Dependencies & Settings
+2) Redis repositories (Users + Charts)
+3) Auth (signup/login) + security dependency
+4) Entitlements gating
+5) PDF cache (+ refactor to service)
+6) Metrics (Prometheus + timing)
+7) Tests (auth, entitlements, pdf cache, metrics)
+8) Docker/env wiring
+9) Acceptance checks
+
+# 1) Dependencies & Settings
+
+## Edit: requirements.txt (append if missing)
+```
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+prometheus-client>=0.20.0
+email-validator>=2.1.0
+```
+(ReportLab & Redis already present.)
+
+## Edit: backend/core/settings.py (append fields)
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True, case_sensitive=False)
+    APP_NAME: str = "Horoscope API"
+    APP_DEBUG: bool = True
+    REDIS_URL: str | None = None
+    REQUIRE_REDIS: bool = False
+    JWT_SECRET: str = "dev-secret-change-me"
+    JWT_ALG: str = "HS256"
+    JWT_EXPIRES_MIN: int = 60
+```
+
+## Edit: .env.example
+```
+REDIS_URL=redis://redis:6379/0
+REQUIRE_REDIS=false
+JWT_SECRET=please-change-me
+JWT_EXPIRES_MIN=60
+```
+
+# 2) Redis repositories
+
+## Edit: backend/infra/repositories.py (add User repo + Chart repo if needed)
+```python
+from typing import Dict, Any, Optional
+import json, redis, time
+
+class InMemoryChartRepo:
+    def __init__(self):
+        self._db: Dict[str, Dict[str, Any]] = {}
+
+    def save(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        self._db[record["id"]] = record
+        return record
+
+    def get(self, chart_id: str) -> Optional[Dict[str, Any]]:
+        return self._db.get(chart_id)
+
+class RedisChartRepo:
+    def __init__(self, url: str):
+        self.client = redis.Redis.from_url(url, decode_responses=True)
+
+    def save(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        key = f"chart:{record['id']}"
+        self.client.set(key, json.dumps(record))
+        return record
+
+    def get(self, chart_id: str) -> Optional[Dict[str, Any]]:
+        key = f"chart:{chart_id}"
+        raw = self.client.get(key)
+        return json.loads(raw) if raw else None
+
+class InMemoryUserRepo:
+    def __init__(self):
+        self._db: Dict[str, Dict[str, Any]] = {}
+
+    def get_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        return next((u for u in self._db.values() if u.get("email")==email), None)
+
+    def save(self, user: Dict[str, Any]) -> Dict[str, Any]:
+        self._db[user["id"]] = user
+        return user
+
+class RedisUserRepo:
+    def __init__(self, url: str):
+        self.client = redis.Redis.from_url(url, decode_responses=True)
+        self.idx_key = "user:idx:email"
+
+    def get_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        user_id = self.client.hget(self.idx_key, email)
+        if not user_id:
+            return None
+        raw = self.client.get(f"user:{user_id}")
+        return json.loads(raw) if raw else None
+
+    def save(self, user: Dict[str, Any]) -> Dict[str, Any]:
+        key = f"user:{user['id']}"
+        pipe = self.client.pipeline()
+        pipe.set(key, json.dumps(user))
+        pipe.hset(self.idx_key, user["email"], user["id"])
+        pipe.execute()
+        return user
+```
+
+## Edit: backend/core/container.py (wire repos)
+```python
+from backend.core.settings import get_settings
+from backend.infra.repositories import (
+    InMemoryChartRepo, RedisChartRepo,
+    InMemoryUserRepo, RedisUserRepo
+)
+from backend.infra.content_repo import JSONContentRepository
+from backend.infra.astro.internal_astro import InternalAstroEngine
+import os
+
+class Container:
+    def __init__(self):
+        self.settings = get_settings()
+        self.content_repo = JSONContentRepository(
+            path=os.path.join(os.path.dirname(__file__), "..", "infra", "content.json")
+        )
+        self.astro = InternalAstroEngine()
+
+        # charts
+        if self.settings.REDIS_URL:
+            try:
+                self.chart_repo = RedisChartRepo(self.settings.REDIS_URL)
+                self.storage_backend = "redis"
+            except Exception:
+                if self.settings.REQUIRE_REDIS:
+                    raise
+                self.chart_repo = InMemoryChartRepo()
+                self.storage_backend = "memory-fallback"
+        else:
+            if self.settings.REQUIRE_REDIS:
+                raise RuntimeError("Redis required but REDIS_URL not set")
+            self.chart_repo = InMemoryChartRepo()
+            self.storage_backend = "memory"
+
+        # users
+        if self.settings.REDIS_URL:
+            try:
+                self.user_repo = RedisUserRepo(self.settings.REDIS_URL)
+            except Exception:
+                if self.settings.REQUIRE_REDIS:
+                    raise
+                self.user_repo = InMemoryUserRepo()
+        else:
+            self.user_repo = InMemoryUserRepo()
+
+container = Container()
+```
+
+# 3) Auth (signup/login) + security dependency
+
+## New: backend/domain/auth.py
+```python
+from datetime import datetime, timedelta, timezone
+from typing import Optional, Dict, Any
+from jose import jwt, JWTError
+from passlib.context import CryptContext
+from pydantic import BaseModel, EmailStr
+import uuid
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class TokenData(BaseModel):
+    sub: str
+    email: EmailStr
+    entitlements: list[str] = []
+
+def hash_password(p: str) -> str:
+    return pwd_context.hash(p)
+
+def verify_password(p: str, h: str) -> bool:
+    return pwd_context.verify(p, h)
+
+def create_access_token(secret: str, alg: str, expires_min: int, payload: Dict[str, Any]) -> str:
+    to_encode = payload.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=expires_min)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, secret, algorithm=alg)
+
+def decode_token(token: str, secret: str, alg: str) -> Optional[TokenData]:
+    try:
+        data = jwt.decode(token, secret, algorithms=[alg])
+        return TokenData(**data)
+    except JWTError:
+        return None
+```
+
+## New: backend/api/routes_auth.py
+```python
+from fastapi import APIRouter, HTTPException, Depends, Header
+from pydantic import BaseModel, EmailStr
+from backend.core.container import container
+from backend.domain.auth import (
+    hash_password, verify_password, create_access_token, decode_token
+)
+import uuid
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+class SignupPayload(BaseModel):
+    email: EmailStr
+    password: str
+    entitlements: list[str] = []  # e.g., ["plus"]
+
+class LoginPayload(BaseModel):
+    email: EmailStr
+    password: str
+
+@router.post("/signup")
+def signup(p: SignupPayload):
+    existing = container.user_repo.get_by_email(p.email)
+    if existing:
+        raise HTTPException(status_code=409, detail="email_exists")
+    user = {
+        "id": str(uuid.uuid4()),
+        "email": p.email,
+        "password_hash": hash_password(p.password),
+        "entitlements": p.entitlements or [],
+    }
+    container.user_repo.save(user)
+    return {"id": user["id"], "email": user["email"], "entitlements": user["entitlements"]}
+
+@router.post("/login")
+def login(p: LoginPayload):
+    user = container.user_repo.get_by_email(p.email)
+    if not user or not verify_password(p.password, user.get("password_hash","")):
+        raise HTTPException(status_code=401, detail="invalid_credentials")
+    token = create_access_token(
+        secret=container.settings.JWT_SECRET,
+        alg=container.settings.JWT_ALG,
+        expires_min=container.settings.JWT_EXPIRES_MIN,
+        payload={"sub": user["id"], "email": user["email"], "entitlements": user.get("entitlements", [])},
+    )
+    return {"access_token": token, "token_type": "bearer"}
+
+def get_current_user(authorization: str = Header(None)):
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="missing_token")
+    token = authorization.split(" ", 1)[1]
+    data = decode_token(token, container.settings.JWT_SECRET, container.settings.JWT_ALG)
+    if not data:
+        raise HTTPException(status_code=401, detail="invalid_token")
+    user = container.user_repo.get_by_email(str(data.email))
+    if not user:
+        raise HTTPException(status_code=401, detail="user_not_found")
+    return user
+```
+
+## Edit: backend/app/main.py (include auth routes)
+```python
+from fastapi import FastAPI
+from backend.core.logging import setup_logging
+from backend.core.container import container
+from backend.middlewares.request_id import RequestIDMiddleware
+from backend.middlewares.timing import TimingMiddleware
+from backend.api.routes_health import router as health_router
+from backend.api.routes_horoscope import router as horoscope_router
+from backend.api.routes_auth import router as auth_router
+from backend.app.metrics import metrics_router
+
+def create_app() -> FastAPI:
+    setup_logging()
+    app = FastAPI(title=container.settings.APP_NAME, debug=container.settings.APP_DEBUG)
+    app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(TimingMiddleware)
+    app.include_router(health_router)
+    app.include_router(auth_router)
+    app.include_router(horoscope_router)
+    app.include_router(metrics_router)
+    return app
+
+app = create_app()
+```
+
+# 4) Entitlements gating
+
+## New: backend/domain/entitlements.py
+```python
+from fastapi import HTTPException
+
+def require_entitlement(user: dict, entitlement: str):
+    ents = set(user.get("entitlements", []))
+    if entitlement not in ents:
+        raise HTTPException(status_code=403, detail=f"missing_entitlement:{entitlement}")
+```
+
+## Example usage (gate a premium route)
+- In `backend/api/routes_horoscope.py`, for a premium endpoint (e.g., `/horoscope/today/{id}` extended view), wrap:
+```python
+from backend.api.routes_auth import get_current_user
+from backend.domain.entitlements import require_entitlement
+
+@router.get("/today/premium/{chart_id}")
+def get_today_premium(chart_id: str, user=Depends(get_current_user)):
+    require_entitlement(user, "plus")
+    # ... compute premium payload
+    return {"status": "ok", "premium": True}
+```
+
+# 5) PDF cache (+ refactor to service)
+
+## New: backend/domain/pdf_service.py
+```python
+import io, json
+from reportlab.pdfgen import canvas as pdfcanvas
+from reportlab.lib.pagesizes import A4
+
+def _safe(s: str) -> str:
+    return str(s).replace("\n", " ")[:200]
+
+def render_natal_pdf(chart: dict) -> bytes:
+    buf = io.BytesIO()
+    c = pdfcanvas.Canvas(buf, pagesize=A4)
+    w, h = A4
+    c.setTitle("Horoscope Natal Chart")
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(50, h-80, "Natal Chart Summary")
+    c.setFont("Helvetica", 12)
+    c.drawString(50, h-110, f"Owner: {_safe(chart['owner'])}")
+    c.drawString(50, h-130, f"Precision Score: {chart['chart'].get('precision_score', 1)}")
+    factors = ", ".join(_safe(f.get('axis','?')) for f in chart['chart'].get('factors', []))
+    c.drawString(50, h-150, f"Factors: {factors}")
+    c.showPage()
+    c.save()
+    return buf.getvalue()
+```
+
+## Edit: backend/api/routes_horoscope.py (use cache)
+```python
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
+from backend.core.container import container
+from backend.domain.services import HoroscopeService
+from backend.domain.pdf_service import render_natal_pdf
+import io, datetime as dt
+
+router = APIRouter(prefix="/horoscope", tags=["horoscope"])
+service = HoroscopeService(container.astro, container.content_repo, container.chart_repo)
+
+@router.get("/pdf/natal/{chart_id}", response_class=StreamingResponse)
+def pdf_natal(chart_id: str):
+    chart = container.chart_repo.get(chart_id)
+    if not chart:
+        raise HTTPException(status_code=404, detail="Chart not found")
+    today = dt.date.today().isoformat()
+    key = f"pdf:natal:{chart_id}:{today}"
+    pdf_bytes = None
+    # try cache
+    if getattr(container, "user_repo", None) and getattr(container, "settings", None) and container.settings.REDIS_URL:
+        try:
+            raw = container.user_repo.client.get(key)  # reuse redis client
+            if raw:
+                pdf_bytes = raw.encode("latin-1") if isinstance(raw, str) else raw
+        except Exception:
+            pass
+    if not pdf_bytes:
+        pdf_bytes = render_natal_pdf(chart)
+        try:
+            if container.settings.REDIS_URL:
+                container.user_repo.client.setex(key, 86400, pdf_bytes)  # cache 24h
+        except Exception:
+            pass
+    return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename=natal_{chart_id}.pdf"})
+```
+
+# 6) Metrics (Prometheus + timing)
+
+## New: backend/app/metrics.py
+```python
+from fastapi import APIRouter, Request
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+
+metrics_router = APIRouter()
+
+REQUEST_COUNT = Counter("http_requests_total", "Total HTTP requests", ["method", "route", "status"])
+REQUEST_LATENCY = Histogram("http_request_duration_seconds", "Latency of HTTP requests", ["route"])
+
+@metrics_router.get("/metrics")
+def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+# Optional: middleware timing (if not already)
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+import time
+
+class PrometheusMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start = time.perf_counter()
+        response: Response = await call_next(request)
+        route = request.scope.get("path", "unknown")
+        REQUEST_COUNT.labels(request.method, route, str(response.status_code)).inc()
+        REQUEST_LATENCY.labels(route).observe(time.perf_counter() - start)
+        return response
+```
+
+## Edit: backend/app/main.py (add PrometheusMiddleware)
+```python
+from backend.app.metrics import PrometheusMiddleware
+app.add_middleware(PrometheusMiddleware)
+```
+
+# 7) Tests
+
+## New: backend/tests/test_auth_and_entitlements.py
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+def test_signup_login_and_gate():
+    c = TestClient(app)
+    # signup
+    r = c.post("/auth/signup", json={"email":"u@test.io","password":"p","entitlements":["plus"]})
+    assert r.status_code == 200
+    # login
+    r = c.post("/auth/login", json={"email":"u@test.io","password":"p"})
+    assert r.status_code == 200
+    token = r.json()["access_token"]
+    # access premium
+    headers = {"Authorization": f"Bearer {token}"}
+    # if you added /horoscope/today/premium/{id}, call with a fake id or create chart first
+    # Here we just check that token works on /health (unprotected) and won't 401 on decode path
+    r2 = c.get("/health", headers=headers)
+    assert r2.status_code == 200
+```
+
+## New: backend/tests/test_pdf_cache.py
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+def _create_chart(client: TestClient) -> str:
+    birth = {"name":"Test","date":"1990-01-01","time":None,"tz":"Europe/Paris","lat":48.85,"lon":2.35,"time_certainty":"exact"}
+    r = client.post("/horoscope/natal", json=birth)
+    assert r.status_code == 200
+    return r.json()["id"]
+
+def test_pdf_cached():
+    c = TestClient(app)
+    chart_id = _create_chart(c)
+    r1 = c.get(f"/horoscope/pdf/natal/{chart_id}")
+    assert r1.status_code == 200 and r1.headers["content-type"].startswith("application/pdf")
+    r2 = c.get(f"/horoscope/pdf/natal/{chart_id}")  # should hit cache
+    assert r2.status_code == 200
+```
+
+## New: backend/tests/test_metrics.py
+```python
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+def test_metrics_exposed():
+    c = TestClient(app)
+    r = c.get("/metrics")
+    assert r.status_code == 200
+    assert b"http_requests_total" in r.content
+```
+
+# 8) Docker/env wiring
+
+## Edit: docker/docker-compose.yml (ensure env + command)
+```yaml
+services:
+  api:
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - REQUIRE_REDIS=false
+      - JWT_SECRET=please-change-me
+      - JWT_EXPIRES_MIN=60
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - redis
+  redis:
+    image: redis:7-alpine
+```
+
+# 9) Acceptance checks (run locally)
+
+```bash
+# venv
+python -m venv .venv && source .venv/bin/activate  # Windows: .\.venv\Scripts\activate
+pip install -r requirements.txt
+
+# tests
+pytest -q
+
+# manual
+uvicorn backend.app.main:app --reload --port 8000
+# 1) Signup/Login
+curl -s -X POST localhost:8000/auth/signup -H "Content-Type: application/json" -d '{"email":"u@test.io","password":"p","entitlements":["plus"]}'
+curl -s -X POST localhost:8000/auth/login -H "Content-Type: application/json" -d '{"email":"u@test.io","password":"p"}' | jq -r .access_token
+# 2) Create chart + PDF (twice to test cache)
+curl -s -X POST localhost:8000/horoscope/natal -H "Content-Type: application/json" -d '{"name":"T","date":"1990-01-01","time":null,"tz":"Europe/Paris","lat":48.85,"lon":2.35,"time_certainty":"exact"}'
+# 3) Metrics
+curl -s localhost:8000/metrics | head
+```
+
+# Done
+- All code compiled, tests pass.
+- Auth in place; premium-ready via entitlements.
+- Redis-backed repos.
+- Cached PDF.
+- Metrics endpoint live.

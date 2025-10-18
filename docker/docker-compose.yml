@@ -14,6 +14,8 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
       - REQUIRE_REDIS=false
+      - JWT_SECRET=please-change-me
+      - JWT_EXPIRES_MIN=60
     volumes:
       - ..:/app:cached
     command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload

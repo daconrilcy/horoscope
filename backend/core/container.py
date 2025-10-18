@@ -3,7 +3,12 @@ import os
 from backend.core.settings import get_settings
 from backend.infra.astro.internal_astro import InternalAstroEngine
 from backend.infra.content_repo import JSONContentRepository
-from backend.infra.repositories import InMemoryChartRepo, RedisChartRepo
+from backend.infra.repositories import (
+    InMemoryChartRepo,
+    RedisChartRepo,
+    InMemoryUserRepo,
+    RedisUserRepo,
+)
 
 
 class Container:
@@ -28,6 +33,17 @@ class Container:
                 raise RuntimeError("Redis required but REDIS_URL not set")
             self.chart_repo = InMemoryChartRepo()
             self.storage_backend = "memory"
+
+        # users
+        if self.settings.REDIS_URL:
+            try:
+                self.user_repo = RedisUserRepo(self.settings.REDIS_URL)
+            except Exception as err:
+                if getattr(self.settings, "REQUIRE_REDIS", False):
+                    raise RuntimeError("Redis required but unavailable") from err
+                self.user_repo = InMemoryUserRepo()
+        else:
+            self.user_repo = InMemoryUserRepo()
 
 
 container = Container()

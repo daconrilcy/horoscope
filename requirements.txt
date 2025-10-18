@@ -17,5 +17,10 @@ anyio>=4.4.0
 # new deps
 redis>=5.0.8
 reportlab>=4.2.5
+# auth, metrics, validation
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+prometheus-client>=0.20.0
+email-validator>=2.1.0
 # Objectif du fichier: dépendances Python requises pour le backend.
 # TODO: préciser versions épinglées si nécessaire.

@@ -12,6 +12,8 @@ from fastapi import FastAPI
 
 from backend.api.routes_health import router as health_router
 from backend.api.routes_horoscope import router as horoscope_router
+from backend.api.routes_auth import router as auth_router
+from backend.app.metrics import metrics_router, PrometheusMiddleware
 from backend.core.container import container
 from backend.core.logging import setup_logging
 from backend.middlewares.request_id import RequestIDMiddleware
@@ -31,9 +33,12 @@ def create_app() -> FastAPI:
     settings = container.settings
     app = FastAPI(title=settings.APP_NAME, debug=settings.APP_DEBUG)
     app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(PrometheusMiddleware)
     app.add_middleware(TimingMiddleware)
     app.include_router(health_router)
+    app.include_router(auth_router)
     app.include_router(horoscope_router)
+    app.include_router(metrics_router)
     return app
 
 
