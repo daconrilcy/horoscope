@@ -1,8 +1,8 @@
-from typing import Dict, Any, List
+from typing import Any
 
 
 class FakeDeterministicAstro:
-    def compute_natal_chart(self, birth) -> Dict[str, Any]:
+    def compute_natal_chart(self, birth) -> dict[str, Any]:
         return {
             "name": birth.name,
             "birth": birth.model_dump(),
@@ -10,7 +10,7 @@ class FakeDeterministicAstro:
             "factors": [{"axis": "SUN"}, {"axis": "ASC"}, {"axis": "MC"}],
         }
 
-    def compute_daily_transits(self, natal: Dict[str, Any], day_iso: str) -> List[Dict[str, Any]]:
+    def compute_daily_transits(self, natal: dict[str, Any], day_iso: str) -> list[dict[str, Any]]:
         axes = ["SUN", "MARS", "ASC", "MERCURY", "SATURN", "MC"]
         return [
             {

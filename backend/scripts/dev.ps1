@@ -24,7 +24,7 @@ if (Test-Path $venvActivate) {
 }
 
 # Helpers
-function Strip-InlineComment([string]$s) {
+function StripInlineComment([string]$s) {
   if (-not $s) { return $s }
   $sb = New-Object System.Text.StringBuilder
   $inS = $false; $inD = $false
@@ -49,7 +49,7 @@ if (Test-Path $envPath) {
     if ($idx -lt 1) { return }
     $key = $line.Substring(0, $idx).Trim()
     $val = $line.Substring($idx + 1)
-    $val = Strip-InlineComment $val
+    $val = StripInlineComment $val
     $val = $val.Trim()
     if ($val.Length -ge 2) {
       $dq = [char]34  # "

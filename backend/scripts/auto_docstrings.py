@@ -13,12 +13,11 @@ signature (paramètres, types, retour) et une section TODO.
 
 from __future__ import annotations
 
-import ast
-from dataclasses import dataclass
 import argparse
+import ast
+from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Tuple, Optional
-
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = BACKEND_ROOT.parents[0]
@@ -28,7 +27,7 @@ SELF_PATH = Path(__file__).resolve()
 @dataclass
 class Insertion:
     index: int
-    lines: List[str]
+    lines: list[str]
 
 
 def list_py_files(root: Path) -> Iterable[Path]:
@@ -44,7 +43,7 @@ def has_module_docstring(module: ast.Module) -> bool:
     return ast.get_docstring(module, clean=False) is not None
 
 
-def get_shebang_and_encoding_prefix_len(lines: List[str]) -> int:
+def get_shebang_and_encoding_prefix_len(lines: list[str]) -> int:
     i = 0
     if i < len(lines) and lines[i].startswith("#!"):
         i += 1
@@ -73,7 +72,7 @@ def guess_module_purpose(path: Path) -> str:
     return "Objectif du module à préciser."
 
 
-def make_module_docstring(path: Path) -> List[str]:
+def make_module_docstring(path: Path) -> list[str]:
     rel = path.as_posix()
     title = f"Module {rel}"
     purpose = guess_module_purpose(path)
@@ -86,7 +85,7 @@ def make_module_docstring(path: Path) -> List[str]:
     return [doc]
 
 
-def _ann_to_str(node: Optional[ast.AST]) -> str:
+def _ann_to_str(node: ast.AST|None) -> str:
     if node is None:
         return "Any"
     try:
@@ -95,8 +94,8 @@ def _ann_to_str(node: Optional[ast.AST]) -> str:
         return "Any"
 
 
-def _format_params(args: ast.arguments) -> List[Tuple[str, str]]:
-    params: List[Tuple[str, str]] = []
+def _format_params(args: ast.arguments) -> list[tuple[str, str]]:
+    params: list[tuple[str, str]] = []
     for a in args.posonlyargs + args.args:
         if a.arg == "self":
             continue
@@ -110,8 +109,8 @@ def _format_params(args: ast.arguments) -> List[Tuple[str, str]]:
     return params
 
 
-def _pydantic_fields(cls: ast.ClassDef) -> List[Tuple[str, str]]:
-    out: List[Tuple[str, str]] = []
+def _pydantic_fields(cls: ast.ClassDef) -> list[tuple[str, str]]:
+    out: list[tuple[str, str]] = []
     for stmt in cls.body:
         if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
             out.append((stmt.target.id, _ann_to_str(stmt.annotation)))
@@ -129,11 +128,11 @@ def _is_pydantic_model(cls: ast.ClassDef) -> bool:
     return False
 
 
-def generate_entity_docstring_for_function(fn: ast.AST, indent: str) -> List[str]:
+def generate_entity_docstring_for_function(fn: ast.AST, indent: str) -> list[str]:
     assert isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef))
     params = _format_params(fn.args)
     ret = _ann_to_str(fn.returns)
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append(indent + '"""' + f"Fonction {fn.name}." + "\n")
     if params:
         lines.append(indent + "\n" + indent + "Paramètres:\n")
@@ -147,10 +146,10 @@ def generate_entity_docstring_for_function(fn: ast.AST, indent: str) -> List[str
     return lines
 
 
-def generate_entity_docstring_for_class(cls: ast.ClassDef, indent: str) -> List[str]:
+def generate_entity_docstring_for_class(cls: ast.ClassDef, indent: str) -> list[str]:
     pydantic = _is_pydantic_model(cls)
     fields = _pydantic_fields(cls) if pydantic else []
-    lines: List[str] = []
+    lines: list[str] = []
     title = f"Modèle Pydantic {cls.name}" if pydantic else f"Classe {cls.name}"
     lines.append(indent + '"""' + title + ".\n")
     if fields:
@@ -163,13 +162,13 @@ def generate_entity_docstring_for_class(cls: ast.ClassDef, indent: str) -> List[
     return lines
 
 
-def first_body_indent(lines: List[str], lineno: int) -> str:
+def first_body_indent(lines: list[str], lineno: int) -> str:
     idx = max(0, min(len(lines) - 1, lineno - 1))
     line = lines[idx]
     return line[: len(line) - len(line.lstrip(" \t"))]
 
 
-def insert_module_docstring(lines: List[str], path: Path, module: ast.Module) -> List[str]:
+def insert_module_docstring(lines: list[str], path: Path, module: ast.Module) -> list[str]:
     if has_module_docstring(module):
         return lines
     ins_at = get_shebang_and_encoding_prefix_len(lines)
@@ -177,8 +176,8 @@ def insert_module_docstring(lines: List[str], path: Path, module: ast.Module) ->
     return lines[:ins_at] + header + lines[ins_at:]
 
 
-def collect_docstring_insertions(tree: ast.AST, lines: List[str]) -> List[Insertion]:
-    insertions: List[Insertion] = []
+def collect_docstring_insertions(tree: ast.AST, lines: list[str]) -> list[Insertion]:
+    insertions: list[Insertion] = []
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if not node.body:
@@ -198,7 +197,7 @@ def collect_docstring_insertions(tree: ast.AST, lines: List[str]) -> List[Insert
     return insertions
 
 
-def apply_insertions(lines: List[str], insertions: List[Insertion]) -> List[str]:
+def apply_insertions(lines: list[str], insertions: list[Insertion]) -> list[str]:
     for ins in insertions:
         lines = lines[: ins.index] + ins.lines + lines[ins.index :]
     return lines
@@ -210,8 +209,8 @@ def _is_placeholder_docstring(s: str) -> bool:
     return any(k in t for k in keys)
 
 
-def _remove_stray_string_exprs(lines: List[str], tree: ast.AST) -> Tuple[List[str], int]:
-    to_remove: List[Tuple[int, int]] = []
+def _remove_stray_string_exprs(lines: list[str], tree: ast.AST) -> tuple[list[str], int]:
+    to_remove: list[tuple[int, int]] = []
 
     def record_span(n: ast.AST):
         ln = getattr(n, "lineno", None)
@@ -222,16 +221,21 @@ def _remove_stray_string_exprs(lines: List[str], tree: ast.AST) -> Tuple[List[st
 
     valid_ids = set()
     if isinstance(tree, ast.Module) and tree.body:
-        if isinstance(tree.body[0], ast.Expr) and isinstance(getattr(tree.body[0], "value", None), ast.Constant) and isinstance(tree.body[0].value.value, str):
+        if isinstance(tree.body[0], ast.Expr) \
+              and isinstance(getattr(tree.body[0], "value", None), ast.Constant) \
+        and isinstance(tree.body[0].value.value, str):
             valid_ids.add(id(tree.body[0]))
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.body:
             first = node.body[0]
-            if isinstance(first, ast.Expr) and isinstance(getattr(first, "value", None), ast.Constant) and isinstance(first.value.value, str):
+            if isinstance(first, ast.Expr) and isinstance(getattr(first, "value", None), 
+                                                          ast.Constant) \
+                                                            and isinstance(first.value.value, str):
                 valid_ids.add(id(first))
 
     for node in ast.walk(tree):
-        if isinstance(node, ast.Expr) and isinstance(getattr(node, "value", None), ast.Constant) and isinstance(node.value.value, str):
+        if isinstance(node, ast.Expr) and isinstance(getattr(node, "value", None), ast.Constant) \
+            and isinstance(node.value.value, str):
             if id(node) not in valid_ids:
                 record_span(node)
 
@@ -246,16 +250,17 @@ def _remove_stray_string_exprs(lines: List[str], tree: ast.AST) -> Tuple[List[st
     return new_lines, removed
 
 
-def _replace_placeholder_docstrings(lines: List[str], tree: ast.AST, path: Path) -> Tuple[List[str], int, bool]:
+def _replace_placeholder_docstrings(lines: list[str], tree: ast.AST, path: Path) -> tuple[list[str], int, bool]:  # noqa: E501
     new_lines = lines[:]
     replaced = 0
     module_replaced = False
-    replacements: List[Tuple[int, int, List[str]]] = []
+    replacements: list[tuple[int, int, list[str]]] = []
 
     # Module docstring
     if isinstance(tree, ast.Module) and tree.body:
         n0 = tree.body[0]
-        if isinstance(n0, ast.Expr) and isinstance(getattr(n0, "value", None), ast.Constant) and isinstance(n0.value.value, str):
+        if isinstance(n0, ast.Expr) and isinstance(getattr(n0, "value", None), ast.Constant) \
+            and isinstance(n0.value.value, str):
             if _is_placeholder_docstring(n0.value.value) or "Objectif du module" in n0.value.value:
                 header = make_module_docstring(path)
                 start = n0.lineno - 1
@@ -267,7 +272,8 @@ def _replace_placeholder_docstrings(lines: List[str], tree: ast.AST, path: Path)
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.body:
             first = node.body[0]
-            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
+            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) \
+                and isinstance(first.value.value, str):
                 if _is_placeholder_docstring(first.value.value):
                     indent = first_body_indent(new_lines, first.lineno)
                     gen = generate_entity_docstring_for_function(node, indent)
@@ -276,7 +282,8 @@ def _replace_placeholder_docstrings(lines: List[str], tree: ast.AST, path: Path)
                     replacements.append((start, end, gen))
         elif isinstance(node, ast.ClassDef) and node.body:
             first = node.body[0]
-            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
+            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) \
+                and isinstance(first.value.value, str):
                 if _is_placeholder_docstring(first.value.value):
                     indent = first_body_indent(new_lines, node.lineno + 1)
                     gen = generate_entity_docstring_for_class(node, indent)
@@ -293,7 +300,7 @@ def _replace_placeholder_docstrings(lines: List[str], tree: ast.AST, path: Path)
     return new_lines, replaced, module_replaced
 
 
-def process_py_file(path: Path) -> Tuple[bool, str]:
+def process_py_file(path: Path) -> tuple[bool, str]:
     original = path.read_text(encoding="utf-8")
     lines = original.splitlines(keepends=True)
     try:
@@ -322,7 +329,7 @@ def process_py_file(path: Path) -> Tuple[bool, str]:
         tree4 = ast.parse("".join(cleaned_lines))
     except SyntaxError:
         tree4 = tree3
-    enriched_lines, replaced, _module_rep = _replace_placeholder_docstrings(cleaned_lines, tree4, path)
+    enriched_lines, replaced, _module_rep = _replace_placeholder_docstrings(cleaned_lines, tree4, path)  # noqa: E501
 
     final_lines = enriched_lines
     if final_lines == lines:
@@ -331,7 +338,7 @@ def process_py_file(path: Path) -> Tuple[bool, str]:
     return True, f"updated (+{len(insertions)} insertions, -{removed} stray, ~{replaced} enriched)"
 
 
-def _process_py_file_insert_only(path: Path) -> Tuple[bool, str]:
+def _process_py_file_insert_only(path: Path) -> tuple[bool, str]:
     """Variant sûre: insère module docstring et docstrings entités uniquement.
     Pas de suppression ni remplacement, pour éviter les risques sur la syntaxe.
     """
@@ -365,9 +372,9 @@ def _add_header_comment(text: str, purpose: str) -> str:
     return "".join(lines[:ins] + header + lines[ins:])
 
 
-def process_non_python_files() -> List[Path]:
+def process_non_python_files() -> list[Path]:
     exts = {".sh", ".ps1", ".yml", ".yaml", ".toml", ".ini", ".txt"}
-    changed: List[Path] = []
+    changed: list[Path] = []
     for path in REPO_ROOT.rglob("*"):
         if not path.is_file():
             continue
@@ -403,9 +410,9 @@ def run_for_root(root: Path, do_clean: bool, include_non_python: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Auto-docstring pour backend")
-    parser.add_argument("--path", type=str, default=str(BACKEND_ROOT), help="Chemin à traiter (par défaut: backend)")
-    parser.add_argument("--include-non-python", action="store_true", help="Ajouter des en-têtes aux fichiers non-Python")
-    parser.add_argument("--no-clean", action="store_true", help="N'effectuer que l'insertion (pas de nettoyage/enrichissement)")
+    parser.add_argument("--path", type=str, default=str(BACKEND_ROOT), help="Chemin à traiter (par défaut: backend)")  # noqa: E501
+    parser.add_argument("--include-non-python", action="store_true", help="Ajouter des en-têtes aux fichiers non-Python")  # noqa: E501
+    parser.add_argument("--no-clean", action="store_true", help="N'effectuer que l'insertion (pas de nettoyage/enrichissement)")  # noqa: E501
     args = parser.parse_args()
 
     root = Path(args.path).resolve()

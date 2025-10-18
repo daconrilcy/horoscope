@@ -3,6 +3,7 @@ Endpoint de santé pour vérifier la disponibilité de l'API.
 """
 
 from fastapi import APIRouter
+
 from backend.core.container import container
 
 router = APIRouter(tags=["health"])

@@ -1,15 +1,15 @@
 import io
 import re
 
-from backend.core.container import container
-from backend.domain.entities import BirthInput
-from backend.domain.services import HoroscopeService
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas as pdfcanvas
 
 from backend.api.schemas import BirthRequest, NatalResponse, TodayResponse
+from backend.core.container import container
+from backend.domain.entities import BirthInput
+from backend.domain.services import HoroscopeService
 
 router = APIRouter(prefix="/horoscope", tags=["horoscope"])
 service = HoroscopeService(container.astro, container.content_repo, container.chart_repo)
