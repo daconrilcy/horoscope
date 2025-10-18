@@ -181,7 +181,10 @@ def collect_docstring_insertions(tree: ast.AST, lines: List[str]) -> List[Insert
     insertions: List[Insertion] = []
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if not ast.get_docstring(node, clean=False) and node.body:
+            if not node.body:
+                continue
+            # Always place docstring strictly at the first line of the body
+            if not ast.get_docstring(node, clean=False):
                 first_stmt = node.body[0]
                 indent = first_body_indent(lines, first_stmt.lineno)
                 doc_lines = generate_entity_docstring_for_function(node, indent)
