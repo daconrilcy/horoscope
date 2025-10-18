@@ -1,6 +1,6 @@
 #! Horoscope Backend (FastAPI + Docker)
 
-Backend FastAPI avec Docker Compose (API + Postgres + Redis). Structure inspirée DDD/Clean.
+Backend FastAPI avec Docker Compose (API + Redis). Architecture DDD/Clean.
 
 ## Pré-requis
 - Python 3.12+
@@ -29,27 +29,16 @@ Backend FastAPI avec Docker Compose (API + Postgres + Redis). Structure inspiré
 ## Docker Compose
 Fichier: `docker/docker-compose.yml`
 - Services:
-  - `api`: FastAPI en reload, bind-mount du repo pour le dev (profil `dev`).
-  - `db`: Postgres 16 (volume `pgdata`, healthcheck `pg_isready`).
-  - `redis`: Redis 7 (volume `redisdata`, healthcheck `redis-cli ping`).
-- Dépendances: `api` attend que `db` et `redis` soient healthy.
-- Env: `.env.example` est chargé (ex: `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGINS`).
+  - `api`: FastAPI en reload, bind-mount du repo pour le dev, `PYTHONPATH=/app/backend` défini.
+  - `redis`: Redis 7.
+- Env: `.env.example` est chargé (ex: `REDIS_URL`, `CORS_ORIGINS`).
 
 Commandes utiles:
-- `docker compose -f docker/docker-compose.yml --profile dev up --build`
+- `docker compose -f docker/docker-compose.yml up --build`
 - `docker compose -f docker/docker-compose.yml down -v` (arrêt + suppression des volumes)
 
-Profils:
-- `dev`: services `api`, `db`, `redis` (reload + bind-mount)
-- `prod`: service `api-prod` (sans bind-mount, sans reload) + `db`, `redis`
-
-Exemples:
-- Dev: `docker compose -f docker/docker-compose.yml --profile dev up --build`
-- Prod: `docker compose -f docker/docker-compose.yml --profile prod up --build -d`
-
 ## Tests
-- Unix/macOS: `PYTHONPATH=backend pytest -q`
-- Windows PowerShell: `$env:PYTHONPATH='backend'; pytest -q`
+- `pytest -q` (le fichier `pytest.ini` pointe vers `backend/tests`)
 
 ## Arborescence
 - `backend/api/` routes et schémas IO
@@ -63,8 +52,11 @@ Exemples:
 
 ## Endpoints utiles
 - Health: `GET /health`
+- Horoscope:
+  - `POST /horoscope/natal` (payload naissance) → `{id, owner, chart}`
+  - `GET /horoscope/today/{chart_id}` → leaders/influences/E-A-O/snippets/precision_score
+  - `GET /horoscope/pdf/natal/{chart_id}` → PDF minimal
 - Docs: `/docs` (Swagger), `/redoc` (Redoc)
 
 Exemples curl
 - `curl -s http://localhost:8000/health | jq .`
-

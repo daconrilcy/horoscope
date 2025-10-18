@@ -1,31 +1,29 @@
-"""Schémas Pydantic exposés par l'API.
+from typing import Literal
 
-Objectif du module
-------------------
-- Définir des contrats d'entrée/sortie stables pour les endpoints.
-- Séparer les modèles de domaine (`domain.models`) des schémas API pour éviter
-  les fuites d'implémentation côté client.
-"""
-
-from domain.models import Chart
 from pydantic import BaseModel
 
 
-class ComputeChartRequest(BaseModel):
-    """Payload attendu pour demander le calcul d'une carte natale."""
-
+class BirthRequest(BaseModel):
     name: str
     date: str
-    time: str
+    time: str | None = None
     tz: str
     lat: float
     lon: float
+    time_certainty: Literal["exact", "morning", "afternoon", "evening", "unknown"] = "exact"
 
 
-class ChartResponse(Chart):
-    """Réponse renvoyée par l'API pour une carte calculée.
+class NatalResponse(BaseModel):
+    id: str
+    owner: str
+    chart: dict
 
-    Hérite du modèle de domaine `Chart` pour exposer les mêmes champs.
-    """
 
-    pass
+class TodayResponse(BaseModel):
+    date: str
+    leaders: list[dict]
+    influences: list[dict]
+    eao: dict
+    snippets: list[dict]
+    precision_score: int
+

@@ -1,25 +1,32 @@
-"""Dépôts (repositories) d'accès aux données.
+import json
+from typing import Any
 
-Objectif du module
-------------------
-- Offrir une abstraction de persistance pour les charts.
-"""
-
-from domain.models import Chart
+import redis
 
 
 class InMemoryChartRepo:
-    """Stockage en mémoire pour les charts (usage démo/tests)."""
-
     def __init__(self):
-        # Dictionnaire interne simulant une base clé/valeur
-        self._db: dict[str, Chart] = {}
+        self._db: dict[str, dict[str, Any]] = {}
 
-    def save(self, chart: Chart) -> Chart:
-        """Persiste ou remplace une chart par son identifiant et la retourne."""
-        self._db[chart.id] = chart
-        return chart
+    def save(self, record: dict[str, Any]) -> dict[str, Any]:
+        self._db[record["id"]] = record
+        return record
 
-    def get(self, chart_id: str) -> Chart | None:
-        """Récupère une chart par identifiant, ou None si absente."""
+    def get(self, chart_id: str) -> dict[str, Any] | None:
         return self._db.get(chart_id)
+
+
+class RedisChartRepo:
+    def __init__(self, url: str):
+        self.client = redis.Redis.from_url(url, decode_responses=True)
+
+    def save(self, record: dict[str, Any]) -> dict[str, Any]:
+        key = f"chart:{record['id']}"
+        self.client.set(key, json.dumps(record))
+        return record
+
+    def get(self, chart_id: str) -> dict[str, Any] | None:
+        key = f"chart:{chart_id}"
+        raw = self.client.get(key)
+        return json.loads(raw) if raw else None
+

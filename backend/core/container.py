@@ -1,20 +1,27 @@
-"""Conteneur minimal de dépendances.
+import os
 
-Objectif du module
-------------------
-- Fournir un point unique pour accéder aux dépendances globales (ex: settings).
-- Évolutif vers un conteneur d'injection de dépendances si nécessaire.
-"""
+from infra.astro.internal_astro import InternalAstroEngine
+from infra.content_repo import JSONContentRepository
+from infra.repositories import InMemoryChartRepo, RedisChartRepo
 
 from core.settings import get_settings
 
 
 class Container:
-    """Expose les dépendances construites à l'initialisation de l'app."""
-
     def __init__(self):
-        # Configuration applicative chargée depuis l'environnement et .env
         self.settings = get_settings()
+        base_dir = os.path.dirname(__file__)
+        infra_dir = os.path.normpath(os.path.join(base_dir, "..", "infra"))
+        content_path = os.path.join(infra_dir, "content.json")
+        self.content_repo = JSONContentRepository(path=content_path)
+        self.astro = InternalAstroEngine()
+        if self.settings.REDIS_URL:
+            try:
+                self.chart_repo = RedisChartRepo(self.settings.REDIS_URL)
+            except Exception:
+                self.chart_repo = InMemoryChartRepo()
+        else:
+            self.chart_repo = InMemoryChartRepo()
 
 
 container = Container()

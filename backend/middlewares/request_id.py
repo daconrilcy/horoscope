@@ -1,19 +1,18 @@
-"""Middleware qui attache un identifiant de requête (X-Request-ID)."""
-
-import uuid
+from collections.abc import Callable
+from uuid import uuid4
 
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-
-HEADER = "X-Request-ID"
+from starlette.types import ASGIApp
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
-    """Garantit qu'un X-Request-ID est présent et propagé dans la réponse."""
+    def __init__(self, app: ASGIApp, header_name: str = "X-Request-ID") -> None:
+        super().__init__(app)
+        self.header_name = header_name
 
-    async def dispatch(self, request: Request, call_next):
-        req_id = request.headers.get(HEADER) or str(uuid.uuid4())
-        request.state.request_id = req_id
+    async def dispatch(self, request, call_next: Callable):
+        request_id = request.headers.get(self.header_name) or str(uuid4())
         response = await call_next(request)
-        response.headers[HEADER] = req_id
+        response.headers[self.header_name] = request_id
         return response
+

@@ -1,16 +1,19 @@
-"""Middleware qui mesure le temps de traitement d'une requête."""
-
 import time
+from collections.abc import Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
+from starlette.types import ASGIApp
 
 
 class TimingMiddleware(BaseHTTPMiddleware):
-    """Ajoute un en-tête `X-Process-Time` indiquant la durée de traitement."""
+    def __init__(self, app: ASGIApp, header_name: str = "X-Process-Time-ms") -> None:
+        super().__init__(app)
+        self.header_name = header_name
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request, call_next: Callable):
         start = time.perf_counter()
         response = await call_next(request)
-        response.headers["X-Process-Time"] = f"{(time.perf_counter() - start):.4f}s"
+        duration_ms = int((time.perf_counter() - start) * 1000)
+        response.headers[self.header_name] = str(duration_ms)
         return response
+

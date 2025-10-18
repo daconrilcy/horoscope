@@ -76,4 +76,3 @@ print(settings.APP_ENV, settings.DATABASE_URL)
 ```
 
 `get_settings()` construit une instance de configuration en appliquant les priorités ci‑dessus.
-

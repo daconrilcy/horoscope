@@ -26,3 +26,4 @@ def setup_logging():
         logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
         cache_logger_on_first_use=True,
     )
+

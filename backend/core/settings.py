@@ -54,3 +54,4 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Construit et retourne la configuration de l'application."""
     return Settings()
+

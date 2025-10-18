@@ -1,28 +1,39 @@
-"""Services métier encapsulant la logique de calcul de chart.
-
-Objectif du module
-------------------
-- Proposer des opérations métier (ex: calculer une carte) isolées de l'API et
-  de l'infrastructure.
-"""
-
 import uuid
+from datetime import date as _date
+from typing import Any
 
-from domain.models import BirthData, Chart
+from domain.entities import BirthInput, User
+from domain.today_heuristic import energy_attention_opportunity, pick_today
 
 
-class ChartService:
-    """Expose la logique de calcul d'une carte.
+class HoroscopeService:
+    def __init__(self, astro_engine, content_repo, chart_repo):
+        self.astro = astro_engine
+        self.content = content_repo
+        self.charts = chart_repo
 
-    Implémentation actuelle mockée; à remplacer par un calcul réel (éphémérides,
-    librairies astro, LLM, etc.).
-    """
+    def compute_natal(self, birth: BirthInput) -> dict[str, Any]:
+        chart = self.astro.compute_natal_chart(birth)
+        chart_id = str(uuid.uuid4())
+        chart_record = {"id": chart_id, "owner": birth.name, "chart": chart}
+        self.charts.save(chart_record)
+        return chart_record
 
-    def compute_chart(self, birth: BirthData) -> Chart:
-        """Calcule (mock) et retourne une `Chart` à partir des données de naissance."""
-        # TODO: brancher un calcul réel (éphémérides/LLM) ultérieurement
-        return Chart(
-            id=str(uuid.uuid4()),
-            owner=birth.name,
-            summary=f"Mock chart for {birth.name} ({birth.date} at {birth.time} {birth.tz})",
-        )
+    def get_today(self, chart_id: str, user: User | None = None) -> dict[str, Any]:
+        chart = self.charts.get(chart_id)
+        if not chart:
+            raise KeyError("chart_not_found")
+        today = _date.today().isoformat()
+        transits = self.astro.compute_daily_transits(chart["chart"], today)
+        leaders, influences = pick_today(transits)
+        eao = energy_attention_opportunity(leaders)
+        snippets = [self.content.get_snippet(f["snippet_id"]) for f in leaders if "snippet_id" in f]
+        return {
+            "date": today,
+            "leaders": leaders,
+            "influences": influences,
+            "eao": eao,
+            "snippets": snippets,
+            "precision_score": chart["chart"].get("precision_score", 1),
+        }
+
