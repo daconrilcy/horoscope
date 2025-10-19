@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from backend.app.metrics import RETRIEVAL_DUAL_WRITE_ERRORS

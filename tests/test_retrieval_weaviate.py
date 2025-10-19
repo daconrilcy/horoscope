@@ -5,13 +5,10 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from backend.api.routes_retrieval import router
 
 
 class _DummyResp:
@@ -36,6 +33,7 @@ def test_weaviate_search_ok(monkeypatch: Any) -> None:
 
     # Recharger le router pour forcer la (ré)construction du proxy avec les env
     import importlib
+
     import backend.api.routes_retrieval as routes
 
     importlib.reload(routes)
@@ -79,6 +77,7 @@ def test_weaviate_search_502_on_network(monkeypatch: Any) -> None:
     monkeypatch.setenv("WEAVIATE_URL", "https://example.weaviate.local")
 
     import importlib
+
     import backend.api.routes_retrieval as routes
 
     importlib.reload(routes)
@@ -110,6 +109,7 @@ def test_weaviate_429_rate_limit(monkeypatch: Any) -> None:
     monkeypatch.setenv("WEAVIATE_URL", "https://example.weaviate.local")
 
     import importlib
+
     import backend.api.routes_retrieval as routes
 
     importlib.reload(routes)
@@ -149,6 +149,7 @@ def test_search_topk_bounds_and_offset_errors() -> None:
     # Basic validation: top_k out of bounds and negative offset
     app = FastAPI()
     import importlib
+
     import backend.api.routes_retrieval as routes
 
     importlib.reload(routes)

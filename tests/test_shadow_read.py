@@ -25,7 +25,6 @@ def test_shadow_read_agreement(monkeypatch: Any) -> None:
 
     # Monkeypatch orchestrator to avoid real FAISS/LLM work
     import backend.domain.chat_orchestrator as mod
-    import backend.services.retrieval_proxy as proxy_mod
 
     # primary results: ids a,b,c,d,e
     class _S:
