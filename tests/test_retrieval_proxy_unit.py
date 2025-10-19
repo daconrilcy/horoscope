@@ -7,8 +7,13 @@ from __future__ import annotations
 
 import os
 
-from backend.services.retrieval_proxy import RetrievalProxy, WeaviateAdapter, FAISSAdapter
-from backend.services.retrieval_proxy import PineconeAdapter, ElasticVectorAdapter
+from backend.services.retrieval_proxy import (
+    ElasticVectorAdapter,
+    FAISSAdapter,
+    PineconeAdapter,
+    RetrievalProxy,
+    WeaviateAdapter,
+)
 
 
 def test_proxy_default_faiss() -> None:
@@ -43,9 +48,8 @@ def test_weaviate_embed_raises_on_empty() -> None:
     try:
         a.embed_texts([])
     except ValueError:
-        pass
-    else:  # pragma: no cover - should not happen
-        assert False
+        return
+    raise AssertionError()
 
 
 def test_proxy_selects_other_adapters() -> None:
