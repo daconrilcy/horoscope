@@ -23,14 +23,9 @@ def upgrade() -> None:
         sa.Column("embed_params", sa.JSON(), nullable=False),
         sa.Column("tenant", sa.String(length=64), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
-    )
-    op.create_unique_constraint(
-        "uq_source_version_tenant",
-        "content_versions",
-        ["source", "version", "tenant"],
+        sa.UniqueConstraint("source", "version", "tenant", name="uq_source_version_tenant"),
     )
 
 
 def downgrade() -> None:
-    op.drop_constraint("uq_source_version_tenant", "content_versions", type_="unique")
     op.drop_table("content_versions")
