@@ -5,11 +5,11 @@ os.environ.setdefault("EMBEDDINGS_PROVIDER", "local")
 os.environ.setdefault("OPENAI_API_KEY", "test")
 
 import uvicorn  # noqa: E402
+from backend.tests.fakes import FakeLLM  # noqa: E402
 
 from backend.api import routes_chat  # noqa: E402
 from backend.app.main import app  # noqa: E402
 from backend.domain.chat_orchestrator import ChatOrchestrator  # noqa: E402
-from backend.tests.fakes import FakeLLM  # noqa: E402
 
 
 def main():

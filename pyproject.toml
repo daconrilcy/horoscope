@@ -44,7 +44,7 @@ extend-ignore = [
 convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
-"backend/tests/**/*.py" = ["D"]
+"tests/**/*.py" = ["D"]
 "**/__init__.py" = ["D"]
 "backend/api/routes_chat.py" = ["B008"]
 # Objectif du fichier: configuration de projet et outils (pytest, ruff, etc.).

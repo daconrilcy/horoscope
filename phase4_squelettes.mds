@@ -1,0 +1,979 @@
+# Phase 4 – Industrialisation & Gouvernance (.mds)
+**But :** fournir des *squelettes de fichiers* prêts à implémenter, conformes aux contraintes :  
+- **Pas de `typing.Dict/List/Optional/Str`** (utiliser `dict`, `list`, `str`, `X | None`).  
+- **Commentaires obligatoires** : en-tête de *chaque module*, commentaire + **docstring** pour *chaque fonction/méthode*.  
+- **Vérifications** : imports propres, `ruff check --fix`, `ruff format`, `pytest -q`.  
+
+> Tous les chemins sont relatifs à la racine du repo. Copie/colle chaque bloc dans le fichier indiqué.
+
+
+---
+
+## 0) Makefile & Scripts
+
+### `Makefile`
+```make
+# ============================================================
+# Makefile — Qualité & Vérifications
+# Objet : centraliser les commandes de lint, format, tests.
+# ============================================================
+
+.PHONY: lint test typecheck verify
+
+lint:
+	@ruff check backend --fix && ruff format backend
+
+test:
+	@pytest -q
+
+typecheck:
+	# Mypy en mode informatif (pas d'échec bloquant ici)
+	@mypy backend || true
+
+verify:
+	@python -m compileall -q backend && make lint && make test
+```
+
+### `package.json` (optionnel)
+```json
+{
+  "scripts": {
+    "lint": "ruff check backend --fix && ruff format backend",
+    "test": "pytest -q",
+    "verify": "python -m compileall -q backend && ruff check backend --fix && ruff format backend && pytest -q"
+  }
+}
+```
+
+---
+
+## 1) Retrieval Proxy (stateless) + API
+
+### `backend/services/retrieval_proxy.py`
+```python
+# ============================================================
+# Module : backend/services/retrieval_proxy.py
+# Objet  : Proxy stateless pour l'accès retrieval/embeddings.
+# Contexte : Découple l'app du store (FAISS / Weaviate / etc.).
+# Invariants :
+#  - Aucune logique d'état persistant ici.
+#  - Les adaptateurs implémentent la même interface minimale.
+# ============================================================
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Any  # autorisé pour "Any" uniquement
+import os
+
+# ----------------------------------------------------------------------------
+# Interfaces / Adaptateurs
+# ----------------------------------------------------------------------------
+
+class BaseRetrievalAdapter(ABC):
+    """Interface minimale pour un store vectoriel.
+    
+    Méthodes à implémenter :
+      - embed_texts
+      - search
+    """
+
+    @abstractmethod
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """Retourne des embeddings pour une liste de textes.
+        
+        Args:
+            texts: Liste de textes bruts.
+        Returns:
+            Liste d'embeddings (liste de flottants par texte).
+        Raises:
+            ValueError: si texts est vide.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        """Recherche les items les plus proches de la requête.
+        
+        Args:
+            query: Texte de requête.
+            top_k: Nombre de résultats souhaité.
+            tenant: Contexte locataire (multi-tenant) éventuel.
+        Returns:
+            Liste de documents {id, score, metadata}.
+        """
+        raise NotImplementedError
+
+
+class FAISSAdapter(BaseRetrievalAdapter):
+    """Adaptateur FAISS. Chargement lazy, fallback si indisponible."""
+
+    def __init__(self) -> None:
+        # Import local pour éviter ImportError à l'import du module.
+        try:
+            import faiss  # noqa: F401  # utilisé via ses types internes pendant build index
+            self._faiss_available = True
+        except Exception:
+            self._faiss_available = False
+        self._index = None  # type: Any
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """Voir interface. Ici, délégation à un embedder externe (OpenAI/local)."""
+        if not texts:
+            raise ValueError("texts ne doit pas être vide")
+        # TODO: brancher un embedder (OpenAI/local). Placeholder contrôlé :
+        return [[0.0, 0.0, 0.0] for _ in texts]
+
+    def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        """Recherche FAISS ou fallback in-memory si FAISS indisponible."""
+        if not query:
+            return []
+        # TODO: implémentation réelle. Placeholder contrôlé :
+        results = [
+            {"id": "doc_1", "score": 0.99, "metadata": {"tenant": tenant or "default"}},
+            {"id": "doc_2", "score": 0.95, "metadata": {"tenant": tenant or "default"}},
+        ]
+        return results[: max(0, top_k)]
+
+
+class WeaviateAdapter(BaseRetrievalAdapter):
+    """Adaptateur Weaviate (squelette)."""
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            raise ValueError("texts ne doit pas être vide")
+        return [[0.0, 0.0, 0.0] for _ in texts]
+
+    def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        if not query:
+            return []
+        return [{"id": "w_doc_1", "score": 0.9, "metadata": {"tenant": tenant or "default"}}]
+
+
+class PineconeAdapter(BaseRetrievalAdapter):
+    """Adaptateur Pinecone (squelette)."""
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            raise ValueError("texts ne doit pas être vide")
+        return [[0.0, 0.0, 0.0] for _ in texts]
+
+    def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        if not query:
+            return []
+        return [{"id": "p_doc_1", "score": 0.9, "metadata": {"tenant": tenant or "default"}}]
+
+
+class ElasticVectorAdapter(BaseRetrievalAdapter):
+    """Adaptateur Elasticsearch v8 (squelette)."""
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            raise ValueError("texts ne doit pas être vide")
+        return [[0.0, 0.0, 0.0] for _ in texts]
+
+    def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        if not query:
+            return []
+        return [{"id": "e_doc_1", "score": 0.9, "metadata": {"tenant": tenant or "default"}}]
+
+
+# ----------------------------------------------------------------------------
+# Proxy stateless
+# ----------------------------------------------------------------------------
+
+class RetrievalProxy:
+    """Proxy stateless exposant `embed_texts` et `search`.
+    
+    Sélectionne dynamiquement l'adaptateur via variable d'environnement
+    RETRIEVAL_BACKEND in {"faiss", "weaviate", "pinecone", "elastic"}.
+    """
+
+    def __init__(self) -> None:
+        backend = (os.getenv("RETRIEVAL_BACKEND") or "faiss").lower()
+        if backend == "weaviate":
+            self._adapter: BaseRetrievalAdapter = WeaviateAdapter()
+        elif backend == "pinecone":
+            self._adapter = PineconeAdapter()
+        elif backend == "elastic":
+            self._adapter = ElasticVectorAdapter()
+        else:
+            self._adapter = FAISSAdapter()
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """Délègue à l'adaptateur courant.
+        
+        Args:
+            texts: Liste des textes à encoder.
+        Returns:
+            Vecteurs d'embeddings.
+        """
+        return self._adapter.embed_texts(texts)
+
+    def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        """Délègue à l'adaptateur courant.
+        
+        Args:
+            query: Requête textuelle.
+            top_k: Nombre maximum de résultats.
+            tenant: Identifiant tenant (multi-tenant).
+        Returns:
+            Résultats triés par score décroissant.
+        """
+        return self._adapter.search(query=query, top_k=top_k, tenant=tenant)
+```
+
+### `backend/api/routes_retrieval.py`
+```python
+# ============================================================
+# Module : backend/api/routes_retrieval.py
+# Objet  : Endpoints internes pour /internal/retrieval/*.
+# Notes  : Valider tailles input, labels tenant, sans données sensibles.
+# ============================================================
+
+from __future__ import annotations
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+from ..services.retrieval_proxy import RetrievalProxy
+
+router = APIRouter(prefix="/internal/retrieval", tags=["retrieval"])
+_proxy = RetrievalProxy()
+
+
+class EmbedRequest(BaseModel):
+    """Payload pour l'endpoint d'embeddings."""
+    texts: list[str] = Field(default_factory=list)
+
+
+class SearchRequest(BaseModel):
+    """Payload pour la recherche sémantique."""
+    query: str = ""
+    top_k: int = 5
+    tenant: str | None = None
+
+
+@router.post("/embed")
+def embed(req: EmbedRequest) -> dict:
+    """Encode une liste de textes.
+    
+    Returns:
+        dict: {"vectors": [[...], ...]}
+    """
+    if not req.texts:
+        raise HTTPException(status_code=400, detail="texts vide")
+    vectors = _proxy.embed_texts(req.texts)
+    return {"vectors": vectors}
+
+
+@router.post("/search")
+def search(req: SearchRequest) -> dict:
+    """Recherche sémantique sur le corpus indexé.
+    
+    Returns:
+        dict: {"results": [{"id": str, "score": float, "metadata": dict}, ...]}
+    """
+    if not req.query:
+        raise HTTPException(status_code=400, detail="query vide")
+    if req.top_k <= 0:
+        raise HTTPException(status_code=400, detail="top_k invalide")
+    results = _proxy.search(query=req.query, top_k=req.top_k, tenant=req.tenant)
+    return {"results": results}
+```
+
+---
+
+## 2) Bench & Migration
+
+### `backend/scripts/bench_retrieval.py`
+```python
+# ============================================================
+# Script : backend/scripts/bench_retrieval.py
+# Objet  : Bench P50/P95/QPS/RAM et agreement@k entre backends.
+# Usage  : python backend/scripts/bench_retrieval.py --adapter faiss --docs 10000 --qps 50 --topk 5
+# Sortie : artifacts/bench/<DATE>_<ADAPTER>.json
+# ============================================================
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import time
+from datetime import datetime
+from typing import Any
+
+from ..services.retrieval_proxy import RetrievalProxy
+
+
+def _percentile(values: list[float], p: float) -> float:
+    """Calcule un percentile simple (p entre 0 et 1)."""
+    if not values:
+        return 0.0
+    values_sorted = sorted(values)
+    idx = min(int(len(values_sorted) * p), len(values_sorted) - 1)
+    return values_sorted[idx]
+
+
+def main() -> None:
+    """Point d'entrée du bench (squelette)."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--adapter", type=str, default="faiss")
+    parser.add_argument("--docs", type=int, default=10000)
+    parser.add_argument("--qps", type=int, default=50)
+    parser.add_argument("--topk", type=int, default=5)
+    args = parser.parse_args()
+
+    os.environ["RETRIEVAL_BACKEND"] = args.adapter.lower()
+    proxy = RetrievalProxy()
+
+    # Placeholder de bench minimal (simulé) — à remplacer par réel dataset
+    latencies: list[float] = []
+    start = time.time()
+    for _ in range(min(200, args.docs // 10)):
+        t0 = time.time()
+        proxy.search(query="test query", top_k=args.topk, tenant="bench")
+        latencies.append(time.time() - t0)
+    elapsed = time.time() - start
+
+    report: dict[str, Any] = {
+        "adapter": args.adapter,
+        "docs": args.docs,
+        "qps_target": args.qps,
+        "topk": args.topk,
+        "p50_ms": round(_percentile(latencies, 0.50) * 1000, 2),
+        "p95_ms": round(_percentile(latencies, 0.95) * 1000, 2),
+        "elapsed_s": round(elapsed, 3),
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+
+    outdir = "artifacts/bench"
+    os.makedirs(outdir, exist_ok=True)
+    outfile = os.path.join(outdir, f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{args.adapter}.json")
+    with open(outfile, "w", encoding="utf-8") as f:
+        json.dump(report, f, ensure_ascii=False, indent=2)
+
+    print(f"Wrote bench report -> {outfile}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### `backend/docs/retrieval_migration.md`
+```markdown
+# Migration Retrieval — FAISS -> DB vectorielle
+
+## Stratégie
+- **Dual-write**: indexer dans FAISS **et** cible.
+- **Shadow-read**: comparer résultats en lecture, sans impacter l’utilisateur.
+- **Agreement@k**: viser >= 0.9 avant bascule.
+- **Feature flag**: bascule progressive par pourcentage de trafic.
+- **Rollback**: < 10 minutes, scripté.
+
+## Opérations
+- **Backup/restore** index cible (RTO <= 30 min, RPO <= 15 min).
+- **Warmup**: pré-chargement index (temps & RAM documentés).
+- **Capacité**: QPS cible, P95, taille index, coûts.
+
+## Validation
+- Batteries de tests e2e + smoke tests post-déploiement.
+```
+
+---
+
+## 3) Gouvernance Contenu & Embeddings
+
+### `backend/domain/content_version.py`
+```python
+# ============================================================
+# Module : backend/domain/content_version.py
+# Objet  : Modèle de gouvernance des contenus/embeddings (POPO).
+# ============================================================
+
+from __future__ import annotations
+
+
+class ContentVersion:
+    """Représente une version de contenu et ses paramètres d'embedding.
+    
+    Attributs:
+        source: Chemin/identifiant de la source.
+        version: Version sémantique.
+        hash: Empreinte du contenu (intégrité).
+        model: Nom du modèle d'embedding.
+        model_version: Version du modèle.
+        embed_params: Paramètres d'embedding.
+        tenant: Identifiant tenant (facultatif).
+        created_at: ISO datetime de création.
+    """
+
+    def __init__(
+        self,
+        source: str,
+        version: str,
+        hash: str,
+        model: str,
+        model_version: str,
+        embed_params: dict,
+        tenant: str | None,
+        created_at: str,
+    ) -> None:
+        self.source = source
+        self.version = version
+        self.hash = hash
+        self.model = model
+        self.model_version = model_version
+        self.embed_params = embed_params
+        self.tenant = tenant
+        self.created_at = created_at
+```
+
+### `backend/infra/repo/content_version_repo.py`
+```python
+# ============================================================
+# Module : backend/infra/repo/content_version_repo.py
+# Objet  : Accès SQL (CRUD) pour ContentVersion (squelette).
+# Notes  : à intégrer avec SQLAlchemy (non inclus ici).
+# ============================================================
+
+from __future__ import annotations
+
+from typing import Any
+from ...domain.content_version import ContentVersion
+
+
+class ContentVersionRepo:
+    """CRUD minimal pour ContentVersion."""
+
+    def __init__(self, session: Any) -> None:
+        """Construit le repo avec une session (SQLAlchemy)."""
+        self._session = session
+
+    def create(self, cv: ContentVersion) -> None:
+        """Crée une ligne en base (placeholder)."""
+        # TODO: mapper ORM + commit
+        _ = cv
+
+    def get_latest(self, source: str, tenant: str | None) -> ContentVersion | None:
+        """Retourne la dernière version pour une source/tenant."""
+        _ = (source, tenant)
+        return None
+
+    def list_all(self, tenant: str | None = None) -> list[ContentVersion]:
+        """Retourne la liste des versions (filtrable par tenant)."""
+        _ = tenant
+        return []
+```
+
+### `.github/workflows/embeddings.yml`
+```yaml
+name: embeddings-ci
+
+on:
+  push:
+    paths:
+      - "content/**"
+      - "backend/infra/embeddings/**"
+
+jobs:
+  build-embeddings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt
+      - name: Compute content hash & regenerate embeddings (skeleton)
+        run: |
+          echo "TODO: implement hash & regen"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: embeddings-artifact
+          path: artifacts/embeddings/
+```
+
+---
+
+## 4) LLM Guard & Vault
+
+### `backend/app/middleware_llm_guard.py`
+```python
+# ============================================================
+# Module : backend/app/middleware_llm_guard.py
+# Objet  : Garde-fous LLM (entrée/contexte/sortie).
+# ============================================================
+
+from __future__ import annotations
+
+import re
+
+
+def sanitize_input(payload: dict) -> dict:
+    """Nettoie le payload d'entrée (taille, patterns interdits).
+    
+    Args:
+        payload: dictionnaire d'entrée utilisateur.
+    Returns:
+        Payload nettoyé/normalisé.
+    Raises:
+        ValueError: si le payload est invalide.
+    """
+    # TODO: bornes de taille/longueur champs, listes deny-list, etc.
+    return payload
+
+
+def enforce_policies(context: dict) -> dict:
+    """Applique les politiques de contexte (RBAC/entitlements/tenant).
+    
+    Args:
+        context: Contexte appelant (tenant, rôles, etc.).
+    Returns:
+        Contexte borné et sûr.
+    """
+    # TODO: scoping strict, no cross-tenant
+    return context
+
+
+def validate_output(text: str, tenant: str | None) -> str:
+    """Valide et filtre la sortie (PII masking, fuites).
+    
+    Args:
+        text: Réponse générée par le LLM.
+        tenant: Identifiant tenant (facultatif).
+    Returns:
+        Texte validé/épuré.
+    """
+    # TODO: masquage PII (regex), règles de contenu interdit
+    return text
+```
+
+### `backend/infra/secrets/vault_client.py`
+```python
+# ============================================================
+# Module : backend/infra/secrets/vault_client.py
+# Objet  : Accès Vault (récup/rotation secrets) — squelette.
+# ============================================================
+
+from __future__ import annotations
+
+import os
+
+
+class VaultClient:
+    """Client Vault minimal (squelette)."""
+
+    def __init__(self) -> None:
+        # TODO: initialiser connexion réelle (HVAC ou autre)
+        self._url = os.getenv("VAULT_ADDR", "")
+        self._token = os.getenv("VAULT_TOKEN", "")
+
+    def get_secret(self, key: str) -> str:
+        """Récupère un secret par clé (placeholder)."""
+        _ = key
+        return ""
+
+    def rotate_openai_key(self) -> None:
+        """Rotation de clé OpenAI (placeholder)."""
+        return None
+```
+
+---
+
+## 5) Celery – Config, Idempotence, Exporter
+
+### `backend/app/celeryconfig.py`
+```python
+# ============================================================
+# Module : backend/app/celeryconfig.py
+# Objet  : Configuration centralisée Celery (retries, timeouts).
+# ============================================================
+
+from __future__ import annotations
+
+# Retries & acks
+task_acks_late = True
+task_time_limit = 300  # secondes
+broker_pool_limit = 10
+
+# Exemple de politique de retry (à appliquer par task)
+max_retries = 5
+retry_backoff = True
+retry_backoff_max = 60  # secondes
+```
+
+### `backend/tasks/utils.py`
+```python
+# ============================================================
+# Module : backend/tasks/utils.py
+# Objet  : Utilitaires tasks (idempotence).
+# ============================================================
+
+from __future__ import annotations
+
+import hashlib
+
+
+def idempotency_key(payload: dict, fields: list[str]) -> str:
+    """Construit une clé d'idempotence à partir de champs du payload.
+    
+    Args:
+        payload: dictionnaire d'entrée.
+        fields: champs à concaténer.
+    Returns:
+        Empreinte hexadécimale stable.
+    """
+    parts: list[str] = []
+    for f in fields:
+        parts.append(str(payload.get(f, "")))
+    raw = "|".join(parts).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+```
+
+### `backend/infra/monitoring/celery_exporter.py`
+```python
+# ============================================================
+# Module : backend/infra/monitoring/celery_exporter.py
+# Objet  : Exporter Prometheus pour métriques Celery (squelette).
+# ============================================================
+
+from __future__ import annotations
+
+from prometheus_client import Counter, Gauge, generate_latest
+
+
+QUEUE_DEPTH = Gauge("celery_queue_depth", "Taille de la file Celery")
+TASK_SUCCESS = Counter("celery_task_success_total", "Tasks réussies")
+TASK_FAILURE = Counter("celery_task_failure_total", "Tasks échouées")
+
+
+def metrics_wsgi_app(environ, start_response):  # type: ignore[no-untyped-def]
+    """WSGI simple pour exposer les métriques Prometheus."""
+    data = generate_latest()
+    status = "200 OK"
+    headers = [("Content-Type", "text/plain; version=0.0.4")]
+    start_response(status, headers)
+    return [data]
+```
+
+---
+
+## 6) Observabilité métier
+
+### `backend/app/metrics.py`
+```python
+# ============================================================
+# Module : backend/app/metrics.py
+# Objet  : Métriques métier Prometheus (coûts, latences, hits).
+# ============================================================
+
+from __future__ import annotations
+
+from prometheus_client import Counter, Histogram, Gauge
+
+CHAT_REQUESTS = Counter(
+    "chat_requests_total",
+    "Nombre total de requêtes Chat",
+    ["tenant", "model"],
+)
+
+CHAT_LATENCY = Histogram(
+    "chat_latency_seconds",
+    "Latence des réponses Chat",
+    ["tenant"],
+    buckets=(0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0),
+)
+
+LLM_TOKENS = Counter(
+    "llm_tokens_total",
+    "Tokens consommés par le LLM",
+    ["tenant", "model"],
+)
+
+LLM_COST_USD = Counter(
+    "llm_cost_usd_total",
+    "Coût agrégé ($) des appels LLM",
+    ["tenant", "model"],
+)
+
+RETRIEVAL_HIT_RATIO = Gauge(
+    "retrieval_hit_ratio",
+    "Taux de hit retrieval",
+    ["tenant"],
+)
+
+CACHE_HIT_RATIO = Gauge(
+    "cache_hit_ratio",
+    "Taux de hit cache",
+    ["tenant"],
+)
+```
+
+### `backend/docs/observability_runbook.md`
+```markdown
+# Runbook Observabilité
+
+## Objectifs
+- Visibilité latence & coûts par tenant/feature.
+- Alertes budget 80%/100%.
+- Traçabilité de bout en bout (OTEL).
+
+## Tableaux Grafana (exemples)
+- Latence Chat (P50/P95).
+- Coûts LLM ($/jour, $/tenant).
+- Hit-ratio retrieval & cache.
+- Celery : queue depth, failures, runtime.
+
+## Procédures
+- Incident latence LLM : vérifier quota, fallback modèle, réduire contexte.
+- Incident retrieval : vérifier index, bascule proxy, rollback si besoin.
+- Incident Celery : analyse Flower, retry budget, poison queue.
+```
+
+### `backend/docs/grafana_dashboard.json`
+```json
+{
+  "title": "Chat Conseiller - KPIs",
+  "panels": [
+    { "type": "graph", "title": "Chat Latency (P95)", "targets": [] },
+    { "type": "graph", "title": "LLM Cost (USD)", "targets": [] },
+    { "type": "graph", "title": "Retrieval Hit Ratio", "targets": [] }
+  ]
+}
+```
+
+---
+
+## 7) CI/CD — Gates, scans, déploiements sûrs
+
+### `.github/workflows/ci.yml` (squelette)
+```yaml
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.11", "3.12" ]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Lint & Format
+        run: ruff check backend --fix && ruff format backend
+      - name: Tests (coverage ≥ 90%)
+        run: pytest --cov=backend --cov-fail-under=90 -q
+```
+
+### `.github/workflows/release.yml` (squelette)
+```yaml
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Build Docker
+        run: docker build -t org/chat-conseiller:${{ github.ref_name }} .
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: org/chat-conseiller:${{ github.ref_name }}
+          format: 'table'
+          exit-code: '0'
+      - name: Smoke tests (e2e courts) — squelette
+        run: echo "TODO run e2e smoke tests"
+```
+
+---
+
+## 8) SLO & Guardrails Coûts
+
+### `backend/docs/slo.yaml`
+```yaml
+chat_api:
+  availability: ">=99.9%/month"
+  latency_p95_staging: "<=1.5s"
+  latency_p95_prod: "<=2.0s"
+  error_rate_5xx_rolling_24h: "<1%"
+retrieval:
+  hit_ratio: ">=0.85"
+  index_rto: "<=30m"
+  index_rpo: "<=15m"
+llm_budget:
+  warn: "80%"
+  block: "100%"
+```
+
+### `backend/app/cost_controls.py`
+```python
+# ============================================================
+# Module : backend/app/cost_controls.py
+# Objet  : Guardrails de coût LLM (budgets/alertes/dégradés).
+# ============================================================
+
+from __future__ import annotations
+
+
+def check_budget(tenant: str, spent_usd: float, budget_usd: float) -> str:
+    """Retourne l'état budgétaire ('ok' | 'warn' | 'block')."""
+    if budget_usd <= 0:
+        return "ok"
+    ratio = spent_usd / budget_usd
+    if ratio >= 1.0:
+        return "block"
+    if ratio >= 0.8:
+        return "warn"
+    return "ok"
+
+
+def degraded_response() -> str:
+    """Message standard en cas de blocage budgétaire (dégradé gracieux)."""
+    return "Budget atteint : réponse limitée. Réessayez plus tard ou réduisez le contexte."
+```
+
+---
+
+## 9) README
+
+### `backend/README.md`
+```markdown
+# Backend — Chat Conseiller (Phase 4)
+
+## Démarrage
+- `pip install -r requirements.txt`
+- `make verify`
+
+## Config
+- `RETRIEVAL_BACKEND` in {faiss,weaviate,pinecone,elastic}
+
+## Qualité
+- `ruff check backend --fix && ruff format backend`
+- `pytest -q` (cov ≥ 90%)
+
+## Observabilité
+- OTEL/Jaeger, Prometheus métriques (`backend/app/metrics.py`)
+- Runbook : `backend/docs/observability_runbook.md`
+
+## Migration Retrieval
+- Doc : `backend/docs/retrieval_migration.md`
+```
+
+---
+
+## 10) Tests — squelettes
+
+### `tests/test_retrieval_proxy.py`
+```python
+# ============================================================
+# Tests : tests/test_retrieval_proxy.py
+# Objet  : Vérifier endpoints /internal/retrieval/* (squelette).
+# ============================================================
+
+from __future__ import annotations
+
+from fastapi.testclient import TestClient
+from backend.api.routes_retrieval import router
+from fastapi import FastAPI
+
+app = FastAPI()
+app.include_router(router)
+
+
+def test_embed_ok():
+    client = TestClient(app)
+    resp = client.post("/internal/retrieval/embed", json={"texts": ["a", "b"]})
+    assert resp.status_code == 200
+    assert "vectors" in resp.json()
+
+
+def test_search_400():
+    client = TestClient(app)
+    resp = client.post("/internal/retrieval/search", json={"query": ""})
+    assert resp.status_code == 400
+```
+
+### `tests/test_bench_script.py`
+```python
+# ============================================================
+# Tests : tests/test_bench_script.py
+# Objet  : Vérifier l'exécution du bench (squelette).
+# ============================================================
+
+from __future__ import annotations
+
+import subprocess
+
+
+def test_bench_runs_smoke():
+    code = subprocess.call(["python", "backend/scripts/bench_retrieval.py", "--adapter", "faiss", "--docs", "1000"])
+    assert code == 0
+```
+
+### `tests/test_llm_guard.py`
+```python
+# ============================================================
+# Tests : tests/test_llm_guard.py
+# Objet  : Cas basiques du middleware LLM Guard.
+# ============================================================
+
+from __future__ import annotations
+
+from backend.app.middleware_llm_guard import sanitize_input, validate_output
+
+
+def test_sanitize_pass():
+    payload = {"q": "hello"}
+    out = sanitize_input(payload)
+    assert out == payload
+
+
+def test_validate_output_pass():
+    out = validate_output("ok", None)
+    assert isinstance(out, str)
+```
+
+### `tests/test_cost_controls.py`
+```python
+# ============================================================
+# Tests : tests/test_cost_controls.py
+# Objet  : Guardrails de coût.
+# ============================================================
+
+from __future__ import annotations
+
+from backend.app.cost_controls import check_budget
+
+
+def test_budget_warn():
+    assert check_budget("t1", 80, 100) == "warn"
+
+
+def test_budget_block():
+    assert check_budget("t1", 100, 100) == "block"
+```

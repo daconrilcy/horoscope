@@ -1,0 +1,29 @@
+name: embeddings-ci
+
+on:
+  push:
+    paths:
+      - "content/**"
+      - "backend/infra/embeddings/**"
+
+jobs:
+  build-embeddings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt
+      - name: Compute content hash & regenerate embeddings (skeleton)
+        run: |
+          echo "TODO: implement hash & regen"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: embeddings-artifact
+          path: artifacts/embeddings/
+

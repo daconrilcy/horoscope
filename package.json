@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "lint": "ruff check backend --fix && ruff format backend",
+    "test": "pytest -q",
+    "verify": "python -m compileall -q backend && ruff check backend --fix && ruff format backend && pytest -q"
+  }
+}
+

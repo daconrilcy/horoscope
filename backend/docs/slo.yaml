@@ -1,0 +1,13 @@
+chat_api:
+  availability: ">=99.9%/month"
+  latency_p95_staging: "<=1.5s"
+  latency_p95_prod: "<=2.0s"
+  error_rate_5xx_rolling_24h: "<1%"
+retrieval:
+  hit_ratio: ">=0.85"
+  index_rto: "<=30m"
+  index_rpo: "<=15m"
+llm_budget:
+  warn: "80%"
+  block: "100%"
+

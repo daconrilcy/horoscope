@@ -1,0 +1,9 @@
+{
+  "title": "Chat Conseiller - KPIs",
+  "panels": [
+    { "type": "graph", "title": "Chat Latency (P95)", "targets": [] },
+    { "type": "graph", "title": "LLM Cost (USD)", "targets": [] },
+    { "type": "graph", "title": "Retrieval Hit Ratio", "targets": [] }
+  ]
+}
+
