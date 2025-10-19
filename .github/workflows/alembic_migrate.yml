@@ -21,6 +21,7 @@ jobs:
       - name: Run Alembic upgrade
         env:
           DATABASE_URL: sqlite:///./cv.db
+          PYTHONPATH: .
         run: |
           alembic upgrade head
           test -f cv.db
