@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+
 from backend.app.main import app
 
 
@@ -21,10 +22,7 @@ def test_pdf_cached():
     c = TestClient(app)
     chart_id = _create_chart(c)
     r1 = c.get(f"/horoscope/pdf/natal/{chart_id}")
-    assert r1.status_code == 200 and r1.headers["content-type"].startswith(
-        "application/pdf"
-    )
+    assert r1.status_code == 200 and r1.headers["content-type"].startswith("application/pdf")
     # second call should hit cache (still 200)
     r2 = c.get(f"/horoscope/pdf/natal/{chart_id}")
     assert r2.status_code == 200
-

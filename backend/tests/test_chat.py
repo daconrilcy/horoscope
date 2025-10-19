@@ -1,18 +1,11 @@
-
-
-
-
 from fastapi.testclient import TestClient
+
 from backend.app.main import app
-from backend.domain.chat_orchestrator import ChatOrchestrator
-from backend.tests.fakes import FakeLLM
-from backend.core.container import container
 
 
 def test_chat_advise_flow(monkeypatch):
     c = TestClient(app)
     r = c.post(
-        
         "/horoscope/natal",
         json={
             "name": "T",
@@ -29,4 +22,3 @@ def test_chat_advise_flow(monkeypatch):
     data = {"chart_id": chart_id, "question": "Comment optimiser ma journée ?"}
     r2 = c.post("/chat/advise", json=data, headers={})  # if protected, provide Authorization
     assert r2.status_code in (200, 401, 403)  # route gating may apply
-

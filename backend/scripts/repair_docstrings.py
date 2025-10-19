@@ -20,15 +20,15 @@ MARKERS = (
     '"""Classe ',
     '"""Modèle Pydantic ',
 )
-HEADER_START = 'Module '
-HEADER_OBJECTIF = 'Objectif du module'
+HEADER_START = "Module "
+HEADER_OBJECTIF = "Objectif du module"
 INTERNAL_TOKENS = (
-    'Paramètres:',
-    'Retour:',
-    'TODO:',
-    '- Préciser le rôle exact',
-    '- Décrire le comportement, contraintes et erreurs.',
-    '- Compléter la description et les invariants.',
+    "Paramètres:",
+    "Retour:",
+    "TODO:",
+    "- Préciser le rôle exact",
+    "- Décrire le comportement, contraintes et erreurs.",
+    "- Compléter la description et les invariants.",
 )
 
 
@@ -49,7 +49,6 @@ def repair_file(path: Path) -> bool:
     new_lines: list[str] = []
     i = 0
     changed = False
-    prev_sig: str | None = None
     after_sig_open = False
     seen_code = False
     triple_open: str | None = None
@@ -114,7 +113,6 @@ def repair_file(path: Path) -> bool:
 
         # Track def/class context window
         if stripped.startswith("def ") or stripped.startswith("class "):
-            prev_sig = line
             after_sig_open = True
         elif stripped and not stripped.startswith("#"):
             after_sig_open = False

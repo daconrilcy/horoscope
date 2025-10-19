@@ -1,4 +1,3 @@
-
 """
 Tâches Celery pour le rendu PDF.
 
@@ -27,4 +26,3 @@ def render_pdf_task(chart_id: str) -> str:
         # best-effort cache
         pass
     return "ok"
-

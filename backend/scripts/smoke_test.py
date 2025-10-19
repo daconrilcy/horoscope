@@ -40,12 +40,16 @@ def main() -> None:
     # Today
     r = client.get(f"/horoscope/today/{chart_id}")
     data = r.json()
-    print("/horoscope/today:", r.status_code, {
-        "date": data.get("date"),
-        "leaders": len(data.get("leaders", [])),
-        "eao": data.get("eao"),
-        "precision": data.get("precision_score"),
-    })
+    print(
+        "/horoscope/today:",
+        r.status_code,
+        {
+            "date": data.get("date"),
+            "leaders": len(data.get("leaders", [])),
+            "eao": data.get("eao"),
+            "precision": data.get("precision_score"),
+        },
+    )
 
     # PDF
     r = client.get(f"/horoscope/pdf/natal/{chart_id}")
@@ -56,4 +60,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

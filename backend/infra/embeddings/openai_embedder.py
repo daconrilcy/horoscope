@@ -15,8 +15,8 @@ class OpenAIEmbedder(Embeddings):
             self.client = None
             self.model = None
         else:
-            self.client = OpenAI(api_key=getattr(container.settings, 'OPENAI_API_KEY', None))
-            self.model = getattr(container.settings, 'EMBEDDINGS_MODEL', 'text-embedding-3-small')
+            self.client = OpenAI(api_key=getattr(container.settings, "OPENAI_API_KEY", None))
+            self.model = getattr(container.settings, "EMBEDDINGS_MODEL", "text-embedding-3-small")
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         if self.client is None:
@@ -24,4 +24,3 @@ class OpenAIEmbedder(Embeddings):
             return [[float(len(t)), 1.0] for t in texts]
         resp = self.client.embeddings.create(model=self.model, input=texts)
         return [d.embedding for d in resp.data]
-

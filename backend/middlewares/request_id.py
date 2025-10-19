@@ -15,6 +15,8 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         response.headers[self.header_name] = request_id
         return response
+
+
 """
 Middleware Starlette pour ajouter/propager un identifiant de requête.
 

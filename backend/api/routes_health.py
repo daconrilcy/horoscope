@@ -4,7 +4,6 @@ Endpoint de santé pour vérifier la disponibilité de l'API et du backend.
 Expose `/health` pour signaler l'état général de l'application et du stockage.
 """
 
-
 from fastapi import APIRouter
 
 from backend.core.container import container

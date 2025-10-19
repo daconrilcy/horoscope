@@ -13,7 +13,7 @@ class Document(BaseModel):
 
 class Query(BaseModel):
     text: str
-    k: int = 3
+    k: int = 5
 
 
 class ScoredDocument(BaseModel):

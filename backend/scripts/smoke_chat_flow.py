@@ -1,7 +1,3 @@
-
-
-
-
 from fastapi.testclient import TestClient
 
 from backend.api import routes_chat
@@ -54,4 +50,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-

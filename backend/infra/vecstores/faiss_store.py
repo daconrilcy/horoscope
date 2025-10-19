@@ -1,5 +1,12 @@
+"""
+FAISS-backed vector store (Faiss-only, no fallback).
 
-from __future__ import annotations
+Requires `faiss-cpu` and `numpy` to be installed. Uses inner-product
+similarity (IndexFlatIP) for retrieval.
+"""
+
+import faiss  # type: ignore
+import numpy as np  # type: ignore
 
 from backend.core.container import container
 from backend.domain.retrieval_types import Document, Query, ScoredDocument
@@ -10,35 +17,52 @@ from backend.infra.vecstores.base import VectorStore
 
 class FAISSVectorStore(VectorStore):
     def __init__(self) -> None:
-        # choose embedder according to settings when available
+        # choose embedder according to settings
         try:
-            if getattr(container.settings, 'OPENAI_API_KEY', None):
+            if getattr(container.settings, "OPENAI_API_KEY", None):
                 self.embedder = OpenAIEmbedder()
             else:
-                self.embedder = LocalEmbedder(getattr(container.settings, 'LOCAL_EMBEDDINGS_MODEL', 'mini'))  # noqa: E501
+                self.embedder = LocalEmbedder(
+                    getattr(
+                        container.settings,
+                        "LOCAL_EMBEDDINGS_MODEL",
+                        "all-MiniLM-L6-v2",
+                    )
+                )
         except Exception:
-            # fallback to local
-            self.embedder = LocalEmbedder('mini')
-        self._vecs: list[list[float]] = []
+            # default to local model name if settings missing
+            self.embedder = LocalEmbedder("all-MiniLM-L6-v2")
+
+        self.index_ip: faiss.IndexFlatIP | None = None
         self.docs: list[Document] = []
 
+    def _ensure_index(self, dim: int) -> None:
+        if self.index_ip is None:
+            self.index_ip = faiss.IndexFlatIP(dim)
+
     def index(self, docs: list[Document]) -> int:
+        if not docs:
+            return 0
         texts = [d.text for d in docs]
-        embs = self.embedder.embed(texts)
-        self._vecs.extend(embs)
+        embeddings = self.embedder.embed(texts)
+        if not embeddings:
+            return 0
+        self._ensure_index(dim=len(embeddings[0]))
+        xb = np.array(embeddings, dtype="float32")
+        self.index_ip.add(xb)  # type: ignore[union-attr]
         self.docs.extend(docs)
         return len(docs)
 
     def search(self, q: Query) -> list[ScoredDocument]:
-        qv = self.embedder.embed([q.text])[0]
-        k = max(1, min(q.k, len(self.docs)))
-        if not self._vecs:
+        if not self.docs or self.index_ip is None:
             return []
-        # simple L2 distance
-        def l2(a: list[float], b: list[float]) -> float:
-            return sum((x - y) * (x - y) for x, y in zip(a, b, strict=False)) ** 0.5
-
-        scored = [(i, l2(vec, qv)) for i, vec in enumerate(self._vecs)]
-        scored.sort(key=lambda t: t[1])
-        top = scored[:k]
-        return [ScoredDocument(doc=self.docs[i], score=float(-dist)) for i, dist in top]
+        k = max(1, min(q.k, len(self.docs)))
+        query_vec = self.embedder.embed([q.text])[0]
+        qx = np.array([query_vec], dtype="float32")
+        distances, indices = self.index_ip.search(qx, k)  # type: ignore[union-attr]
+        results: list[ScoredDocument] = []
+        for score, idx in zip(distances[0], indices[0], strict=True):
+            if idx == -1:
+                continue
+            results.append(ScoredDocument(doc=self.docs[idx], score=float(score)))
+        return results

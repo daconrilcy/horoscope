@@ -1,7 +1,3 @@
-
-
-
-
 from celery import Celery
 
 from backend.core.container import container
@@ -12,4 +8,3 @@ celery_app = Celery(
     backend=container.settings.CELERY_RESULT_BACKEND,
 )
 celery_app.conf.task_routes = {"backend.tasks.*": {"queue": "default"}}
-

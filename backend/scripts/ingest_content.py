@@ -1,4 +1,3 @@
-
 """
 Script d'ingestion de contenus pour l'index de recherche.
 

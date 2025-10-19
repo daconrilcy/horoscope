@@ -57,6 +57,16 @@ class Settings(BaseSettings):
     JWT_ALG: str = "HS256"
     JWT_EXPIRES_MIN: int = 60
 
+    # Phase 3 settings
+    OPENAI_API_KEY: str | None = None
+    EMBEDDINGS_PROVIDER: str = "openai"  # "openai" | "local"
+    EMBEDDINGS_MODEL: str = "text-embedding-3-small"
+    LOCAL_EMBEDDINGS_MODEL: str = "all-MiniLM-L6-v2"
+    VECTOR_BACKEND: str = "faiss"  # "faiss" | "elasticsearch"
+    OTLP_ENDPOINT: str | None = None
+    CELERY_BROKER_URL: str = "redis://redis:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://redis:6379/1"
+
 
 def get_settings() -> Settings:
     """Construit et retourne la configuration de l'application."""

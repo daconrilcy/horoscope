@@ -1,7 +1,3 @@
-
-
-
-
 import os
 
 # Ensure local-friendly defaults BEFORE importing app/modules

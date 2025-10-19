@@ -90,4 +90,3 @@ class OpenAILLM(LLM):
         # Last resort fallback
         last = messages[-1]["content"] if messages else ""
         return f"FAKE_OPENAI: {last[:80]}".strip()
-

@@ -22,4 +22,3 @@ class FakeDeterministicAstro:
             }
             for i in range(6)
         ]
-

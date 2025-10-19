@@ -1,26 +1,38 @@
 # Objectif du fichier: Décrire l'objectif de requirements.txt
 # TODO: compléter cette description.
 
-fastapi>=0.115.0
-uvicorn[standard]>=0.30.0
-pydantic>=2.8.0
-pydantic-settings>=2.2.1
-structlog>=24.1.0
-python-dotenv>=1.0.1
-httpx>=0.27.0
+fastapi==0.115.0
+starlette==0.38.6
+uvicorn[standard]==0.30.0
+pydantic==2.8.0
+pydantic-settings==2.2.1
+structlog==24.1.0
+python-dotenv==1.0.1
+httpx==0.27.0
 
 # tests
-pytest>=8.2.0
-pytest-asyncio>=0.23.8
-anyio>=4.4.0
+pytest==8.2.0
+pytest-asyncio==0.23.8
+anyio==4.4.0
 
 # new deps
-redis>=5.0.8
-reportlab>=4.2.5
+redis==5.0.8
 # auth, metrics, validation
-python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
-prometheus-client>=0.20.0
-email-validator>=2.1.0
+PyJWT==2.9.0
+passlib[bcrypt]==1.7.4
+prometheus-client==0.20.0
+email-validator==2.1.0
 # Objectif du fichier: dépendances Python requises pour le backend.
 # TODO: préciser versions épinglées si nécessaire.
+# phase 3 deps
+openai==1.43.0
+sentence-transformers==3.0.1
+numpy==2.1.2
+faiss-cpu==1.12.0
+fpdf2==2.7.9
+celery==5.4.0
+tenacity==8.5.0
+opentelemetry-sdk==1.26.0
+opentelemetry-instrumentation-fastapi==0.47b0
+opentelemetry-exporter-otlp==1.26.0
+python-multipart==0.0.9

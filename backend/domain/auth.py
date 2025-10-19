@@ -1,7 +1,8 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
 
@@ -33,5 +34,5 @@ def decode_token(token: str, secret: str, alg: str) -> TokenData | None:
     try:
         data = jwt.decode(token, secret, algorithms=[alg])
         return TokenData(**data)
-    except JWTError:
+    except InvalidTokenError:
         return None

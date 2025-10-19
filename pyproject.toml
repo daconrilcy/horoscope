@@ -21,6 +21,12 @@ dependencies = [
 [tool.ruff]
 line-length = 100
 target-version = "py313"
+fix = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "D"]
@@ -40,5 +46,6 @@ convention = "pep257"
 [tool.ruff.lint.per-file-ignores]
 "backend/tests/**/*.py" = ["D"]
 "**/__init__.py" = ["D"]
+"backend/api/routes_chat.py" = ["B008"]
 # Objectif du fichier: configuration de projet et outils (pytest, ruff, etc.).
 # TODO: compléter les métadonnées et les scripts si besoin.

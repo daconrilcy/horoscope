@@ -63,7 +63,9 @@ def pdf_natal(chart_id: str):
         try:
             raw = container.user_repo.client.get(key)
             if raw:
-                pdf_bytes = raw if isinstance(raw, (bytes, bytearray)) else str(raw).encode("latin-1")  # noqa: E501
+                pdf_bytes = (
+                    raw if isinstance(raw, (bytes, bytearray)) else str(raw).encode("latin-1")
+                )  # noqa: E501
         except Exception:
             pass
 
@@ -95,6 +97,8 @@ def get_today_premium(chart_id: str, user: dict = current_user_dep):
         return data
     except KeyError as err:
         raise HTTPException(status_code=404, detail="Chart not found") from err
+
+
 """
 Routes liées aux horoscopes: création de thème, lecture quotidienne et PDF.
 

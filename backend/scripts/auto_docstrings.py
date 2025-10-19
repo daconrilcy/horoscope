@@ -85,7 +85,7 @@ def make_module_docstring(path: Path) -> list[str]:
     return [doc]
 
 
-def _ann_to_str(node: ast.AST|None) -> str:
+def _ann_to_str(node: ast.AST | None) -> str:
     if node is None:
         return "Any"
     try:
@@ -221,21 +221,28 @@ def _remove_stray_string_exprs(lines: list[str], tree: ast.AST) -> tuple[list[st
 
     valid_ids = set()
     if isinstance(tree, ast.Module) and tree.body:
-        if isinstance(tree.body[0], ast.Expr) \
-              and isinstance(getattr(tree.body[0], "value", None), ast.Constant) \
-        and isinstance(tree.body[0].value.value, str):
+        if (
+            isinstance(tree.body[0], ast.Expr)
+            and isinstance(getattr(tree.body[0], "value", None), ast.Constant)
+            and isinstance(tree.body[0].value.value, str)
+        ):
             valid_ids.add(id(tree.body[0]))
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.body:
             first = node.body[0]
-            if isinstance(first, ast.Expr) and isinstance(getattr(first, "value", None), 
-                                                          ast.Constant) \
-                                                            and isinstance(first.value.value, str):
+            if (
+                isinstance(first, ast.Expr)
+                and isinstance(getattr(first, "value", None), ast.Constant)
+                and isinstance(first.value.value, str)
+            ):
                 valid_ids.add(id(first))
 
     for node in ast.walk(tree):
-        if isinstance(node, ast.Expr) and isinstance(getattr(node, "value", None), ast.Constant) \
-            and isinstance(node.value.value, str):
+        if (
+            isinstance(node, ast.Expr)
+            and isinstance(getattr(node, "value", None), ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
             if id(node) not in valid_ids:
                 record_span(node)
 
@@ -246,11 +253,13 @@ def _remove_stray_string_exprs(lines: list[str], tree: ast.AST) -> tuple[list[st
     removed = 0
     for start, end in to_remove:
         del new_lines[start : end + 1]
-        removed += (end - start + 1)
+        removed += end - start + 1
     return new_lines, removed
 
 
-def _replace_placeholder_docstrings(lines: list[str], tree: ast.AST, path: Path) -> tuple[list[str], int, bool]:  # noqa: E501
+def _replace_placeholder_docstrings(
+    lines: list[str], tree: ast.AST, path: Path
+) -> tuple[list[str], int, bool]:  # noqa: E501
     new_lines = lines[:]
     replaced = 0
     module_replaced = False
@@ -259,8 +268,11 @@ def _replace_placeholder_docstrings(lines: list[str], tree: ast.AST, path: Path)
     # Module docstring
     if isinstance(tree, ast.Module) and tree.body:
         n0 = tree.body[0]
-        if isinstance(n0, ast.Expr) and isinstance(getattr(n0, "value", None), ast.Constant) \
-            and isinstance(n0.value.value, str):
+        if (
+            isinstance(n0, ast.Expr)
+            and isinstance(getattr(n0, "value", None), ast.Constant)
+            and isinstance(n0.value.value, str)
+        ):
             if _is_placeholder_docstring(n0.value.value) or "Objectif du module" in n0.value.value:
                 header = make_module_docstring(path)
                 start = n0.lineno - 1
@@ -272,8 +284,11 @@ def _replace_placeholder_docstrings(lines: list[str], tree: ast.AST, path: Path)
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.body:
             first = node.body[0]
-            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) \
-                and isinstance(first.value.value, str):
+            if (
+                isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)
+            ):
                 if _is_placeholder_docstring(first.value.value):
                     indent = first_body_indent(new_lines, first.lineno)
                     gen = generate_entity_docstring_for_function(node, indent)
@@ -282,8 +297,11 @@ def _replace_placeholder_docstrings(lines: list[str], tree: ast.AST, path: Path)
                     replacements.append((start, end, gen))
         elif isinstance(node, ast.ClassDef) and node.body:
             first = node.body[0]
-            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) \
-                and isinstance(first.value.value, str):
+            if (
+                isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)
+            ):
                 if _is_placeholder_docstring(first.value.value):
                     indent = first_body_indent(new_lines, node.lineno + 1)
                     gen = generate_entity_docstring_for_class(node, indent)
@@ -329,7 +347,9 @@ def process_py_file(path: Path) -> tuple[bool, str]:
         tree4 = ast.parse("".join(cleaned_lines))
     except SyntaxError:
         tree4 = tree3
-    enriched_lines, replaced, _module_rep = _replace_placeholder_docstrings(cleaned_lines, tree4, path)  # noqa: E501
+    enriched_lines, replaced, _module_rep = _replace_placeholder_docstrings(
+        cleaned_lines, tree4, path
+    )  # noqa: E501
 
     final_lines = enriched_lines
     if final_lines == lines:
@@ -408,13 +428,23 @@ def run_for_root(root: Path, do_clean: bool, include_non_python: bool) -> None:
         rel = py.relative_to(root)
         print(f"[auto-doc] {rel} -> {msg}")
     print(f"Fichiers traités: {processed}, modifiés: {changed}")
-    
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Auto-docstring pour backend")
-    parser.add_argument("--path", type=str, default=str(BACKEND_ROOT), help="Chemin à traiter (par défaut: backend)")  # noqa: E501
-    parser.add_argument("--include-non-python", action="store_true", help="Ajouter des en-têtes aux fichiers non-Python")  # noqa: E501
-    parser.add_argument("--no-clean", action="store_true", help="N'effectuer que l'insertion (pas de nettoyage/enrichissement)")  # noqa: E501
+    parser.add_argument(
+        "--path", type=str, default=str(BACKEND_ROOT), help="Chemin à traiter (par défaut: backend)"
+    )  # noqa: E501
+    parser.add_argument(
+        "--include-non-python",
+        action="store_true",
+        help="Ajouter des en-têtes aux fichiers non-Python",
+    )  # noqa: E501
+    parser.add_argument(
+        "--no-clean",
+        action="store_true",
+        help="N'effectuer que l'insertion (pas de nettoyage/enrichissement)",
+    )  # noqa: E501
     args = parser.parse_args()
 
     root = Path(args.path).resolve()

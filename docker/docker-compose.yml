@@ -16,13 +16,35 @@ services:
       - REQUIRE_REDIS=false
       - JWT_SECRET=please-change-me
       - JWT_EXPIRES_MIN=60
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER:-openai}
+      - EMBEDDINGS_MODEL=${EMBEDDINGS_MODEL:-text-embedding-3-small}
+      - LOCAL_EMBEDDINGS_MODEL=${LOCAL_EMBEDDINGS_MODEL:-all-MiniLM-L6-v2}
+      - VECTOR_BACKEND=${VECTOR_BACKEND:-faiss}
+      - OTLP_ENDPOINT=${OTLP_ENDPOINT}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
     volumes:
       - ..:/app:cached
     command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       - redis
+      - worker
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    env_file:
+      - ../.env.example
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    command: celery -A backend.app.celery_app.celery_app worker -l INFO -Q default
+    depends_on:
+      - redis
