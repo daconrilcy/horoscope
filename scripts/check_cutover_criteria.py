@@ -1,9 +1,12 @@
-"""
+"""Vérifier les critères de cutover à partir d'artefacts locaux.
+
 Script: scripts/check_cutover_criteria.py
-Objet : Vérifier les critères de cutover à partir d'artefacts locaux.
 
 Utilisation:
-  python scripts/check_cutover_criteria.py --bench-json artifacts/bench/<ts>_<adapter>.json --agreement 0.9 --p95 200
+  python scripts/check_cutover_criteria.py \
+    --bench-json artifacts/bench/<ts>_<adapter>.json \
+    --agreement 0.9 \
+    --p95 200
 
 Notes:
   - Ce script lit un JSON de bench (p50/p95/QPS/sha), compare p95 au seuil,
@@ -49,4 +52,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
