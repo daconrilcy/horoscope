@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "20251019_0001"
@@ -33,4 +34,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_constraint("uq_source_version_tenant", "content_versions", type_="unique")
     op.drop_table("content_versions")
-
