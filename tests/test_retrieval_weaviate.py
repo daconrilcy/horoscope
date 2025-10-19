@@ -67,7 +67,7 @@ def test_weaviate_search_ok(monkeypatch: Any) -> None:
 
     resp = client.post(
         "/internal/retrieval/search",
-        json={"query": "hello", "top_k": 5, "tenant": "t1"},
+        json={"query": "  hello  ", "top_k": 5, "tenant": "t1", "offset": 0},
     )
     assert resp.status_code == 200
     body = resp.json()
@@ -100,6 +100,65 @@ def test_weaviate_search_502_on_network(monkeypatch: Any) -> None:
 
     resp = client.post(
         "/internal/retrieval/search",
-        json={"query": "hello", "top_k": 5},
+        json={"query": "hello", "top_k": 5, "offset": 0},
     )
     assert resp.status_code == 502
+
+
+def test_weaviate_429_rate_limit(monkeypatch: Any) -> None:
+    monkeypatch.setenv("RETRIEVAL_BACKEND", "weaviate")
+    monkeypatch.setenv("WEAVIATE_URL", "https://example.weaviate.local")
+
+    import importlib
+    import backend.api.routes_retrieval as routes
+
+    importlib.reload(routes)
+    app = FastAPI()
+    app.include_router(routes.router)
+    client = TestClient(app)
+
+    import httpx
+
+    class R429:
+        def __init__(self) -> None:
+            self.status_code = 429
+
+        def raise_for_status(self) -> None:  # pragma: no cover - not called
+            raise httpx.HTTPStatusError("rate", request=None, response=None)
+
+        def json(self) -> dict[str, Any]:  # pragma: no cover - not used
+            return {}
+
+    _orig_post = httpx.Client.post
+
+    def _ratelimit(self, url: str, json: dict[str, Any], **kwargs: Any):  # type: ignore[no-redef]
+        if str(url).endswith("/v1/graphql"):
+            return R429()
+        return _orig_post(self, url, json=json, **kwargs)
+
+    monkeypatch.setattr("httpx.Client.post", _ratelimit)
+
+    resp = client.post(
+        "/internal/retrieval/search",
+        json={"query": "hello", "top_k": 5, "offset": 0},
+    )
+    assert resp.status_code == 429
+
+
+def test_search_topk_bounds_and_offset_errors() -> None:
+    # Basic validation: top_k out of bounds and negative offset
+    app = FastAPI()
+    import importlib
+    import backend.api.routes_retrieval as routes
+
+    importlib.reload(routes)
+    app.include_router(routes.router)
+    client = TestClient(app)
+    resp = client.post("/internal/retrieval/search", json={"query": "x", "top_k": 0})
+    assert resp.status_code == 400
+    resp2 = client.post("/internal/retrieval/search", json={"query": "x", "top_k": 51})
+    assert resp2.status_code == 400
+    resp3 = client.post("/internal/retrieval/search", json={"query": "x", "top_k": 5, "offset": -1})
+    assert resp3.status_code == 400
+
+
