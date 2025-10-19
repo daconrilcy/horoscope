@@ -339,7 +339,9 @@ def process_py_file(path: Path) -> tuple[bool, str]:
 
 
 def _process_py_file_insert_only(path: Path) -> tuple[bool, str]:
-    """Variant sûre: insère module docstring et docstrings entités uniquement.
+    """
+    Variant sûre: insère module docstring et docstrings entités uniquement.
+
     Pas de suppression ni remplacement, pour éviter les risques sur la syntaxe.
     """
     original = path.read_text(encoding="utf-8")

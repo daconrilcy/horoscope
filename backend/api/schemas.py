@@ -1,6 +1,4 @@
-"""
-Schémas Pydantic exposés par l'API (requêtes et réponses).
-"""
+# Schémas Pydantic exposés par l'API (requêtes et réponses).
 
 from typing import Literal
 

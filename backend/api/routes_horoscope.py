@@ -1,30 +1,31 @@
-import io
-import re
 import datetime as dt
+import io
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
+from backend.api.routes_auth import get_current_user
 from backend.api.schemas import BirthRequest, NatalResponse, TodayResponse
 from backend.core.container import container
 from backend.domain.entities import BirthInput
-from backend.domain.services import HoroscopeService
-from backend.domain.pdf_service import render_natal_pdf
-from backend.api.routes_auth import get_current_user
 from backend.domain.entitlements import require_entitlement
+from backend.domain.pdf_service import render_natal_pdf
+from backend.domain.services import HoroscopeService
 
 router = APIRouter(prefix="/horoscope", tags=["horoscope"])
 service = HoroscopeService(container.astro, container.content_repo, container.chart_repo)
+current_user_dep = Depends(get_current_user)
 
 
 @router.post("/natal", response_model=NatalResponse)
 def create_natal(payload: BirthRequest):
-    """Calcule et enregistre un thème natal à partir d'une requête.
+    """Crée et enregistre un thème natal.
 
     Paramètres:
     - payload: `BirthRequest` contenant les informations de naissance.
 
-    Retour: `NatalResponse` (id, propriétaire, et données de carte).
+    Retour:
+    - `NatalResponse` (id, propriétaire, et données de carte).
     """
     chart = service.compute_natal(BirthInput(**payload.model_dump()))
     return chart
@@ -62,7 +63,7 @@ def pdf_natal(chart_id: str):
         try:
             raw = container.user_repo.client.get(key)
             if raw:
-                pdf_bytes = raw if isinstance(raw, (bytes, bytearray)) else str(raw).encode("latin-1")
+                pdf_bytes = raw if isinstance(raw, (bytes, bytearray)) else str(raw).encode("latin-1")  # noqa: E501
         except Exception:
             pass
 
@@ -82,7 +83,7 @@ def pdf_natal(chart_id: str):
 
 
 @router.get("/today/premium/{chart_id}")
-def get_today_premium(chart_id: str, user: dict = Depends(get_current_user)):
+def get_today_premium(chart_id: str, user: dict = current_user_dep):
     """Endpoint premium: nécessite l'entitlement "plus".
 
     Retourne les mêmes données que `/today/{chart_id}` avec un indicateur `premium: true`.

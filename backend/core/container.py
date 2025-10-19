@@ -5,8 +5,8 @@ from backend.infra.astro.internal_astro import InternalAstroEngine
 from backend.infra.content_repo import JSONContentRepository
 from backend.infra.repositories import (
     InMemoryChartRepo,
-    RedisChartRepo,
     InMemoryUserRepo,
+    RedisChartRepo,
     RedisUserRepo,
 )
 

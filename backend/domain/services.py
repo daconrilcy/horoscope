@@ -28,11 +28,10 @@ class HoroscopeService:
         self.charts = chart_repo
 
     def compute_natal(self, birth: BirthInput) -> dict[str, Any]:
-        """Calcule le thème natal et le stocke.
+        """Calcules et stockes un thème natal à partir des données de naissance: date, heure, lieu.
 
         Paramètres:
-        - birth: `BirthInput` avec les informations de naissance.
-
+        birth: `BirthInput` avec les informations de naissance.
         Retour: dict avec `id`, `owner` et `chart` (contenu calculé).
         """
         chart = self.astro.compute_natal_chart(birth)

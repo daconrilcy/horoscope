@@ -1,6 +1,7 @@
 import io
-from reportlab.pdfgen import canvas as pdfcanvas
+
 from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas as pdfcanvas
 
 
 def _safe(s: str) -> str:
@@ -17,7 +18,7 @@ def render_natal_pdf(chart: dict) -> bytes:
     c.setFont("Helvetica", 12)
     c.drawString(50, h - 110, f"Owner: {_safe(chart.get('owner','?'))}")
     c.drawString(50, h - 130, f"Precision Score: {chart.get('chart',{}).get('precision_score', 1)}")
-    factors = ", ".join(_safe(f.get('axis', '?')) for f in chart.get('chart', {}).get('factors', []))
+    factors = ", ".join(_safe(f.get('axis', '?')) for f in chart.get('chart', {}).get('factors', []))  # noqa: E501
     c.drawString(50, h - 150, f"Factors: {factors}")
     c.showPage()
     c.save()

@@ -1,6 +1,5 @@
-"""
-Endpoint de santé pour vérifier la disponibilité de l'API.
-"""
+# Endpoint de santé pour vérifier la disponibilité de l'API.
+
 
 from fastapi import APIRouter
 

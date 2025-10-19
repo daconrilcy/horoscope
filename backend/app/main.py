@@ -10,10 +10,11 @@ Responsabilités du module:
 
 from fastapi import FastAPI
 
+from backend.api.routes_auth import router as auth_router
+from backend.api.routes_chat import router as chat_router
 from backend.api.routes_health import router as health_router
 from backend.api.routes_horoscope import router as horoscope_router
-from backend.api.routes_auth import router as auth_router
-from backend.app.metrics import metrics_router, PrometheusMiddleware
+from backend.app.metrics import PrometheusMiddleware, metrics_router
 from backend.core.container import container
 from backend.core.logging import setup_logging
 from backend.middlewares.request_id import RequestIDMiddleware
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(horoscope_router)
+    app.include_router(chat_router)
     app.include_router(metrics_router)
     return app
 

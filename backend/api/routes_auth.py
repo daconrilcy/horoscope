@@ -1,14 +1,13 @@
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, EmailStr
 
 from backend.core.container import container
 from backend.domain.auth import (
-    hash_password,
-    verify_password,
     create_access_token,
     decode_token,
+    hash_password,
+    verify_password,
 )
-
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
