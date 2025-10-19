@@ -30,7 +30,7 @@ def main() -> None:
     print('\nFonctions/méthodes sans docstring:')
     for p, names in missing_fn.items():
         names = sorted(set(names))
-        print(f' - {p.relative_to(root)}: {len(names)} -> {", ".join(names[:12])}{" ..." if len(names)>12 else ""}')
+        print(f' - {p.relative_to(root)}: {len(names)} -> {", ".join(names[:12])}{" ..." if len(names)>12 else ""}')  # noqa: E501
 
 
 if __name__ == '__main__':

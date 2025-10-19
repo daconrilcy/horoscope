@@ -34,4 +34,9 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         REQUEST_COUNT.labels(request.method, route, str(response.status_code)).inc()
         REQUEST_LATENCY.labels(route).observe(time.perf_counter() - start)
         return response
+"""
+Exposition de métriques Prometheus et middleware de mesure.
 
+Fournit `/metrics` et un middleware optionnel pour mesurer la latence
+des requêtes HTTP par route.
+"""

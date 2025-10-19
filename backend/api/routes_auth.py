@@ -67,4 +67,9 @@ def get_current_user(authorization: str = Header(None)):
     if not user:
         raise HTTPException(status_code=401, detail="user_not_found")
     return user
+"""
+Routes d'authentification (signup/login) et utilitaires de jetons.
 
+Fournit les endpoints pour créer un compte, se connecter, et récupérer
+les informations utilisateur à partir du token.
+"""

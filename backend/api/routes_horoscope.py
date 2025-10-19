@@ -95,3 +95,9 @@ def get_today_premium(chart_id: str, user: dict = current_user_dep):
         return data
     except KeyError as err:
         raise HTTPException(status_code=404, detail="Chart not found") from err
+"""
+Routes liées aux horoscopes: création de thème, lecture quotidienne et PDF.
+
+Regroupe les endpoints `/horoscope` pour créer un thème natal, récupérer
+les informations du jour, et générer un PDF sommaire avec cache.
+"""

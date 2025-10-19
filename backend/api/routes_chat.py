@@ -18,3 +18,9 @@ class ChatPayload(BaseModel):
 def advise(payload: ChatPayload):
     advice = orch.advise(chart={"id": payload.chart_id}, question=payload.question)
     return {"advice": advice}
+"""
+Routes de conversation/assistance: expose un endpoint simple d'avis.
+
+Ce module accueille une route minimaliste `/chat/advise` s'appuyant sur
+un orchestrateur de chat pour produire une réponse textuelle.
+"""

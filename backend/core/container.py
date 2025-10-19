@@ -47,3 +47,9 @@ class Container:
 
 
 container = Container()
+"""
+Conteneur d'injection de dépendances et configuration application.
+
+Instancie les composants centraux (settings, dépôts, moteur astro, etc.)
+et expose un singleton `container` utilisé par le reste de l'application.
+"""

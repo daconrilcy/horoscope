@@ -27,13 +27,13 @@ def pick_today(transits: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], li
 
 
 def energy_attention_opportunity(leaders: list[dict[str, Any]]) -> dict[str, int]:
-    """Calcule un score EAO basé sur l'axe de chaque leader.
+    """Calculer un score EAO basé sur l'axe de chaque leader.
 
     Règles simples:
     - Énergie: compte axes SUN/MARS/ASC
     - Attention: compte axes MERCURY/SATURN/MC
     - Opportunité: compte axes VENUS/JUPITER/NN
-    """
+    """  # noqa: D401
     e = sum(1 for f in leaders if f.get("axis") in ("SUN", "MARS", "ASC"))
     a = sum(1 for f in leaders if f.get("axis") in ("MERCURY", "SATURN", "MC"))
     o = sum(1 for f in leaders if f.get("axis") in ("VENUS", "JUPITER", "NN"))
