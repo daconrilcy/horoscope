@@ -10,6 +10,23 @@ metrics_router = APIRouter()
 REQUEST_COUNT = Counter("http_requests_total", "Total HTTP requests", ["method", "route", "status"])
 REQUEST_LATENCY = Histogram("http_request_duration_seconds", "Latency of HTTP requests", ["route"])
 
+# Retrieval-specific metrics
+RETRIEVAL_REQUESTS = Counter(
+    "retrieval_requests_total",
+    "Total retrieval operations",
+    ["backend"],
+)
+RETRIEVAL_ERRORS = Counter(
+    "retrieval_errors_total",
+    "Total retrieval errors",
+    ["backend", "code"],
+)
+RETRIEVAL_LATENCY = Histogram(
+    "retrieval_latency_seconds",
+    "Latency of retrieval operations",
+    ["backend"],
+)
+
 
 @metrics_router.get("/metrics")
 def metrics():

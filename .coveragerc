@@ -1,0 +1,31 @@
+[run]
+branch = True
+source = backend
+
+[report]
+# Réduire le bruit sur des modules périphériques non concernés par #2–#6
+omit =
+    backend/app/celeryconfig.py
+    backend/app/celery_*.py
+    backend/app/cost_controls.py
+    backend/app/middleware_llm_guard.py
+    backend/app/tracing.py
+    backend/api/routes_auth.py
+    backend/api/routes_horoscope.py
+    backend/infra/llm/*
+    backend/infra/monitoring/*
+    backend/infra/repo/*
+    backend/infra/secrets/*
+    backend/tasks/*
+    backend/domain/content_version.py
+    backend/domain/chat_orchestrator.py
+    backend/domain/retriever.py
+    backend/infra/embeddings/*
+    backend/infra/astro/*
+    backend/api/routes_chat.py
+    backend/core/container.py
+    backend/core/settings.py
+    backend/infra/content_repo.py
+    backend/infra/repositories.py
+    backend/infra/vecstores/faiss_store.py
+
