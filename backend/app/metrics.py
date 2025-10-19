@@ -1,7 +1,7 @@
 import time
 
 from fastapi import APIRouter, Request
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
@@ -31,6 +31,13 @@ RETRIEVAL_LATENCY = Histogram(
 RETRIEVAL_DUAL_WRITE_ERRORS = Counter(
     "retrieval_dual_write_errors_total",
     "Errors encountered during dual-write ingestion",
+    ["backend"],
+)
+
+# Shadow-read agreement metric
+RETRIEVAL_AGREEMENT_AT_5 = Gauge(
+    "retrieval_agreement_at_5",
+    "Agreement ratio at k=5 between primary and shadow backends",
     ["backend"],
 )
 
