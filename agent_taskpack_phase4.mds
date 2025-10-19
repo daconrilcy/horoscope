@@ -1,0 +1,148 @@
+# Agent GPT — Phase 4 Execution TaskPack (.mds)
+
+## 0) Mandat & Règles (obligatoires)
+- **Objectif** : exécuter les issues #2 → #6 en priorité, puis #7/#8, en ouvrant 1 branche = 1 PR par ticket.
+- **Qualité** : `python -m compileall -q backend` puis `ruff check backend --fix && ruff format backend && pytest --cov=backend --cov-fail-under=90 -q` **doit passer** avant PR.
+- **Contraintes code** : **interdit** d’utiliser `typing.Dict`, `typing.List`, `typing.Optional`, `typing.Str`. Utiliser `dict`, `list`, `str`, `X | None`.  
+- **Commentaires** : chaque fichier/méthode/fonction doit avoir **en-tête** + **docstring** claire.
+- **Imports** : nettoyer systématiquement (pas d’import mort, ordre stdlib/externes/internes).
+- **Sécurité** : ne jamais afficher de secrets. Utiliser Vault client si disponible (sinon stub documenté).
+- **Commits** : petits, atomiques, message conventionnel `feat|fix|docs|chore(scope): résumé` + `Refs #<issue>`.
+
+## 1) Pré-requis Environnement (Windows OK)
+- Installer : Python 3.12+, `pip install -r requirements.txt`, `ruff`, `pytest`.  
+- Auth GitHub CLI : `gh auth login`.  
+- Variables env (staging par défaut) :  
+  - `RETRIEVAL_BACKEND=faiss` (sera changé plus tard),  
+  - `RETRIEVAL_DUAL_WRITE=false`, `RETRIEVAL_SHADOW_READ=false`,  
+  - si adaptateur managé : clés/API correspondantes via Vault (sinon variables env locales **temporaire**).
+- Branch protection activée sur `main` (PR obligatoires).
+
+---
+
+## 2) Issue #2 — Adaptateur managé (Weaviate OU Pinecone)
+
+### Branche
+`feat/2-retrieval-adapter`
+
+### Tâches
+1. Implémenter **UN** adaptateur managé dans `backend/services/retrieval_proxy.py` (Weaviate **ou** Pinecone) : méthodes `embed_texts`, `search` avec pagination/filters minimalistes.
+2. Paramétrage via env (`WEAVIATE_URL`, `WEAVIATE_API_KEY` **ou** `PINECONE_INDEX`, `PINECONE_ENV`, `PINECONE_API_KEY`).
+3. Gérer exceptions réseau : transformer en 502 côté API.
+4. Tests FastAPI : `POST /internal/retrieval/search` retourne des résultats **réels** (mocker si CI sans compte).
+
+### Critères d’acceptation
+- PR ouvre `backend/README.md` (section config adaptateur) + docs env `.env.example`.
+- Tests passent, ruff clean.  
+- **Artefacts** : capture logs locaux d’un appel réel (masqué).
+
+### Commandes
+```
+python -m compileall -q backend
+ruff check backend --fix && ruff format backend
+pytest --maxfail=1 -q
+```
+
+---
+
+## 3) Issue #3 — Bench réel (10k docs) + export JSON
+
+### Branche
+`feat/3-retrieval-bench`
+
+### Tâches
+1. Dataset synthétique 10k courtes fiches texte (génération locale) + embeddings cohérents (même modèle).
+2. `backend/scripts/bench_retrieval.py` : **pas de sleep simulé** ; mesurer P50/P95/QPS/RAM approximate (psutil si dispo, sinon commentaire).  
+3. Export `artifacts/bench/<ts>_<adapter>.json` incluant **SHA commit** (`git rev-parse HEAD`).  
+4. Workflow CI : upload artefact JSON.
+
+### Critères d’acceptation
+- JSON généré en local **et** en CI (artifact).
+- README: section “Bench – comment reproduire”.
+
+---
+
+## 4) Issue #4 — Dual-write (FAISS + cible)
+
+### Branche
+`feat/4-dual-write`
+
+### Tâches
+1. Flag `RETRIEVAL_DUAL_WRITE=true` : pipeline d’ingest écrit **dans FAISS et la cible**; journaliser et **ne pas bloquer** sur échec d’un backend.  
+2. Exposer métrique `retrieval_dual_write_errors_total{backend}`.
+
+### Critères d’acceptation
+- Tests d’ingest (mocks) : 100% des items tentés sur 2 stores.  
+- Métriques Prom visibles (unitaire simple).
+
+---
+
+## 5) Issue #5 — Shadow-read + `agreement@k`
+
+### Branche
+`feat/5-shadow-read-agreement`
+
+### Tâches
+1. Flag `RETRIEVAL_SHADOW_READ=true` : router 5–10% des requêtes Chat vers la **cible** en shadow, comparer top-k.  
+2. Calculer `agreement@k` (k=5), exposer métrique `retrieval_agreement_at_5`.  
+3. Dashboard Grafana minimal (JSON).
+
+### Critères d’acceptation
+- Métrique augmentée après trafic synthétique.  
+- Dashboard importable dans Grafana.
+
+---
+
+## 6) Issue #6 — Cutover & rollback scripté
+
+### Branche
+`feat/6-cutover-rollback`
+
+### Tâches
+1. Définir critères : `P95<200ms @10k`, `agreement@5≥0.9` sur 48h, **0 régression e2e**.  
+2. Script `scripts/retrieval_cutover.sh` : activer cible, rollback.  
+3. Runbook `backend/docs/retrieval_migration.md` mis à jour (RTO≤30m/RPO≤15m).
+
+### Critères d’acceptation
+- Dry-run validé en staging, loggé dans la PR.
+
+---
+
+## 7) Issue #7 — ContentVersion étendu + ORM + migrations
+
+### Branche
+`feat/7-contentversion-sql`
+
+### Tâches
+1. Étendre modèle `ContentVersion` : `embedding_model_name`, `embedding_model_version`, `embed_params: dict`, `content_hash`, `tenant`, `created_at`.  
+2. Repo SQLAlchemy + Alembic : clé unique `(source, version, tenant)`.  
+3. Tests CRUD unitaires.
+
+### Critères d’acceptation
+- Migration Alembic OK en CI.  
+- Tests CRUD verts.
+
+---
+
+## 8) Issue #8 — Workflow embeddings CI
+
+### Branche
+`ci/8-embeddings-workflow`
+
+### Tâches
+1. Détecter diff `content/**` ou `infra/embeddings/**`.  
+2. Régénérer embeddings, insérer `ContentVersion`, uploader artefact.  
+3. Documenter secret/permission nécessaires.
+
+### Critères d’acceptation
+- Run CI visible, artefact disponible, journal clair.
+
+---
+
+## Check final par PR (DoD)
+- `python -m compileall -q backend` sans erreur d’import.  
+- `ruff check --fix` + `ruff format` OK.  
+- `pytest --cov=backend --cov-fail-under=90 -q` OK.  
+- Commentaires + docstrings présents.  
+- README/Docs mis à jour si config/usage change.  
+- Pas d’utilisation de `typing.Dict/List/Optional/Str`.

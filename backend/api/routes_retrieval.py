@@ -9,7 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from ..services.retrieval_proxy import RetrievalProxy
+from ..services.retrieval_proxy import RetrievalNetworkError, RetrievalProxy
 
 router = APIRouter(prefix="/internal/retrieval", tags=["retrieval"])
 _proxy = RetrievalProxy()
@@ -53,5 +53,9 @@ def search(req: SearchRequest) -> dict:
         raise HTTPException(status_code=400, detail="query vide")
     if req.top_k <= 0:
         raise HTTPException(status_code=400, detail="top_k invalide")
-    results = _proxy.search(query=req.query, top_k=req.top_k, tenant=req.tenant)
+    try:
+        results = _proxy.search(query=req.query, top_k=req.top_k, tenant=req.tenant)
+    except RetrievalNetworkError as exc:
+        # Transformer les erreurs réseau en 502 côté API, comme requis par #2.
+        raise HTTPException(status_code=502, detail="retrieval backend unavailable") from exc
     return {"results": results}
