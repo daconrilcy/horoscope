@@ -19,12 +19,12 @@ RETRIEVAL_REQUESTS = Counter(
 RETRIEVAL_ERRORS = Counter(
     "retrieval_errors_total",
     "Total retrieval errors",
-    ["backend", "code", "tenant"],
+    ["backend", "code"],
 )
 RETRIEVAL_LATENCY = Histogram(
     "retrieval_latency_seconds",
     "Latency of retrieval operations",
-    ["backend", "tenant"],
+    ["backend"],
 )
 
 

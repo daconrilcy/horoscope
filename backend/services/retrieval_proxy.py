@@ -284,15 +284,14 @@ class RetrievalProxy:
             Résultats triés par score décroissant.
         """
         start = time.perf_counter()
-        lbl_tenant = tenant or "default"
-        RETRIEVAL_REQUESTS.labels(self._backend, lbl_tenant).inc()
+        RETRIEVAL_REQUESTS.labels(self._backend).inc()
         try:
             return self._adapter.search(query=query, top_k=top_k, tenant=tenant)
         except RetrievalBackendHTTPError as exc:
-            RETRIEVAL_ERRORS.labels(self._backend, str(exc.status_code), lbl_tenant).inc()
+            RETRIEVAL_ERRORS.labels(self._backend, str(exc.status_code)).inc()
             raise
         except RetrievalNetworkError:
-            RETRIEVAL_ERRORS.labels(self._backend, "network", lbl_tenant).inc()
+            RETRIEVAL_ERRORS.labels(self._backend, "network").inc()
             raise
         finally:
-            RETRIEVAL_LATENCY.labels(self._backend, lbl_tenant).observe(time.perf_counter() - start)
+            RETRIEVAL_LATENCY.labels(self._backend).observe(time.perf_counter() - start)
