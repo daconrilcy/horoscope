@@ -10,9 +10,17 @@ from sqlalchemy import create_engine, pool
 from alembic import context
 
 # Allow importing project modules when running via Alembic CLI
-SYS_ROOT = Path(__file__).resolve().parents[1]
-if str(SYS_ROOT) not in sys.path:
-    sys.path.append(str(SYS_ROOT))
+_this = Path(__file__).resolve()
+_candidates = [
+    _this.parent,  # .../alembic
+    _this.parent.parent,  # repo root (expected)
+    _this.parent.parent.parent,  # workspace root on GitHub Actions
+    Path.cwd(),
+]
+for p in _candidates:
+    s = str(p)
+    if s and s not in sys.path:
+        sys.path.append(s)
 
 from backend.infra.repo.models import Base  # noqa: E402
 
