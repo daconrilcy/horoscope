@@ -14,6 +14,11 @@ import time
 from datetime import datetime
 from typing import Any
 
+try:  # optional RAM metrics
+    import psutil  # type: ignore
+except Exception:  # pragma: no cover - optional dependency in CI
+    psutil = None  # type: ignore
+
 from ..services.retrieval_proxy import RetrievalProxy
 
 
@@ -47,6 +52,23 @@ def main() -> None:
         latencies.append(time.time() - t0)
     elapsed = time.time() - start
 
+    # Compute process RAM if psutil is available
+    ram_mb = None
+    if psutil is not None:
+        try:
+            ram_mb = round(psutil.Process().memory_info().rss / (1024 * 1024), 1)
+        except Exception:  # pragma: no cover - defensive
+            ram_mb = None
+
+    # Add git SHA if available
+    sha = None
+    try:
+        import subprocess
+
+        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except Exception:  # pragma: no cover - CI safety
+        sha = None
+
     report: dict[str, Any] = {
         "adapter": args.adapter,
         "docs": args.docs,
@@ -55,6 +77,9 @@ def main() -> None:
         "p50_ms": round(_percentile(latencies, 0.50) * 1000, 2),
         "p95_ms": round(_percentile(latencies, 0.95) * 1000, 2),
         "elapsed_s": round(elapsed, 3),
+        "qps_observed": round((len(latencies) / elapsed) if elapsed > 0 else 0.0, 2),
+        "ram_mb": ram_mb,
+        "git_sha": sha,
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
 

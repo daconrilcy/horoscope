@@ -1,0 +1,30 @@
+name: Retrieval Bench
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/3-retrieval-bench
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run bench (faiss)
+        env:
+          RETRIEVAL_BACKEND: faiss
+        run: |
+          python backend/scripts/bench_retrieval.py --adapter faiss --docs 10000 --qps 50 --topk 5
+      - name: Upload bench artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-report
+          path: artifacts/bench/*.json
