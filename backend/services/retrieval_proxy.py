@@ -284,7 +284,8 @@ class RetrievalProxy:
             Résultats triés par score décroissant.
         """
         start = time.perf_counter()
-        RETRIEVAL_REQUESTS.labels(self._backend).inc()
+        lbl_tenant = tenant or "default"
+        RETRIEVAL_REQUESTS.labels(self._backend, lbl_tenant).inc()
         try:
             return self._adapter.search(query=query, top_k=top_k, tenant=tenant)
         except RetrievalBackendHTTPError as exc:
