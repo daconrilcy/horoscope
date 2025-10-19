@@ -27,6 +27,13 @@ RETRIEVAL_LATENCY = Histogram(
     ["backend", "tenant"],
 )
 
+# Dual-write specific
+RETRIEVAL_DUAL_WRITE_ERRORS = Counter(
+    "retrieval_dual_write_errors_total",
+    "Errors encountered during dual-write ingestion",
+    ["backend"],
+)
+
 
 @metrics_router.get("/metrics")
 def metrics():
