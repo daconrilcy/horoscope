@@ -10,10 +10,15 @@ from __future__ import annotations
 from backend.app.celery_app import celery_app
 from backend.core.container import container
 from backend.domain.pdf_service import render_natal_pdf
+from backend.infra.ops.idempotency import idempotency_store, make_idem_key
 
 
 @celery_app.task(name="backend.tasks.render_pdf")
 def render_pdf_task(chart_id: str) -> str:
+    # Idempotency: avoid duplicate work within TTL window
+    idem_key = make_idem_key("render_pdf", chart_id)
+    if not idempotency_store.acquire(idem_key, ttl=300):
+        return "duplicate"
     chart = container.chart_repo.get(chart_id)
     if not chart:
         return "not_found"

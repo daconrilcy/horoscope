@@ -77,6 +77,8 @@ class Settings(BaseSettings):
     TENANT_DEFAULT_BUDGET_USD: float = 0.0
     TENANT_BUDGETS_JSON: str = "{}"
     RATE_LIMIT_EXEMPT_HEALTH: bool = False
+    # Celery Ops
+    CELERY_MAX_FAILURES_BEFORE_DLQ: int = 3
 
 
 def get_settings() -> Settings:

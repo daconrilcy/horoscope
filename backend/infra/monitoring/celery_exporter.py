@@ -9,7 +9,9 @@ from prometheus_client import Counter, Gauge, generate_latest
 
 QUEUE_DEPTH = Gauge("celery_queue_depth", "Taille de la file Celery")
 TASK_SUCCESS = Counter("celery_task_success_total", "Tasks réussies")
-TASK_FAILURE = Counter("celery_task_failure_total", "Tasks échouées")
+TASK_FAILURE = Counter("celery_task_failure_total", "Tasks échouées", ["task"])
+TASK_RETRY = Counter("celery_task_retry_total", "Tasks en retry", ["task"])
+DLQ_TOTAL = Counter("celery_dlq_total", "Messages placés en DLQ", ["queue"])
 
 
 def metrics_wsgi_app(environ, start_response):  # type: ignore[no-untyped-def]

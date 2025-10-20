@@ -60,6 +60,12 @@ Artefacts d'audit:
   - `rate_limit_blocks_total{tenant,reason}`
   - `llm_cost_usd_total{tenant,model}`
 
+## Celery Ops (Issue #12)
+
+- Retries/backoff/timeouts configurés via `backend/app/celeryconfig.py`.
+- Idempotence: utiliser la règle `task:{name}:{param_significatif}` via helper `make_idem_key(name, *parts)`.
+- DLQ/Poison queue: `CELERY_MAX_FAILURES_BEFORE_DLQ` (env/settings) contrôle le seuil; les entrées DLQ stockent `{task, task_id, reason, ts}`.
+- Métriques (Prom): `celery_task_retry_total{task}`, `celery_task_failure_total{task}`, `celery_dlq_total{queue}`.
 Notes de sécurité et d'architecture:
 - Confiance du header `X-Tenant`: ne pas faire confiance en prod sans mTLS/proxy d’auth; idéalement, dériver le tenant depuis un JWT/claim côté backend.
 - Fenêtrage QPS: granularité à la seconde, store en mémoire (par instance). Pour un déploiement multi-instance, utiliser Redis (issue ultérieure).
