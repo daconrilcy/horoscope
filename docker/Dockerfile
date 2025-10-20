@@ -26,7 +26,16 @@ RUN pip install --no-cache-dir --upgrade "pip==${PIP_VERSION}" \
 # STAGE: ci — build PR léger (sans extras lourds)
 # Installe uniquement ce qu’il faut pour linters/tests unitaires.
 # --------------------------------------------------------------------
-FROM base AS ci
+FROM python:3.12-slim AS ci
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+WORKDIR /app
+COPY pyproject.toml requirements*.txt ./
+ARG PIP_VERSION=25.2
+RUN pip install --no-cache-dir --upgrade "pip==${PIP_VERSION}" \
+ && if [ -f requirements.ci.txt ]; then pip install --no-cache-dir -r requirements.ci.txt ; fi
 COPY backend ./backend
 COPY tests ./tests
 COPY pytest.ini ./

@@ -1,6 +1,6 @@
 # Objectif du fichier: Décrire l'objectif de requirements.txt
 fastapi==0.115.0
-starlette==0.38.6
+starlette==0.40.0
 uvicorn[standard]==0.30.0
 pydantic==2.8.0
 pydantic-settings==2.2.1
