@@ -24,6 +24,7 @@ from backend.domain.retrieval_types import Document, Query, ScoredDocument
 from backend.infra.embeddings.local_embedder import LocalEmbedder
 from backend.infra.embeddings.openai_embedder import OpenAIEmbedder
 from backend.infra.vecstores.base import VectorStore, VectorStoreProtocol
+from backend.domain.tenancy import safe_tenant
 
 
 class FAISSVectorStore(VectorStore):
@@ -158,6 +159,7 @@ class FaissMultiTenantAdapter(VectorStoreProtocol):
 
     def index_for_tenant(self, tenant: str, docs: list[Document]) -> int:
         start = time.perf_counter()
+        tenant = safe_tenant(tenant, getattr(container.settings, "DEFAULT_TENANT", "default"))
         n = self._mt.index_for_tenant(tenant, docs)
         self._save(tenant)
         VECSTORE_INDEX.labels(tenant=tenant, backend="faiss").inc()
@@ -166,6 +168,7 @@ class FaissMultiTenantAdapter(VectorStoreProtocol):
 
     def search_for_tenant(self, tenant: str, q: Query) -> list[ScoredDocument]:
         start = time.perf_counter()
+        tenant = safe_tenant(tenant, getattr(container.settings, "DEFAULT_TENANT", "default"))
         # lazy load on first search
         self._load(tenant)
         res = self._mt.search_for_tenant(tenant, q)
@@ -179,6 +182,7 @@ class FaissMultiTenantAdapter(VectorStoreProtocol):
         start = time.perf_counter()
         status = "success"
         error: str | None = None
+        tenant = safe_tenant(tenant, getattr(container.settings, "DEFAULT_TENANT", "default"))
         idx_path, docs_path = self._paths(tenant)
         try:
             self._mt.purge_tenant(tenant)

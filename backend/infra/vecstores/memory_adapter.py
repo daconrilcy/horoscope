@@ -17,6 +17,7 @@ from backend.app.metrics import (
 )
 from backend.domain.retrieval_types import Document, Query, ScoredDocument
 from backend.infra.vecstores.base import VectorStoreProtocol
+from backend.domain.tenancy import safe_tenant
 
 
 class MemoryMultiTenantAdapter(VectorStoreProtocol):
@@ -27,6 +28,7 @@ class MemoryMultiTenantAdapter(VectorStoreProtocol):
 
     def index_for_tenant(self, tenant: str, docs: list[Document]) -> int:
         start = time.perf_counter()
+        tenant = safe_tenant(tenant)
         self._docs.setdefault(tenant, []).extend(docs)
         VECSTORE_INDEX.labels(tenant=tenant, backend="memory").inc()
         VECSTORE_OP_LATENCY.labels(op="index", backend="memory").observe(
@@ -36,6 +38,7 @@ class MemoryMultiTenantAdapter(VectorStoreProtocol):
 
     def search_for_tenant(self, tenant: str, q: Query) -> list[ScoredDocument]:
         start = time.perf_counter()
+        tenant = safe_tenant(tenant)
         docs = self._docs.get(tenant, [])
         if not docs:
             VECSTORE_SEARCH.labels(tenant=tenant, backend="memory").inc()
@@ -56,5 +59,6 @@ class MemoryMultiTenantAdapter(VectorStoreProtocol):
         return scored[: max(1, q.k)]
 
     def purge_tenant(self, tenant: str) -> None:
+        tenant = safe_tenant(tenant)
         self._docs.pop(tenant, None)
         VECSTORE_PURGE.labels(tenant=tenant, backend="memory").inc()

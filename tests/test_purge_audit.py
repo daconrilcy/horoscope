@@ -21,9 +21,8 @@ def test_purge_audit_file(tmp_path, monkeypatch) -> None:
     assert log.exists()
     line = log.read_text(encoding="utf-8").strip()
     rec = json.loads(line)
-    assert rec.get("tenant") == "tX"
+    assert rec.get("tenant") == "tx"  # normalized lower-case
     assert rec.get("actor") == "tester"
     assert rec.get("backend") == "faiss"
     assert rec.get("action") == "purge"
     assert rec.get("status") in {"success", "error"}
-

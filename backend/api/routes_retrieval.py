@@ -15,6 +15,7 @@ from ..services.retrieval_proxy import (
     RetrievalNetworkError,
     RetrievalProxy,
 )
+from backend.domain.tenancy import tenant_from_context
 
 router = APIRouter(prefix="/internal/retrieval", tags=["retrieval"])
 _proxy = RetrievalProxy()
@@ -69,8 +70,11 @@ def search(req: SearchRequest, request: Request) -> dict:
     logger = structlog.get_logger(__name__).bind(request_id=request_id)
     logger.info("retrieval_search", top_k=req.top_k, offset=req.offset)
 
+    # Derive tenant from context (JWT/claims not present on internal route; use header if any)
+    header_tenant = request.headers.get("X-Tenant")
+    eff_tenant = tenant_from_context(user=None, header_tenant=header_tenant) if not req.tenant else req.tenant
     try:
-        results = _proxy.search(query=q, top_k=req.top_k, tenant=req.tenant)
+        results = _proxy.search(query=q, top_k=req.top_k, tenant=eff_tenant)
     except RetrievalBackendHTTPError as exc:
         if exc.status_code == 429:
             raise HTTPException(status_code=429, detail="rate limited") from exc
