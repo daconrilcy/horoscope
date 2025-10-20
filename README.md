@@ -39,3 +39,14 @@ Le guard applique:
 
 - Sanitation d'entrée (trim, longueur max, denylist FR/EN contre prompt-injection).
 - Masquage PII en sortie (emails → `[redacted-email]`, téléphones → `[redacted-phone]`).
+
+## Secrets & Vault (Issue #10)
+
+- Fallback: l’app résout d’abord via Vault (si `VAULT_ENABLED=true`), sinon via variables d’environnement, sinon via `settings.py`.
+- Variables clés (voir `.env.example`): `VAULT_ENABLED`, `VAULT_ADDR`, `VAULT_TOKEN`.
+- Pour les tests/dev, vous pouvez définir `VAULT_MOCK_OPENAI_API_KEY` (ne pas utiliser en prod).
+- Rotation manuelle (audit uniquement, pas de valeur de secret en sortie):
+  - `python -m backend.scripts.rotate_openai_key --key-id NEW_KEY_ID`
+
+Artefacts d’audit:
+- Les logs de rotation sont écrits dans `artifacts/secrets/rotation_*.log` et ne doivent pas être commités.
