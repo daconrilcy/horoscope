@@ -33,6 +33,9 @@ jobs:
           failure-threshold: error
       - name: Tests (cov>=90%)
         run: pytest --cov=backend --cov-fail-under=90 -q
+      - name: Validate SLO file
+        run: |
+          python -m scripts.validate_slo
 
   secrets-scan:
     runs-on: ubuntu-latest

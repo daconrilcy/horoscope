@@ -43,6 +43,14 @@ def _dashboard_link(base: str | None, slo_id: str) -> str:
     return f"{base}?var-slo={slo_id}"
 
 
+def _status_icon(ok: bool | None) -> str:
+    if ok is True:
+        return "✅"
+    if ok is False:
+        return "❌"
+    return "⚠️"
+
+
 def generate_report(output_dir: Path, month: str | None = None) -> Path:
     """Generate the SLO report in `output_dir` and return the file path."""
     cfg = _load_slo_config(Path("slo.yaml"))
@@ -71,9 +79,22 @@ def generate_report(output_dir: Path, month: str | None = None) -> Path:
         if "rpo_minutes" in slo:
             lines.append(f"- RPO minutes: {slo['rpo_minutes']}\n")
         if "target_usd" in slo:
-            lines.append(f"- Target budget (USD): {slo['target_usd']}\n")
+            target = float(slo["target_usd"])  # budget USD target
+            # Allow injection of MTD cost via env var LLM_BUDGET_MTD for reporting
+            try:
+                mtd_cost = float(os.getenv("LLM_BUDGET_MTD", "0") or 0)
+            except Exception:
+                mtd_cost = 0.0
+            used_pct = (mtd_cost / target * 100.0) if target > 0 else 0.0
+            lines.append(f"- Target budget (USD): {target}\n")
+            lines.append(f"- MTD cost (USD): {mtd_cost:.2f} ({used_pct:.1f}%)\n")
         lines.append(f"- Window: {slo.get('window','30d')}\n")
         lines.append(f"- Dashboard: {_dashboard_link(dash_base, slo.get('id',''))}\n")
+        # Status (placeholder: budget-based for llm_budget, N/A otherwise)
+        status: bool | None = None
+        if slo.get("id") == "llm_budget":
+            status = used_pct <= 100.0
+        lines.append(f"- Status: {_status_icon(status)}\n")
         alerts = slo.get("alerts", [])
         if alerts:
             lines.append("- Alerts:\n")
@@ -95,4 +116,3 @@ def main() -> None:
 
 if __name__ == "__main__":  # pragma: no cover
     main()
-

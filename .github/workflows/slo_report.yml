@@ -1,0 +1,27 @@
+name: SLO Monthly Report
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+
+jobs:
+  build-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Generate SLO report
+        env:
+          GRAFANA_DASHBOARD_URL: ${{ secrets.GRAFANA_DASHBOARD_URL || '' }}
+        run: |
+          python -m pip install --upgrade pip
+          python -m scripts.slo_report --output-dir artifacts/slo
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slo-report
+          path: artifacts/slo/*.md
+          if-no-files-found: warn
