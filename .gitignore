@@ -6,6 +6,7 @@ artifacts/
 artifacts/secrets/
 artifacts/audit/
 var/faiss/
+artifacts/slo/
 *.audit.log
 TEMP*
 .coverage

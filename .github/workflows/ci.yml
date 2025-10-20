@@ -20,6 +20,9 @@ jobs:
           # Optional extras for token counting (non-fatal if missing)
           pip install -r requirements.tokens.txt || true
           pip install ruff pytest pytest-cov
+      - name: Validate SLO file (strict)
+        run: |
+          python -m scripts.validate_slo --strict
       - name: Compile sources
         run: python -m compileall -q backend
       - name: Ruff
@@ -33,6 +36,9 @@ jobs:
           failure-threshold: error
       - name: Tests (cov>=90%)
         run: pytest --cov=backend --cov-fail-under=90 -q
+      - name: Validate SLO file (basic)
+        run: |
+          python -m scripts.validate_slo
 
   secrets-scan:
     runs-on: ubuntu-latest

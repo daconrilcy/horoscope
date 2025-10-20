@@ -21,10 +21,10 @@ from backend.app.metrics import (
 )
 from backend.core.container import container
 from backend.domain.retrieval_types import Document, Query, ScoredDocument
+from backend.domain.tenancy import safe_tenant
 from backend.infra.embeddings.local_embedder import LocalEmbedder
 from backend.infra.embeddings.openai_embedder import OpenAIEmbedder
 from backend.infra.vecstores.base import VectorStore, VectorStoreProtocol
-from backend.domain.tenancy import safe_tenant
 
 
 class FAISSVectorStore(VectorStore):

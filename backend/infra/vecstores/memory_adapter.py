@@ -16,8 +16,8 @@ from backend.app.metrics import (
     VECSTORE_SEARCH,
 )
 from backend.domain.retrieval_types import Document, Query, ScoredDocument
-from backend.infra.vecstores.base import VectorStoreProtocol
 from backend.domain.tenancy import safe_tenant
+from backend.infra.vecstores.base import VectorStoreProtocol
 
 
 class MemoryMultiTenantAdapter(VectorStoreProtocol):

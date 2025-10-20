@@ -1,0 +1,73 @@
+{
+  "service": "horoscope-backend",
+  "version": 1,
+  "owner": "team-astro",
+  "slos": [
+    {
+      "id": "availability",
+      "name": "API availability",
+      "objective": "Availability of public API endpoints",
+      "target": 0.999,
+      "window": "30d",
+      "alerts": [
+        {
+          "name": "api_availability_drop",
+          "expr": "1 - (sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))) > 0.001",
+          "severity": "critical"
+        },
+        {
+          "name": "burn_rate_fast",
+          "expr": "(sum(rate(http_requests_total{status=~\\\"5..\\\"}[5m])) / sum(rate(http_requests_total[5m]))) / 0.001 > 14.4",
+          "severity": "warning"
+        },
+        {
+          "name": "burn_rate_slow",
+          "expr": "(sum(rate(http_requests_total{status=~\\\"5..\\\"}[6h])) / sum(rate(http_requests_total[6h]))) / 0.001 > 1",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "chat_latency_p95",
+      "name": "Chat P95 latency",
+      "objective": "P95 latency for /chat/advise",
+      "target_seconds": 2.0,
+      "window": "30d",
+      "alerts": [
+        {
+          "name": "chat_p95_high",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(chat_latency_seconds_bucket[5m]))) > 2",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "llm_budget",
+      "name": "Monthly LLM budget",
+      "objective": "Cumulative LLM cost per month <= budget",
+      "target_usd": 500.0,
+      "window": "30d",
+      "alerts": [
+        {
+          "name": "llm_budget_80pct",
+          "expr": "sum(llm_cost_usd_total) > 400",
+          "severity": "warning"
+        },
+        {
+          "name": "llm_budget_100pct",
+          "expr": "sum(llm_cost_usd_total) > 500",
+          "severity": "critical"
+        }
+      ]
+    },
+    {
+      "id": "rto_rpo",
+      "name": "RTO/RPO objectives",
+      "objective": "Recovery Time and Point Objectives",
+      "window": "30d",
+      "rto_minutes": 30,
+      "rpo_minutes": 5,
+      "alerts": []
+    }
+  ]
+}
