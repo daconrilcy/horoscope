@@ -1,0 +1,80 @@
+name: Smoke E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL of deployed API (e.g., https://canary.example.com)"
+        required: true
+      api_token:
+        description: "Optional Bearer token to call /chat/advise"
+        required: false
+      p95_ms:
+        description: "P95 latency threshold in milliseconds"
+        required: false
+        default: "2000"
+      runs:
+        description: "Number of chat requests to sample for latency"
+        required: false
+        default: "10"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health check
+        run: |
+          set -e
+          curl -fsSL "$BASE_URL/health" | head -c 200 || (echo "Health check failed" && exit 1)
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url }}
+      - name: Metrics endpoint (optional)
+        run: |
+          curl -fsS "$BASE_URL/metrics" | egrep -i "http_requests_total|retrieval_requests_total" | head -n 20 || true
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url }}
+      - name: Chat advise latency sample (optional)
+        if: ${{ github.event.inputs.api_token != '' }}
+        run: |
+          python - << 'PY'
+          import json, os, time, urllib.request
+          base = os.environ['BASE_URL']
+          token = os.environ['API_TOKEN']
+          runs = int(os.environ.get('RUNS', '10'))
+          p95_ms = int(os.environ.get('P95_MS', '2000'))
+
+          # Create chart for testing
+          def post(path, data, headers=None):
+            req = urllib.request.Request(base + path, data=json.dumps(data).encode('utf-8'), headers=headers or {'Content-Type': 'application/json'})
+            return urllib.request.urlopen(req, timeout=10)
+
+          birth = {"name":"Smoke","date":"1990-01-01","time":None,"tz":"Europe/Paris","lat":48.85,"lon":2.35,"time_certainty":"exact"}
+          r = post('/horoscope/natal', birth)
+          body = json.loads(r.read().decode('utf-8'))
+          cid = body.get('id')
+
+          latencies = []
+          for _ in range(runs):
+            t0 = time.perf_counter()
+            try:
+              req = urllib.request.Request(base + '/chat/advise', data=json.dumps({"chart_id": cid, "question": "Ping?"}).encode('utf-8'), headers={"Content-Type":"application/json","Authorization": f"Bearer {token}"})
+              resp = urllib.request.urlopen(req, timeout=20)
+              _ = resp.read()
+            except Exception as e:
+              # consider as high latency on error
+              latencies.append(10.0)
+            else:
+              latencies.append(time.perf_counter() - t0)
+
+          latencies.sort()
+          idx = max(0, int(0.95 * len(latencies)) - 1)
+          p95 = latencies[idx] * 1000.0
+          print(f"P95 latency: {p95:.1f} ms (threshold {p95_ms} ms)")
+          if p95 > p95_ms:
+            raise SystemExit(f"P95 latency {p95:.1f} ms exceeds threshold {p95_ms} ms")
+          PY
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url }}
+          API_TOKEN: ${{ github.event.inputs.api_token }}
+          P95_MS: ${{ github.event.inputs.p95_ms }}
+          RUNS: ${{ github.event.inputs.runs }}

@@ -79,6 +79,11 @@ class Settings(BaseSettings):
     RATE_LIMIT_EXEMPT_HEALTH: bool = False
     # Celery Ops
     CELERY_MAX_FAILURES_BEFORE_DLQ: int = 3
+    # Token counting strategy: auto | api | tiktoken | words
+    TOKEN_COUNT_STRATEGY: str = "auto"
+    # Limitation de cardinalité des labels métriques (CSV via .env, peut être vide)
+    ALLOWED_LLM_MODELS: list[str] = []
+    ALLOWED_TENANTS: list[str] = []
 
 
 def get_settings() -> Settings:

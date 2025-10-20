@@ -48,3 +48,28 @@ services:
     command: celery -A backend.app.celery_app.celery_app worker -l INFO -Q default
     depends_on:
       - redis
+
+  metrics:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    env_file:
+      - ../.env.example
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_QUEUE_NAMES=celery,default
+    command: python -m backend.infra.monitoring.celery_metrics_server --host 0.0.0.0 --port 9109 --allowlist "127.0.0.1,::1"
+    depends_on:
+      - worker
+    ports:
+      - "9109:9109"
+
+  nginx-metrics:
+    image: nginx:1.27-alpine
+    depends_on:
+      - metrics
+    ports:
+      - "9110:9110"
+    volumes:
+      - ../ops/nginx/metrics.conf:/etc/nginx/conf.d/metrics.conf:ro
+      - ../ops/nginx/.htpasswd:/etc/nginx/.htpasswd:ro

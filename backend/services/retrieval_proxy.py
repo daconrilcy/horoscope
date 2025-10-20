@@ -19,9 +19,16 @@ import structlog
 
 from backend.app.metrics import (
     RETRIEVAL_ERRORS,
+    RETRIEVAL_HIT_RATIO,
+    RETRIEVAL_HITS_TOTAL,
     RETRIEVAL_LATENCY,
+    RETRIEVAL_QUERIES_TOTAL,
     RETRIEVAL_REQUESTS,
+    labelize_tenant,
 )
+from backend.core.container import container
+
+_hit_stats: dict[tuple[str, str], tuple[int, int]] = {}
 
 
 class BaseRetrievalAdapter(ABC):
@@ -284,10 +291,26 @@ class RetrievalProxy:
             Résultats triés par score décroissant.
         """
         start = time.perf_counter()
-        lbl_tenant = tenant or "default"
+        # Apply label whitelist to limit cardinality
+        settings = container.settings
+        lbl_tenant = labelize_tenant(tenant or "default", settings.ALLOWED_TENANTS)
         RETRIEVAL_REQUESTS.labels(self._backend, lbl_tenant).inc()
         try:
-            return self._adapter.search(query=query, top_k=top_k, tenant=tenant)
+            results = self._adapter.search(query=query, top_k=top_k, tenant=tenant)
+            # Update hit ratio stats
+            key = (self._backend, lbl_tenant)
+            q, h = _hit_stats.get(key, (0, 0))
+            q += 1
+            if results:
+                h += 1
+            _hit_stats[key] = (q, h)
+            if q > 0:
+                RETRIEVAL_HIT_RATIO.labels(self._backend, lbl_tenant).set(h / q)
+            # Robust counters for PromQL-based ratio
+            RETRIEVAL_QUERIES_TOTAL.labels(self._backend, lbl_tenant).inc()
+            if results:
+                RETRIEVAL_HITS_TOTAL.labels(self._backend, lbl_tenant).inc()
+            return results
         except RetrievalBackendHTTPError as exc:
             RETRIEVAL_ERRORS.labels(self._backend, str(exc.status_code), lbl_tenant).inc()
             raise

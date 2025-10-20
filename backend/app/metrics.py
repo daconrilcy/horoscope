@@ -1,7 +1,7 @@
 import time
 
 from fastapi import APIRouter, Request
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
@@ -26,6 +26,78 @@ RETRIEVAL_LATENCY = Histogram(
     "Latency of retrieval operations",
     ["backend", "tenant"],
 )
+
+# Business/chat metrics
+CHAT_REQUESTS = Counter(
+    "chat_requests_total",
+    "Total chat advise requests",
+    ["tenant", "model"],
+)
+CHAT_LATENCY = Histogram(
+    "chat_latency_seconds",
+    "Latency of chat advise",
+    ["tenant", "model"],
+)
+LLM_TOKENS_TOTAL = Counter(
+    "llm_tokens_total",
+    "Accumulated LLM tokens",
+    ["tenant", "model"],
+)
+
+# Retrieval hit ratio (gauge maintained by service code)
+RETRIEVAL_HIT_RATIO = Gauge(
+    "retrieval_hit_ratio",
+    "Ratio of retrieval queries that returned at least one hit",
+    ["backend", "tenant"],
+)
+
+# Retrieval hit/queries as counters to compute ratio in PromQL (robust across workers)
+RETRIEVAL_QUERIES_TOTAL = Counter(
+    "retrieval_queries_total",
+    "Total retrieval queries",
+    ["backend", "tenant"],
+)
+RETRIEVAL_HITS_TOTAL = Counter(
+    "retrieval_hits_total",
+    "Total retrieval queries that returned at least one hit",
+    ["backend", "tenant"],
+)
+
+# Token counting strategy info (for debugging)
+TOKEN_COUNT_STRATEGY_INFO = Gauge(
+    "token_count_strategy_info",
+    "Active token counting strategy for this process",
+    ["strategy"],
+)
+
+
+def _normalize_allowed(allowed: list[str] | str | None) -> list[str]:
+    """Normalize allowed values from settings (list or CSV string)."""
+    if not allowed:
+        return []
+    if isinstance(allowed, list):
+        if len(allowed) == 1 and "," in (allowed[0] or ""):
+            return [s.strip() for s in allowed[0].split(",") if s.strip()]
+        return [str(x).strip() for x in allowed if str(x).strip()]
+    # string
+    return [s.strip() for s in str(allowed).split(",") if s.strip()]
+
+
+def labelize_tenant(tenant: str | None, allowed: list[str] | str | None) -> str:
+    """Project tenant label through a whitelist; otherwise 'unknown'."""
+    vals = set(_normalize_allowed(allowed))
+    if not vals:
+        return tenant or "default"
+    return (tenant or "").strip() if (tenant or "").strip() in vals else "unknown"
+
+
+def labelize_model(model: str | None, allowed: list[str] | str | None) -> str:
+    """Project model label through a whitelist; otherwise 'unknown'."""
+    vals = set(_normalize_allowed(allowed))
+    if not vals:
+        return model or "unknown"
+    return (model or "").strip() if (model or "").strip() in vals else "unknown"
+
 
 # Security/quotas metrics
 RATE_LIMIT_BLOCKS = Counter(
