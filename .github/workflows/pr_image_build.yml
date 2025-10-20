@@ -36,20 +36,19 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build image (no push) with cache
+      - name: Build image (no push) with cache — target=ci
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./docker/Dockerfile
+          target: ci
           push: false
-          load: true
-          tags: ${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number || github.run_number }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          no-cache: true
+          outputs: type=oci,dest=/tmp/pr-image-ci.oci.tar
 
-      - name: Show image size
+      - name: Show OCI tar size
         run: |
-          docker image ls $IMAGE_NAME:pr-${{ github.event.pull_request.number || github.run_number }}
+          ls -lh /tmp/pr-image-ci.oci.tar || true
 
       - name: Hadolint
         uses: hadolint/hadolint-action@v3.1.0
@@ -67,25 +66,26 @@ jobs:
           exit-code: ${{ env.TRIVY_MODE == 'strict' && '1' || '0' }}
           severity: 'HIGH,CRITICAL'
 
-      - name: Trivy Image scan (built image)
+      - name: Trivy Image scan (OCI tar, strict or warn)
         uses: aquasecurity/trivy-action@0.24.0
         with:
-          image-ref: ${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number || github.run_number }}
+          input: /tmp/pr-image-ci.oci.tar
           ignore-unfixed: true
           format: 'table'
           exit-code: ${{ env.TRIVY_MODE == 'strict' && '1' || '0' }}
           severity: 'HIGH,CRITICAL'
 
-      - name: Generate SBOM (CycloneDX)
+      - name: SBOM CycloneDX (from OCI tar)
         run: |
-          trivy image --format cyclonedx --output sbom.cdx.json $IMAGE_NAME:pr-${{ github.event.pull_request.number || github.run_number }} || true
+          trivy image --input /tmp/pr-image-ci.oci.tar --format cyclonedx --output /tmp/sbom.cdx.json || true
+          ls -lh /tmp/sbom.cdx.json || true
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
         with:
           name: sbom-cyclonedx
-          path: sbom.cdx.json
-          if-no-files-found: ignore
+          path: /tmp/sbom.cdx.json
+          if-no-files-found: warn
 
       - name: Gitleaks (secrets scan)
         uses: gitleaks/gitleaks-action@v2
@@ -95,7 +95,7 @@ jobs:
       - name: Compile & Ruff & Pytest (smoke rapide)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          (test -f requirements.ci.txt && pip install -r requirements.ci.txt) || pip install -r requirements.txt
           python -m compileall -q backend
           ruff check backend --output-format=github
           ruff format --check backend

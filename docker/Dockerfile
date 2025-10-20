@@ -1,7 +1,61 @@
 # syntax=docker/dockerfile:1
 # Objectif: image pour exécuter l'API FastAPI avec Python + deps.
 FROM python:3.12-slim
+# --------------------------------------------------------------------
+# STAGE: base — dépendances min, sans libs lourdes (torch, etc.)
+# --------------------------------------------------------------------
+FROM python:3.12-slim AS base
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
 
+# OS deps minimales
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl ca-certificates git \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY pyproject.toml requirements*.txt ./
+# Installer le strict minimum commun pour CI (léger)
+RUN pip install --upgrade pip \
+ && if [ -f requirements.ci.txt ]; then pip install -r requirements.ci.txt ; fi
+
+# --------------------------------------------------------------------
+# STAGE: ci — build PR léger (sans extras lourds)
+# Installe uniquement ce qu’il faut pour linters/tests unitaires.
+# --------------------------------------------------------------------
+FROM base AS ci
+COPY backend ./backend
+COPY tests ./tests
+COPY pytest.ini ./
+RUN python -m compileall -q backend \
+ && python -c "import sys; print('Python OK:', sys.version)"
+CMD ["python", "-c", "print('ci image ready')"]
+
+# --------------------------------------------------------------------
+# STAGE: prod — image finale complète (utilisée par release.yml)
+# Garder l’installation complète, y compris extras nécessaires.
+# --------------------------------------------------------------------
+FROM python:3.12-slim AS prod
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+# OS deps runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY pyproject.toml requirements*.txt ./
+RUN pip install --upgrade pip \
+ && if [ -f requirements.txt ]; then pip install -r requirements.txt ; fi
+
+COPY backend ./backend
+EXPOSE 8000
+CMD ["python", "-m", "backend.app.main"]
 ENV PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1     PIP_NO_CACHE_DIR=1
 
 WORKDIR /app

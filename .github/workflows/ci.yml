@@ -16,7 +16,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          (test -f requirements.ci.txt && pip install -r requirements.ci.txt) || pip install -r requirements.txt
           # Optional extras for token counting (non-fatal if missing)
           pip install -r requirements.tokens.txt || true
           pip install ruff pytest pytest-cov
@@ -52,18 +52,19 @@ jobs:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build image (local)
+      - name: Build image (export tar) — target=ci
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile
+          target: ci
           push: false
-          load: true
-          tags: local/horoscope:ci
+          no-cache: true
+          outputs: type=oci,dest=/tmp/app-ci.oci.tar
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@0.24.0
         with:
-          image-ref: local/horoscope:ci
+          input: /tmp/app-ci.oci.tar
           format: table
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
