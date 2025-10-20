@@ -5,7 +5,7 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     OpenAI = None  # type: ignore
 
-from backend.core.container import container
+from backend.core.container import container, resolve_secret
 from backend.infra.embeddings.base import Embeddings
 
 
@@ -15,7 +15,7 @@ class OpenAIEmbedder(Embeddings):
             self.client = None
             self.model = None
         else:
-            self.client = OpenAI(api_key=getattr(container.settings, "OPENAI_API_KEY", None))
+            self.client = OpenAI(api_key=resolve_secret("OPENAI_API_KEY") or None)
             self.model = getattr(container.settings, "EMBEDDINGS_MODEL", "text-embedding-3-small")
 
     def embed(self, texts: list[str]) -> list[list[float]]:

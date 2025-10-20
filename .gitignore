@@ -3,5 +3,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 artifacts/
+artifacts/secrets/
+*.audit.log
 TEMP*
 .coverage
