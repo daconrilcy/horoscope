@@ -36,7 +36,7 @@ def estimate_tokens(text: str, model: str | None, usage: dict | None) -> int:
     def _from_api() -> int | None:
         if usage and isinstance(usage, dict):
             val = usage.get("total_tokens")
-            if isinstance(val, (int, float)):
+            if isinstance(val, int | float):
                 return int(val)
         return None
 

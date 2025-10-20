@@ -20,7 +20,7 @@ def main() -> None:
         if ast.get_docstring(tree, clean=False) is None:
             missing_module.append(p)
         for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
                 if ast.get_docstring(node, clean=False) is None:
                     missing_fn.setdefault(p, []).append(node.name)
 

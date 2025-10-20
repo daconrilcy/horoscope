@@ -26,4 +26,4 @@ def render_natal_pdf(chart: dict) -> bytes:
     pdf.text(x=50, y=150, text=f"Factors: {factors}")
     # Return PDF bytes (dest parameter deprecated; output returns bytes)
     out = pdf.output()
-    return out if isinstance(out, (bytes, bytearray)) else bytes(out)
+    return out if isinstance(out, bytes | bytearray) else bytes(out)
