@@ -53,7 +53,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build image (export OCI layout dir) — target=ci
+      - name: Build image (export Docker tar) — target=ci
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -61,14 +61,14 @@ jobs:
           target: ci
           push: false
           no-cache: true
-          outputs: type=oci,dest=${{ github.workspace }}/oci-image
-      - name: Show OCI layout
+          outputs: type=docker,dest=./ci-image.tar
+      - name: Show image tar
         run: |
-          ls -la ./oci-image || true
+          ls -lh ./ci-image.tar || true
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@0.24.0
         with:
-          input: ./oci-image
+          input: ./ci-image.tar
           format: table
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'

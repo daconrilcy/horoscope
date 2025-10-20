@@ -36,7 +36,7 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build image (no push) with cache — target=ci
+      - name: Build image (no push) with cache - target=ci
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -44,11 +44,11 @@ jobs:
           target: ci
           push: false
           no-cache: true
-          outputs: type=oci,dest=./pr-image-oci
+          outputs: type=docker,dest=./pr-image-ci.tar
 
-      - name: Show OCI layout
+      - name: Show image tar
         run: |
-          ls -la ./pr-image-oci || true
+          ls -lh ./pr-image-ci.tar || true
 
       - name: Hadolint
         uses: hadolint/hadolint-action@v3.1.0
@@ -68,18 +68,18 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL'
 
-      - name: Trivy Image scan (OCI dir, strict or warn)
+      - name: Trivy Image scan (Docker tar, strict or warn)
         uses: aquasecurity/trivy-action@0.24.0
         with:
-          input: ./pr-image-oci
+          input: ./pr-image-ci.tar
           ignore-unfixed: true
           format: 'table'
           exit-code: ${{ env.TRIVY_MODE == 'strict' && '1' || '0' }}
           severity: 'HIGH,CRITICAL'
 
-      - name: SBOM CycloneDX (from OCI dir)
+      - name: SBOM CycloneDX (from Docker tar)
         run: |
-          trivy image --input ./pr-image-oci --format cyclonedx --output ./sbom.cdx.json || true
+          trivy image --input ./pr-image-ci.tar --format cyclonedx --output ./sbom.cdx.json || true
           ls -lh ./sbom.cdx.json || true
 
       - name: Upload SBOM artifact
