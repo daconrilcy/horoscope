@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import create_engine
@@ -26,7 +26,7 @@ def _session() -> Session:
 def test_cv_create_and_get_latest() -> None:
     session = _session()
     repo = ContentVersionRepo(session)
-    now = datetime.utcnow().isoformat()
+    now =  datetime.now(UTC).isoformat()
     cv1 = ContentVersion(
         source="content/a",
         version="v1",
@@ -45,7 +45,7 @@ def test_cv_create_and_get_latest() -> None:
 def test_cv_unique_constraint() -> None:
     session = _session()
     repo = ContentVersionRepo(session)
-    now = datetime.utcnow().isoformat()
+    now =  datetime.now(UTC).isoformat()
     cv1 = ContentVersion(
         source="content/a",
         version="v1",
@@ -74,7 +74,7 @@ def test_cv_unique_constraint() -> None:
 def test_cv_list_all_by_tenant() -> None:
     session = _session()
     repo = ContentVersionRepo(session)
-    now = datetime.utcnow().isoformat()
+    now =  datetime.now(UTC).isoformat()
     for i in range(3):
         repo.create(
             ContentVersion(
