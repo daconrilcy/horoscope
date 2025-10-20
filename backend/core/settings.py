@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://redis:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://redis:6379/1"
 
+    # Vault/Sécurité
+    VAULT_ENABLED: bool = False
+    # LLM Guard
+    LLM_GUARD_ENABLE: bool = True
+    LLM_GUARD_MAX_INPUT_LEN: int = 1000
+
 
 def get_settings() -> Settings:
     """Construit et retourne la configuration de l'application."""
