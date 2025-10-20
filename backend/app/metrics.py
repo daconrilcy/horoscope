@@ -112,6 +112,28 @@ LLM_COST_USD = Counter(
     ["tenant", "model"],
 )
 
+# Vector store ops
+VECSTORE_INDEX = Counter(
+    "vecstore_index_total",
+    "Total index operations",
+    ["tenant", "backend"],
+)
+VECSTORE_SEARCH = Counter(
+    "vecstore_search_total",
+    "Total search operations",
+    ["tenant", "backend"],
+)
+VECSTORE_PURGE = Counter(
+    "vecstore_purge_total",
+    "Total purge operations",
+    ["tenant", "backend"],
+)
+VECSTORE_OP_LATENCY = Histogram(
+    "vecstore_op_latency_seconds",
+    "Latency of vecstore operations",
+    ["op", "backend"],
+)
+
 
 @metrics_router.get("/metrics")
 def metrics():
