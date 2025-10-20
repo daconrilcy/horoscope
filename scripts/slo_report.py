@@ -14,6 +14,7 @@ import argparse
 import calendar
 import json
 import os
+import subprocess
 from datetime import date
 from pathlib import Path
 
@@ -41,6 +42,37 @@ def _dashboard_link(base: str | None, slo_id: str) -> str:
         return "(dashboard: set GRAFANA_DASHBOARD_URL)"
     # naive anchor by SLO id (adjust to actual dashboard structure)
     return f"{base}?var-slo={slo_id}"
+
+
+def _prom_top_routes_5xx(base: str | None) -> list[tuple[str, float]]:
+    """Query Prometheus for top 3 routes with 5xx (avg rate over 5m)."""
+    if not base:
+        return []
+    prom = os.getenv("PROM_QUERY_URL") or base  # allow dedicated read-only URL
+    query = "topk(3, sum(rate(http_requests_total{status=~\"5..\"}[5m])) by (route))"
+    url = f"{prom}/api/v1/query?query={query}"
+    try:
+        res = subprocess.run(
+            ["curl", "-sS", "-m", "3", url],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        data = json.loads(res.stdout)
+        if data.get("status") != "success":
+            return []
+        results = data.get("data", {}).get("result", [])
+        out: list[tuple[str, float]] = []
+        for r in results:
+            route = r.get("metric", {}).get("route", "")
+            try:
+                val = float(r.get("value", [0, "0"])[1])
+            except Exception:
+                val = 0.0
+            out.append((route, val))
+        return out
+    except Exception:
+        return []
 
 
 def _status_icon(ok: bool | None) -> str:
@@ -101,6 +133,16 @@ def generate_report(output_dir: Path, month: str | None = None) -> Path:
             for a in alerts:
                 lines.append(f"  - {a.get('name')}: {a.get('expr')} (sev={a.get('severity')})\n")
         lines.append("\n")
+    # Top routes 5xx (if available)
+    tops = _prom_top_routes_5xx(os.getenv("PROM_QUERY_URL"))
+    lines.append("## Top routes 5xx (avg rate/5m)\n\n")
+    if tops:
+        lines.append("| Route | 5xx rate |\n|---|---:|\n")
+        for route, val in tops:
+            lines.append(f"| {route or '(unknown)'} | {val:.2f} |\n")
+    else:
+        lines.append("N/A (metrics unavailable)\n")
+    lines.append("\n")
     out.write_text("".join(lines), encoding="utf-8")
     return out
 
