@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from backend.api.routes_auth import get_current_user
+from backend.app.middleware_llm_guard import sanitize_input, validate_output
 from backend.core.container import container
 from backend.domain.chat_orchestrator import ChatOrchestrator
 from backend.domain.entitlements import require_entitlement
@@ -26,5 +27,11 @@ def advise(payload: ChatPayload, user=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="chart_not_found")
     service = HoroscopeService(container.astro, container.content_repo, container.chart_repo)
     today = service.get_today(payload.chart_id)
-    text = orch.advise(chart, today, payload.question)
-    return {"answer": text, "date": today.get("date")}
+    # LLM Guard: sanitize input and mask PII in output
+    try:
+        clean = sanitize_input({"question": payload.question})
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    text = orch.advise(chart, today, clean["question"])
+    safe = validate_output(text, tenant=user.get("tenant"))
+    return {"answer": safe, "date": today.get("date")}

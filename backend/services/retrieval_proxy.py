@@ -289,10 +289,10 @@ class RetrievalProxy:
         try:
             return self._adapter.search(query=query, top_k=top_k, tenant=tenant)
         except RetrievalBackendHTTPError as exc:
-            RETRIEVAL_ERRORS.labels(self._backend, str(exc.status_code)).inc()
+            RETRIEVAL_ERRORS.labels(self._backend, str(exc.status_code), lbl_tenant).inc()
             raise
         except RetrievalNetworkError:
-            RETRIEVAL_ERRORS.labels(self._backend, "network").inc()
+            RETRIEVAL_ERRORS.labels(self._backend, "network", lbl_tenant).inc()
             raise
         finally:
-            RETRIEVAL_LATENCY.labels(self._backend).observe(time.perf_counter() - start)
+            RETRIEVAL_LATENCY.labels(self._backend, lbl_tenant).observe(time.perf_counter() - start)

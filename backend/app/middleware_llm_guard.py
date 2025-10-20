@@ -5,41 +5,57 @@
 
 from __future__ import annotations
 
+import re
+
 
 def sanitize_input(payload: dict) -> dict:
     """Nettoie le payload d'entrée (taille, patterns interdits).
 
-    Args:
-        payload: dictionnaire d'entrée utilisateur.
-    Returns:
-        Payload nettoyé/normalisé.
-    Raises:
-        ValueError: si le payload est invalide.
+    - Trim des champs texte.
+    - Longueur max question: 1000 caractères.
+    - Détection de tentatives de prompt-injection basiques (deny-list) → ValueError.
     """
-    # TODO: bornes de taille/longueur champs, listes deny-list, etc.
-    return payload
+    data = dict(payload)
+    question = str(data.get("question", ""))
+    q = question.strip()
+    if not q:
+        raise ValueError("empty_question")
+    if len(q) > 1000:
+        raise ValueError("question_too_long")
+
+    patterns = [
+        r"ignore\s+previous\s+instructions",
+        r"system\s+prompt",
+        r"jailbreak",
+        r"do\s+anything\s+now",
+    ]
+    lower = q.lower()
+    for pat in patterns:
+        if re.search(pat, lower):
+            raise ValueError("prompt_injection_detected")
+
+    data["question"] = q
+    return data
 
 
 def enforce_policies(context: dict) -> dict:
-    """Applique les politiques de contexte (RBAC/entitlements/tenant).
+    """Applique des politiques simples (placeholder).
 
-    Args:
-        context: Contexte appelant (tenant, rôles, etc.).
-    Returns:
-        Contexte borné et sûr.
+    Pour MVP: pass-through. Point d'extension pour RBAC/tenant isolation.
     """
-    # TODO: scoping strict, no cross-tenant
-    return context
+    return dict(context)
 
 
 def validate_output(text: str, tenant: str | None) -> str:
     """Validate and filter output (PII masking, leaks).
 
-    Args:
-        text: Réponse générée par le LLM.
-        tenant: Identifiant tenant (facultatif).
-    Returns:
-        Texte validé/épuré.
+    - Masque emails.
+    - Masque numéros de téléphone simples.
+    - Future: filtrage de contenu interdit.
     """
-    # TODO: masquage PII (regex), règles de contenu interdit
-    return text
+    masked = text
+    # Emails
+    masked = re.sub(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "[redacted-email]", masked)
+    # Téléphones (très simple): séquences de 8+ chiffres avec séparateurs
+    masked = re.sub(r"\+?\d[\d\s\-]{7,}\d", "[redacted-phone]", masked)
+    return masked
