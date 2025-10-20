@@ -23,6 +23,10 @@ jobs:
             --data-urlencode 'query=increase(llm_cost_usd_total[30d])' \
             | jq -r '.data.result[0].value[1]' || echo "0")
           echo "LLM_BUDGET_MTD=$val" >> $GITHUB_ENV
+      - name: Debug LLM_BUDGET_MTD
+        run: |
+          echo "::add-mask::$LLM_BUDGET_MTD"
+          echo "LLM_BUDGET_MTD=$LLM_BUDGET_MTD"
       - name: Generate SLO report
         env:
           GRAFANA_DASHBOARD_URL: ${{ secrets.GRAFANA_DASHBOARD_URL || '' }}
