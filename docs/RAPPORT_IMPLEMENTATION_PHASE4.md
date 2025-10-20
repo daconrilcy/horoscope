@@ -77,3 +77,17 @@ Ce document synthétise l’implémentation réalisée à partir de `phase4_sque
 ---
 
 Dernière exécution: ruff clean et `pytest -q` → 17 passed.
+
+## Issue #18 — Documentation & DoD
+
+- README: ajout des liens vers les artéfacts CI (bench JSON, embeddings) et le dashboard Grafana; ajout d’une checklist "Definition of Done" pour les PR.
+- Runbooks: budgets/alertes SLO ajoutés dans `backend/docs/observability_runbook.md`; cutover/rollback couverts par `backend/docs/retrieval_migration.md`.
+- SLOs: publication et références `slo.yaml` (+ mapping alertes Grafana/Prometheus via métriques existantes).
+
+Références
+- `README.md`
+- `backend/docs/observability_runbook.md`
+- `backend/docs/retrieval_migration.md`
+- `backend/docs/grafana_dashboard.json`
+- `slo.yaml`
+- `artifacts/bench/`, `artifacts/embeddings/`
