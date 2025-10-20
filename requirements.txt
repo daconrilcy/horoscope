@@ -1,6 +1,4 @@
 # Objectif du fichier: Décrire l'objectif de requirements.txt
-# TODO: compléter cette description.
-
 fastapi==0.115.0
 starlette==0.38.6
 uvicorn[standard]==0.30.0

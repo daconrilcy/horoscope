@@ -55,6 +55,7 @@ jobs:
         with:
           dockerfile: ./docker/Dockerfile
           config: ./hadolint.yaml
+          failure-threshold: error
 
       - name: Trivy FS scan (workspace)
         uses: aquasecurity/trivy-action@0.24.0

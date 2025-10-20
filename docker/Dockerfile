@@ -17,9 +17,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY pyproject.toml requirements*.txt ./
-# Installer le strict minimum commun pour CI (léger)
-RUN pip install --upgrade pip \
- && if [ -f requirements.ci.txt ]; then pip install -r requirements.ci.txt ; fi
+# Installer le strict minimum commun pour CI (léger) avec pip versionnée (DL3013)
+ARG PIP_VERSION=25.2
+RUN pip install --no-cache-dir --upgrade "pip==${PIP_VERSION}" \
+ && if [ -f requirements.ci.txt ]; then pip install --no-cache-dir -r requirements.ci.txt ; fi
 
 # --------------------------------------------------------------------
 # STAGE: ci — build PR léger (sans extras lourds)
@@ -50,8 +51,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY pyproject.toml requirements*.txt ./
-RUN pip install --upgrade pip \
- && if [ -f requirements.txt ]; then pip install -r requirements.txt ; fi
+ARG PIP_VERSION=25.2
+RUN pip install --no-cache-dir --upgrade "pip==${PIP_VERSION}" \
+ && if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt ; fi
 
 COPY backend ./backend
 EXPOSE 8000

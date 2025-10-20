@@ -30,6 +30,7 @@ jobs:
         with:
           dockerfile: ./docker/Dockerfile
           config: ./hadolint.yaml
+          failure-threshold: error
       - name: Tests (cov>=90%)
         run: pytest --cov=backend --cov-fail-under=90 -q
 
