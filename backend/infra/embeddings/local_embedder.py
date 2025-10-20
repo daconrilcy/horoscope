@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 try:
     from sentence_transformers import SentenceTransformer  # type: ignore
 except Exception:  # pragma: no cover - optional dependency
@@ -12,13 +14,21 @@ class LocalEmbedder(Embeddings):
     _model = None
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        if SentenceTransformer is None:
-            # lightweight fallback to avoid heavy deps during tests
+        # Avoid remote model loads in CI/test by default, or when explicitly disabled.
+        offline = (os.getenv("EMBEDDINGS_OFFLINE", "").lower() in {"1", "true", "yes"}) or (
+            os.getenv("CI", "").lower() == "true"
+        )
+        if offline or SentenceTransformer is None:
+            # lightweight fallback to avoid heavy deps and network during tests/CI
             self.model = None
         else:
-            if LocalEmbedder._model is None:
-                LocalEmbedder._model = SentenceTransformer(model_name)
-            self.model = LocalEmbedder._model
+            try:
+                if LocalEmbedder._model is None:
+                    LocalEmbedder._model = SentenceTransformer(model_name)
+                self.model = LocalEmbedder._model
+            except Exception:
+                # On any load error, fall back to lightweight deterministic embeddings
+                self.model = None
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         if self.model is None:
