@@ -23,7 +23,6 @@ if str(SYS_ROOT) not in sys.path:
 
 from backend.domain.retrieval_types import Document  # noqa: E402
 from backend.domain.retriever import Retriever  # noqa: E402
-from backend.services.dual_write_ingestor import DualWriteIngestor  # noqa: E402
 
 
 def _load_documents(path: str) -> list[Document]:
@@ -64,14 +63,6 @@ def main() -> None:
         print(f"[ingest] aucun document chargé depuis {args.path}")
         return
 
-    # Dual-write activation via env
-    backend = (os.getenv("RETRIEVAL_BACKEND") or "faiss").lower()
-    dual_write = (os.getenv("RETRIEVAL_DUAL_WRITE") or "false").lower() == "true"
-    if dual_write and backend != "faiss":
-        ingestor = DualWriteIngestor(backend)
-        res = ingestor.ingest(docs, tenant="default")
-        print(f"[ingest] dual-write: faiss={res['faiss']} target={res['target']}")
-    else:
-        retriever = Retriever()
-        n = retriever.index(docs)
-        print(f"[ingest] indexés: {n} documents depuis {args.path}")
+    retriever = Retriever()
+    n = retriever.index(docs)
+    print(f"[ingest] indexés: {n} documents depuis {args.path}")
