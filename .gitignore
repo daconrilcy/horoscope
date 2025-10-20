@@ -4,6 +4,8 @@ __pycache__/
 .ruff_cache/
 artifacts/
 artifacts/secrets/
+artifacts/audit/
+var/faiss/
 *.audit.log
 TEMP*
 .coverage

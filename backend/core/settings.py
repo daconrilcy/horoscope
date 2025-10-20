@@ -84,6 +84,12 @@ class Settings(BaseSettings):
     # Limitation de cardinalité des labels métriques (CSV via .env, peut être vide)
     ALLOWED_LLM_MODELS: list[str] = []
     ALLOWED_TENANTS: list[str] = []
+    # Vector store backend and tenancy
+    VECSTORE_BACKEND: str = "faiss"  # faiss | memory
+    TENANCY_MODE: str = "simple"
+    DEFAULT_TENANT: str = "default"
+    FAISS_DATA_DIR: str = "./var/faiss"
+    STORAGE_REGION: str = "eu"
 
 
 def get_settings() -> Settings:

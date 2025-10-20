@@ -151,11 +151,32 @@ docker run --rm --entrypoint htpasswd httpd:2.4-alpine -nbB prometheus <MOT_DE_P
   - Revenir au tag précédent du déploiement, ou redéployer l’image précédente depuis GHCR (signée), puis relancer `Smoke E2E`.
 - Sécurité:
   - Pas de secrets exposés dans les logs workflows.
-  - Cosign en keyless: nécessite `id-token: write` + policy d’admission côté cluster pour vérifier les signatures.
+- Cosign en keyless: nécessite `id-token: write` + policy d’admission côté cluster pour vérifier les signatures.
   - Admission policy (cluster): configurez une policy Sigstore/Cosign côté admission (OPA/Gatekeeper ou Kyverno) pour refuser les images non signées ou signées par une identité non autorisée.
 
 Smoke E2E enrichi:
 - Workflow `Smoke E2E` accepte un token (`api_token`) et exécute N appels `/chat/advise` en mesurant la latence; il échoue si la P95 dépasse `p95_ms` (défaut 2000 ms).
+
+## Retrieval Multi‑Tenant & RGPD (Issue #16)
+
+- Backend vectoriel:
+  - `VECSTORE_BACKEND=faiss|memory` (défaut: `faiss`)
+  - FAISS persistant par tenant: `FAISS_DATA_DIR=./var/faiss`
+  - Mode de tenancy: `TENANCY_MODE=simple`, `DEFAULT_TENANT=default`
+- Sécurité du tenant:
+  - Toujours dériver le tenant depuis un JWT/claim côté backend; n’utilisez un header `X‑Tenant` que s’il est injecté par un reverse‑proxy d’auth de confiance (mTLS/signature).
+  - Validation/normalisation: `^[a-z0-9_-]{1,64}$` + lower/trim; valeurs invalides rejetées/normalisées.
+- Purge RGPD (droit à l’oubli):
+  - Script: `python -m scripts.purge_tenant <tenant>`
+  - Journal d’audit JSONL: `artifacts/audit/tenant_purge.log` (rotation >10 MB)
+  - Format: `{ts, tenant, actor, action:"purge", backend:"faiss|memory", status:"success|error", error}`
+  - Actor: `PURGE_ACTOR` (env) sinon utilisateur système, sinon `service`.
+- Métriques:
+  - `vecstore_index_total{tenant,backend}`, `vecstore_search_total{tenant,backend}`, `vecstore_purge_total{tenant,backend}`
+  - `vecstore_op_latency_seconds{op,backend}` pour latences.
+- Fichiers ignorés:
+  - `var/faiss/` (index FAISS) et `artifacts/audit/` (audit RGPD) ne doivent pas être commités.
+- Runbook détaillé: voir `backend/docs/OPS.md`.
 
 ### PR Image Build (no push)
 - Build Docker sur chaque PR (sans push) + scans Trivy (FS+image) + Gitleaks + Hadolint.
