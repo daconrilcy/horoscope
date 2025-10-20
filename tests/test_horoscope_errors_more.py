@@ -3,8 +3,6 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
-from backend.api.routes_auth import router as auth_router
-from backend.core.container import container
 
 
 def _token(client: TestClient) -> str:

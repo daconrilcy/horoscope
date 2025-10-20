@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-
 from backend.app.cost_controls import BudgetManager
 
 

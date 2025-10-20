@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import importlib
+from pathlib import Path
 
 
 def test_settings_reads_env_file(tmp_path: Path, monkeypatch) -> None:
@@ -14,7 +13,7 @@ def test_settings_reads_env_file(tmp_path: Path, monkeypatch) -> None:
     # Reload settings module to pick up new ENV_FILE
     settings_mod = importlib.import_module("backend.core.settings")
     importlib.reload(settings_mod)
-    get_settings = getattr(settings_mod, "get_settings")
+    get_settings = settings_mod.get_settings
 
     s = get_settings()
     assert s.LLM_GUARD_ENABLE is False

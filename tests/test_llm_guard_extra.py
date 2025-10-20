@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import os
 from typing import Any
+
+import pytest
 
 from backend.app.middleware_llm_guard import sanitize_input, validate_output
 
@@ -22,11 +23,9 @@ def test_sanitize_enforces_max_length(monkeypatch: Any) -> None:
     monkeypatch.setenv("LLM_GUARD_ENABLE", "true")
     monkeypatch.setenv("LLM_GUARD_MAX_INPUT_LEN", "5")
     payload = {"question": "0123456"}
-    try:
+    with pytest.raises(ValueError) as exc:
         sanitize_input(payload)
-        assert False, "expected ValueError for question_too_long"
-    except ValueError as e:
-        assert str(e) == "question_too_long"
+    assert str(exc.value) == "question_too_long"
 
 
 def test_guard_disabled_bypasses_masks(monkeypatch: Any) -> None:
@@ -38,4 +37,3 @@ def test_guard_disabled_bypasses_masks(monkeypatch: Any) -> None:
     masked = validate_output(text, tenant=None)
     assert "[redacted-email]" not in masked
     assert "[redacted-phone]" not in masked
-
