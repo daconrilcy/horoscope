@@ -10,11 +10,25 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
-from ..services.retrieval_proxy import RetrievalProxy
+try:  # optional RAM metrics
+    import psutil  # type: ignore
+except Exception:  # pragma: no cover - optional dependency in CI
+    psutil = None  # type: ignore
+
+# Allow running as a standalone script (python backend/scripts/bench_retrieval.py)
+SYS_ROOT = Path(__file__).resolve().parents[2]
+if str(SYS_ROOT) not in sys.path:
+    sys.path.append(str(SYS_ROOT))
+
+from backend.domain.retrieval_types import Document, Query  # noqa: E402
+from backend.domain.retriever import Retriever  # noqa: E402
+from backend.services.retrieval_proxy import RetrievalProxy  # noqa: E402
 
 
 def _percentile(values: list[float], p: float) -> float:
@@ -38,14 +52,56 @@ def main() -> None:
     os.environ["RETRIEVAL_BACKEND"] = args.adapter.lower()
     proxy = RetrievalProxy()
 
+    # Dataset synthétique 10k fiches courtes
+    total_docs = int(args.docs)
+    docs: list[Document] = [
+        Document(id=f"doc_{i}", text=f"Topic {i % 50}: sample note about stars and signs #{i}")
+        for i in range(total_docs)
+    ]
+
+    retriever: Retriever | None = None
+    if args.adapter.lower() == "faiss":
+        # Indexer localement via FAISS (embeddings cohérents via embedder du store)
+        retriever = Retriever()
+        retriever.index(docs)
+
     # Placeholder de bench minimal (simulé) — à remplacer par réel dataset
     latencies: list[float] = []
     start = time.time()
-    for _ in range(min(200, args.docs // 10)):
+    queries = [
+        "how to read zodiac?",
+        "sign traits for aries",
+        "compatibility leo and libra",
+        "daily horoscope tips",
+        "constellation facts",
+    ]
+    n_iters = max(50, min(500, total_docs // 20))
+    for i in range(n_iters):
         t0 = time.time()
-        proxy.search(query="test query", top_k=args.topk, tenant="bench")
+        qtext = queries[i % len(queries)]
+        if retriever is not None:
+            _ = retriever.query(Query(text=qtext, k=args.topk))
+        else:
+            proxy.search(query=qtext, top_k=args.topk, tenant="bench")
         latencies.append(time.time() - t0)
     elapsed = time.time() - start
+
+    # Compute process RAM if psutil is available
+    ram_mb = None
+    if psutil is not None:
+        try:
+            ram_mb = round(psutil.Process().memory_info().rss / (1024 * 1024), 1)
+        except Exception:  # pragma: no cover - defensive
+            ram_mb = None
+
+    # Add git SHA if available
+    sha = None
+    try:
+        import subprocess
+
+        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except Exception:  # pragma: no cover - CI safety
+        sha = None
 
     report: dict[str, Any] = {
         "adapter": args.adapter,
@@ -55,6 +111,9 @@ def main() -> None:
         "p50_ms": round(_percentile(latencies, 0.50) * 1000, 2),
         "p95_ms": round(_percentile(latencies, 0.95) * 1000, 2),
         "elapsed_s": round(elapsed, 3),
+        "qps_observed": round((len(latencies) / elapsed) if elapsed > 0 else 0.0, 2),
+        "ram_mb": ram_mb,
+        "git_sha": sha,
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
 

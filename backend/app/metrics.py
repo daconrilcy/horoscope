@@ -14,7 +14,7 @@ REQUEST_LATENCY = Histogram("http_request_duration_seconds", "Latency of HTTP re
 RETRIEVAL_REQUESTS = Counter(
     "retrieval_requests_total",
     "Total retrieval operations",
-    ["backend"],
+    ["backend", "tenant"],
 )
 RETRIEVAL_ERRORS = Counter(
     "retrieval_errors_total",

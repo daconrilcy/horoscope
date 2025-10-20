@@ -22,3 +22,9 @@
 
 ## Migration Retrieval
 - Doc : `backend/docs/retrieval_migration.md`
+
+## Bench – comment reproduire
+- Générer un rapport local (ex: FAISS):
+  - `python backend/scripts/bench_retrieval.py --adapter faiss --docs 10000 --qps 50 --topk 5`
+  - Sortie: `artifacts/bench/<timestamp>_<adapter>.json` incluant p50/p95/QPS, RAM (si `psutil`), et SHA git.
+- CI: Workflow "Retrieval Bench" (GitHub Actions) génère et uploade l'artefact JSON.
