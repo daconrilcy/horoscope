@@ -1,0 +1,228 @@
+
+# Agent GPT — Phase 4 Execution TaskPack (.mds) — Complément (#9 → #18)
+Dernière MAJ: 2025-10-20 09:40:20
+
+## 0) Mandat & Règles (mêmes contraintes)
+- **Objectif** : exécuter les issues **#9 → #18** (une branche = une PR/issue).
+- **Qualité obligatoire avant PR** :
+  ```bash
+  python -m compileall -q backend
+  ruff check backend --fix && ruff format backend
+  pytest --cov=backend --cov-fail-under=90 -q
+  ```
+- **Interdits code** : **pas** de `typing.Dict`, `typing.List`, `typing.Optional`, `typing.Str` (utiliser `dict`, `list`, `str`, `X | None`).
+- **Commentaires** : entête de module + docstrings **pour chaque fonction/méthode**.
+- **Imports** : nettoyés, ordonnés (stdlib / externes / internes).
+- **Sécurité** : aucune fuite secret/PII; logs/metrics sans données sensibles.
+- **Commits** : petits, atomiques — `feat|fix|docs|chore(scope): résumé` + `Refs #<issue>`.
+
+---
+
+## 9) Sécurité LLM — Guard I/O (anti prompt‑injection + PII masking)
+**Branche** : `feat/9-llm-guard`  
+**Fichiers** : `backend/app/middleware_llm_guard.py`, `backend/api/routes_chat.py`, `tests/test_llm_guard.py`
+
+### Tâches
+1. Entrée : `sanitize_input(q)` — trim, longueur max (par défaut ≤1000 via env `LLM_GUARD_MAX_INPUT_LEN`), denylist FR/EN (ex.: “ignore previous instructions”, “jailbreak”, “system prompt”, “do anything now”, “ignore les instructions précédentes”). Retour 400 si violation.
+2. Sortie : `validate_output(text, tenant)` — masquage PII (emails → `[redacted-email]`, téléphone → `[redacted-phone]`). Aucune PII en logs.
+3. Intégration route `/chat/advise` : appliquer **avant** orchestrateur (entrée) et **avant** réponse (sortie).
+4. (Option) Métriques : `llm_guard_blocks_total{reason}`, `llm_guard_pii_redactions_total{type}`.
+5. Env/Docs : `.env.example` (`LLM_GUARD_MAX_INPUT_LEN`, `LLM_GUARD_ENABLE=true`) + README.
+
+### Critères d’acceptation
+- Tests : injection multi‑casse/multi‑langue, vide/espaces, >1000 chars, PII multiples; pas de faux positifs.
+- Qualité : gates OK, pas de `typing.*` interdits, docstrings/headers présents.
+
+### PR boilerplate
+- **Titre** : `feat(security): LLM I/O guard (prompt‑injection + PII masking) (Closes #9)`  
+- **Labels** : `security`, `phase4` — **Milestone** : `Phase-4`.
+
+---
+
+## 10) Sécurité — Vault branché + rotation clés
+**Branche** : `feat/10-vault-secrets`  
+**Fichiers** : `backend/infra/secrets/vault_client.py`, `backend/app/container.py`, `tests/test_vault_client.py`
+
+### Tâches
+1. Client Vault : lecture clés (OpenAI, Weaviate, etc.) — **jamais** loggées.
+2. Container : résolution des secrets via Vault **avec fallback** env (doc clair).
+3. Rotation manuelle : script court + log d’audit (timestamp, key id — sans valeur).
+4. Docs : README “Secrets” + `.env.example` (placeholders).
+
+### Critères
+- Tests unitaires : mock Vault → récupérations OK; fallback env OK.
+- Aucune fuite de secret (logs/metrics).
+
+### PR
+- Titre : `feat(security): Vault client + secrets rotation (Closes #10)`  
+- Labels : `security`, `secrets`, `phase4` — Milestone `Phase-4`.
+
+---
+
+## 11) Rate-limit/Quotas — par tenant (QPS, tokens, coût)
+**Branche** : `feat/11-quotas`  
+**Fichiers** : `backend/app/middleware_rate_limit.py`, `backend/app/cost_controls.py`, `tests/test_rate_limit.py`
+
+### Tâches
+1. QPS par tenant (clé `tenant` dans requête/context). 429 si dépassement.
+2. Quotas tokens/coût (compteurs exposés par métriques LLM); warn à 80%, blocage doux à 100%.
+3. Métriques Prom : `rate_limit_blocks_total{tenant,reason}`, `llm_cost_usd_total{tenant,model}`.
+4. Docs : README “Quotas & budgets”, variables env (seuils).
+
+### Critères
+- Tests : warn & block; dépassement QPS; budget atteint → mode dégradé.
+- Qualité gates OK.
+
+### PR
+- Titre : `feat(security): per‑tenant rate‑limit & quotas (Closes #11)`  
+- Labels : `security`, `costs`, `phase4` — Milestone `Phase-4`.
+
+---
+
+## 12) Celery Ops — retries/backoff + idempotence Redis + poison queue
+**Branche** : `feat/12-celery-ops`  
+**Fichiers** : `backend/app/celeryconfig.py`, `backend/infra/ops/idempotency.py`, `tests/test_celery_ops.py`
+
+### Tâches
+1. `task_acks_late=True`, `max_retries`, backoff expo + jitter, `time_limit`/`soft_time_limit` par tâche.
+2. Idempotence Redis (clé de déduplication TTL) — pas de double exécution.
+3. Poison queue/dead‑letter pour tâches échouées > N fois.
+4. Métriques Prom : retries, failures, dlq_total.
+
+### Critères
+- Tests : retry sans duplicat, idempotence, mise en DLQ.
+- Docs : README “Celery Ops” (runbook).
+
+### PR
+- Titre : `feat(ops): Celery retries/backoff + idempotence + poison queue (Closes #12)`  
+- Labels : `ops`, `celery`, `reliability`, `phase4`.
+
+---
+
+## 13) Celery Monitoring — Exporter Prom + traces OTEL corrélées
+**Branche** : `feat/13-celery-monitoring`  
+**Fichiers** : `backend/infra/monitoring/celery_exporter.py`, `backend/app/tracing.py`, `tests/test_celery_monitoring.py`
+
+### Tâches
+1. Exposer `/metrics` : `queue_depth`, `task_runtime_seconds`, `task_success_total`, `task_failure_total`, `task_retry_total`.
+2. Propager `trace_id` OTEL job → task → subcalls (Jaeger).
+
+### Critères
+- Test d’intégration léger (mocks) : compteurs/labels s’incrémentent; trace visible.
+- Qualité OK.
+
+### PR
+- Titre : `feat(ops): Celery Prom exporter + OTEL trace correlation (Closes #13)`  
+- Labels : `ops`, `observability`, `phase4`.
+
+---
+
+## 14) Observabilité — métriques métier + dashboards + alertes
+**Branche** : `feat/14-observability-metrics`  
+**Fichiers** : `backend/app/metrics.py`, `grafana/dashboard_phase4.json`, `tests/test_metrics_business.py`
+
+### Tâches
+1. Instrumenter Chat/Retrieval : `chat_requests_total`, `chat_latency_seconds`, `llm_tokens_total`, `llm_cost_usd_total`, `retrieval_hit_ratio`, labels `{tenant,model,backend}`.
+2. Alertes budget 80/100%, latence P95, erreurs 5xx.
+3. Dashboard Grafana par tenant.
+
+### Critères
+- Tests métriques (unitaires) et JSON Grafana validable.
+- README “Observabilité” MAJ.
+
+### PR
+- Titre : `feat(obs): business metrics + dashboards + alerts (Closes #14)`  
+- Labels : `observability`, `costs`, `phase4`.
+
+---
+
+## 15) CI/CD — gates, scans, smoke e2e, canary/blue‑green
+**Branche** : `feat/15-ci-security-release`  
+**Fichiers** : `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `.github/workflows/smoke.yml`
+
+### Tâches
+1. Gates PR : `cov≥90%`, `ruff`, `mypy/pyright` (si activé).  
+2. Scans : `gitleaks`, `trivy/grype` (image), `cosign` (signature).  
+3. Deploi : canary/blue‑green + smoke e2e + rollback scripté (<10 min).
+
+### Critères
+- PR KO si gate/scan KO; smoke passe en canary.
+- Docs : README “Release & rollback”.
+
+### PR
+- Titre : `feat(ci): gates+scans + canary/blue‑green + smoke e2e (Closes #15)`  
+- Labels : `ci`, `security`, `release`, `phase4`.
+
+---
+
+## 16) Multi‑tenant & RGPD — isolation, quotas, résidence UE, purge
+**Branche** : `feat/16-multitenant-rgpd`  
+**Fichiers** : `backend/domain/tenancy.py`, `backend/infra/retrieval/*` (namespaces), `scripts/purge_tenant.py`, `tests/test_tenancy_rgpd.py`
+
+### Tâches
+1. Isolation par tenant (namespace/index).  
+2. Rétention/purge (droit à l’oubli) **synchronisée** FAISS + cible.  
+3. Résidence UE : stockage/processing conformes (doc & flags).
+
+### Critères
+- Test prouvant isolation; purge ciblée OK; logs d’audit.
+- README “RGPD & Tenancy”.
+
+### PR
+- Titre : `feat(compliance): multi‑tenant isolation + purge RGPD (Closes #16)`  
+- Labels : `compliance`, `security`, `multi-tenant`, `phase4`.
+
+---
+
+## 17) SLO — publication + alertes mappées
+**Branche** : `feat/17-slo`  
+**Fichiers** : `slo.yaml`, `scripts/slo_report.py`, `tests/test_slo_report.py`
+
+### Tâches
+1. Publier `slo.yaml` (disponibilité, latence P95, budget LLM, RTO/RPO).  
+2. Relier alertes Grafana/Prom aux SLO.  
+3. Script `slo_report.py` : génère un rapport MD mensuel (liens dashboards).
+
+### Critères
+- Rapport MD généré; alertes mappées à chaque SLO.
+
+### PR
+- Titre : `feat(slo): publish SLOs + mapped alerts + monthly report (Closes #17)`  
+- Labels : `slo`, `observability`, `phase4`.
+
+---
+
+## 18) Documentation & DoD — runbooks, README, rapport MAJ
+**Branche** : `docs/18-runbooks`  
+**Fichiers** : `README.md`, `backend/docs/*.md`, `RAPPORT_IMPLEMENTATION_PHASE4.md`
+
+### Tâches
+1. MAJ runbooks (cutover/rollback/budgets), README (config, flags), liens artefacts CI (bench JSON, embeddings, dashboards).  
+2. “Definition of Done” consolidée (checklist PR).
+
+### Critères
+- Liens vérifiés; relecture interne approuvée.
+
+### PR
+- Titre : `docs: runbooks + RAPPORT_IMPLEMENTATION_PHASE4.md (Closes #18)`  
+- Labels : `docs`, `process`, `phase4`.
+
+---
+
+## Annexes (gh OK/Windows)
+- Ajouter labels si manquants :
+  ```powershell
+  gh label create security -R <repo> --color D93F0B --description "Security & guardrails"
+  gh label create phase4   -R <repo> --color 5319E7 --description "Phase 4 milestone"
+  # ... autres: ops, observability, ci, release, compliance, multi-tenant, slo, docs, process, costs, celery, reliability, secrets
+  ```
+- Associer milestone/labels à une PR :
+  ```powershell
+  gh pr edit <num> -R <repo> -m "Phase-4" --add-label security --add-label phase4
+  ```
+
+## DoD global (rappel par PR)
+- `compileall` OK ; `ruff` OK ; `pytest --cov-fail-under=90` OK.  
+- Commentaires & docstrings présents.  
+- README/Docs mis à jour si config/usage change.  
+- **Aucun** `typing.Dict/List/Optional/Str` dans le code.

@@ -27,6 +27,19 @@ RETRIEVAL_LATENCY = Histogram(
     ["backend", "tenant"],
 )
 
+# Security/quotas metrics
+RATE_LIMIT_BLOCKS = Counter(
+    "rate_limit_blocks_total",
+    "Total requests blocked by rate limiting",
+    ["tenant", "reason"],
+)
+
+LLM_COST_USD = Counter(
+    "llm_cost_usd_total",
+    "Accumulated LLM cost in USD",
+    ["tenant", "model"],
+)
+
 
 @metrics_router.get("/metrics")
 def metrics():

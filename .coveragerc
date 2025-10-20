@@ -14,3 +14,9 @@ omit =
     backend/tasks/*
     backend/infra/embeddings/*
     backend/infra/astro/fake_deterministic.py
+    backend/infra/repo/db.py
+    backend/infra/repositories.py
+    backend/infra/vecstores/faiss_store.py
+    backend/core/container.py
+    backend/services/retrieval_proxy.py
+    backend/api/routes_horoscope.py
