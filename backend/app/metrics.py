@@ -19,18 +19,11 @@ RETRIEVAL_REQUESTS = Counter(
 RETRIEVAL_ERRORS = Counter(
     "retrieval_errors_total",
     "Total retrieval errors",
-    ["backend", "code", "tenant"],
+    ["backend", "code"],
 )
 RETRIEVAL_LATENCY = Histogram(
     "retrieval_latency_seconds",
     "Latency of retrieval operations",
-    ["backend", "tenant"],
-)
-
-# Dual-write specific
-RETRIEVAL_DUAL_WRITE_ERRORS = Counter(
-    "retrieval_dual_write_errors_total",
-    "Errors encountered during dual-write ingestion",
     ["backend"],
 )
 

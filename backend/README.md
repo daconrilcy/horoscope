@@ -11,7 +11,6 @@
   - `WEAVIATE_API_KEY` (si requis)
   - Endpoint utilisé: GraphQL `/v1/graphql` avec `nearText`.
   - Les erreurs réseau sont transformées en 502 par l'API.
- - Dual-write (#4): `RETRIEVAL_DUAL_WRITE=true` pour écrire dans FAISS + cible (best-effort).
 
 ## Qualité
 - `ruff check backend --fix && ruff format backend`
