@@ -171,7 +171,8 @@ class FaissMultiTenantAdapter(VectorStoreProtocol):
         res = self._mt.search_for_tenant(tenant, q)
         VECSTORE_SEARCH.labels(tenant=tenant, backend="faiss").inc()
         VECSTORE_OP_LATENCY.labels(op="search", backend="faiss").observe(
-            time.perf_counter() - start)
+            time.perf_counter() - start
+        )
         return res
 
     def purge_tenant(self, tenant: str) -> None:

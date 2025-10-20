@@ -4,6 +4,7 @@ Implements VectorStoreProtocol for environments without FAISS or when a
 lightweight backend is required. Provides isolation per tenant and integrates
 with vecstore metrics.
 """
+
 from __future__ import annotations
 
 import time

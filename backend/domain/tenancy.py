@@ -25,4 +25,3 @@ def tenant_from_context(user: dict[str, Any] | None, header_tenant: str | None) 
     if header_tenant and header_tenant.strip():
         return header_tenant.strip()
     return DEFAULT_TENANT
-

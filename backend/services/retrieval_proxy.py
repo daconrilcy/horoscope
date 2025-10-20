@@ -72,8 +72,11 @@ class FAISSAdapter(BaseRetrievalAdapter):
     """Adaptateur FAISS multi-tenant via FaissMultiTenantAdapter."""
 
     def __init__(self) -> None:
-        backend = (os.getenv("VECSTORE_BACKEND") or getattr(container.settings, "VECSTORE_BACKEND", 
-                                                            "faiss") or "faiss").lower()
+        backend = (
+            os.getenv("VECSTORE_BACKEND")
+            or getattr(container.settings, "VECSTORE_BACKEND", "faiss")
+            or "faiss"
+        ).lower()
         if backend == "memory":
             self._adapter = MemoryMultiTenantAdapter()
             try:
