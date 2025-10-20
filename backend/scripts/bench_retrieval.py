@@ -10,8 +10,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 try:  # optional RAM metrics
@@ -19,9 +21,14 @@ try:  # optional RAM metrics
 except Exception:  # pragma: no cover - optional dependency in CI
     psutil = None  # type: ignore
 
-from ..domain.retrieval_types import Document, Query
-from ..domain.retriever import Retriever
-from ..services.retrieval_proxy import RetrievalProxy
+# Allow running as a standalone script (python backend/scripts/bench_retrieval.py)
+SYS_ROOT = Path(__file__).resolve().parents[2]
+if str(SYS_ROOT) not in sys.path:
+    sys.path.append(str(SYS_ROOT))
+
+from backend.domain.retrieval_types import Document, Query  # noqa: E402
+from backend.domain.retriever import Retriever  # noqa: E402
+from backend.services.retrieval_proxy import RetrievalProxy  # noqa: E402
 
 
 def _percentile(values: list[float], p: float) -> float:
