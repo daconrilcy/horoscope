@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 0 1 * *'
   workflow_dispatch:
+    inputs:
+      report_month:
+        description: "YYYY-MM (optional)"
+        required: false
+        default: ""
 
 jobs:
   build-report:
@@ -32,7 +37,9 @@ jobs:
           GRAFANA_DASHBOARD_URL: ${{ secrets.GRAFANA_DASHBOARD_URL || '' }}
         run: |
           python -m pip install --upgrade pip
-          python -m scripts.slo_report --output-dir artifacts/slo
+          MONTH_ARG=""
+          if [ -n "${{ github.event.inputs.report_month }}" ]; then MONTH_ARG="--month ${{ github.event.inputs.report_month }}"; fi
+          python -m scripts.slo_report --output-dir artifacts/slo $MONTH_ARG
       - name: Upload report artifact
         uses: actions/upload-artifact@v4
         with:
