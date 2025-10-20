@@ -61,14 +61,14 @@ jobs:
           target: ci
           push: false
           no-cache: true
-          outputs: type=oci,dest=/tmp/app-ci-oci
+          outputs: type=oci,dest=${{ github.workspace }}/oci-image
       - name: Show OCI layout
         run: |
-          ls -la /tmp/app-ci-oci || true
+          ls -la ./oci-image || true
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@0.24.0
         with:
-          input: /tmp/app-ci-oci
+          input: ./oci-image
           format: table
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
