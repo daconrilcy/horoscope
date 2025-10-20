@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import JSON, Column, DateTime, Integer, MetaData, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase
@@ -23,7 +23,7 @@ class ContentVersionORM(Base):
     embedding_model_version = Column(String(64), nullable=False)
     embed_params = Column(JSON, nullable=False, default=dict)
     tenant = Column(String(64), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now(UTC))
 
     __table_args__ = (
         UniqueConstraint("source", "version", "tenant", name="uq_source_version_tenant"),
