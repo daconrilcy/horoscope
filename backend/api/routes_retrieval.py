@@ -10,12 +10,13 @@ import structlog
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from backend.domain.tenancy import tenant_from_context
+
 from ..services.retrieval_proxy import (
     RetrievalBackendHTTPError,
     RetrievalNetworkError,
     RetrievalProxy,
 )
-from backend.domain.tenancy import tenant_from_context
 
 router = APIRouter(prefix="/internal/retrieval", tags=["retrieval"])
 _proxy = RetrievalProxy()
@@ -72,7 +73,11 @@ def search(req: SearchRequest, request: Request) -> dict:
 
     # Derive tenant from context (JWT/claims not present on internal route; use header if any)
     header_tenant = request.headers.get("X-Tenant")
-    eff_tenant = tenant_from_context(user=None, header_tenant=header_tenant) if not req.tenant else req.tenant
+    eff_tenant = (
+        tenant_from_context(user=None, header_tenant=header_tenant)
+        if not req.tenant
+        else req.tenant
+    )
     try:
         results = _proxy.search(query=q, top_k=req.top_k, tenant=eff_tenant)
     except RetrievalBackendHTTPError as exc:
