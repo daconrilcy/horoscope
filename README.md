@@ -178,6 +178,58 @@ Smoke E2E enrichi:
   - `var/faiss/` (index FAISS) et `artifacts/audit/` (audit RGPD) ne doivent pas être commités.
 - Runbook détaillé: voir `backend/docs/OPS.md`.
 
+## SLOs — Exemples d'utilisation
+
+- Variables d'environnement (exemples):
+  - `PROM_QUERY_URL=http://localhost:9090`
+  - `GRAFANA_DASHBOARD_URL=https://grafana.example.com/d/abcd1234/slo`
+  - `LLM_BUDGET_MTD=0`
+
+- Exécuter le rapport (Unix):
+  ```bash
+  PROM_QUERY_URL=http://localhost:9090 \
+  LLM_BUDGET_MTD=123.45 \
+  python -m scripts.slo_report --month 2025-10
+  ```
+
+- Exécuter le rapport (Windows PowerShell):
+  ```powershell
+  $env:PROM_QUERY_URL = 'http://localhost:9090'
+  $env:LLM_BUDGET_MTD = '123.45'
+  python -m scripts.slo_report --month 2025-10
+  ```
+
+- Tester la requête “Top 5xx” manuellement:
+  ```bash
+  curl -G "$PROM_QUERY_URL/api/v1/query" \
+    --data-urlencode 'query=topk(3, sum by (route) (rate(http_requests_total{status=~"5.."}[5m])))'
+  ```
+
+- Prometheus local minimal (docker-compose):
+  ```yaml
+  # docker-compose.yml
+  services:
+    prometheus:
+      image: prom/prometheus:v2.55.0
+      ports: ["9090:9090"]
+      volumes:
+        - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  ```
+  
+Automation
+- Le workflow `slo_report.yml` interroge automatiquement Prometheus (si `PROM_QUERY_URL` est défini ou injecté via secrets) pour renseigner `LLM_BUDGET_MTD` à partir de:
+  `increase(llm_cost_usd_total[30d])`. Le rapport affiche ainsi le pourcentage du budget consommé sans saisie manuelle.
+
+  ```yaml
+  # prometheus.yml
+  global:
+    scrape_interval: 15s
+  scrape_configs:
+    - job_name: 'app'
+      static_configs:
+        - targets: ['host.docker.internal:8000']  # remplace par ton endpoint métriques
+  ```
+
 ### PR Image Build (no push)
 - Build Docker sur chaque PR (sans push) + scans Trivy (FS+image) + Gitleaks + Hadolint.
 - Workflow: `.github/workflows/pr_image_build.yml`.

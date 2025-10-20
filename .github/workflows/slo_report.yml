@@ -8,11 +8,21 @@ on:
 jobs:
   build-report:
     runs-on: ubuntu-latest
+    env:
+      PROM_QUERY_URL: ${{ secrets.PROM_QUERY_URL || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Fetch LLM budget MTD from Prometheus
+        if: env.PROM_QUERY_URL != ''
+        id: llm_budget
+        run: |
+          val=$(curl -s -G "$PROM_QUERY_URL/api/v1/query" \
+            --data-urlencode 'query=increase(llm_cost_usd_total[30d])' \
+            | jq -r '.data.result[0].value[1]' || echo "0")
+          echo "LLM_BUDGET_MTD=$val" >> $GITHUB_ENV
       - name: Generate SLO report
         env:
           GRAFANA_DASHBOARD_URL: ${{ secrets.GRAFANA_DASHBOARD_URL || '' }}
