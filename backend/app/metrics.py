@@ -1,7 +1,7 @@
 import time
 
 from fastapi import APIRouter, Request
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
@@ -19,12 +19,12 @@ RETRIEVAL_REQUESTS = Counter(
 RETRIEVAL_ERRORS = Counter(
     "retrieval_errors_total",
     "Total retrieval errors",
-    ["backend", "code", "tenant"],
+    ["backend", "code"],
 )
 RETRIEVAL_LATENCY = Histogram(
     "retrieval_latency_seconds",
     "Latency of retrieval operations",
-    ["backend", "tenant"],
+    ["backend"],
 )
 
 
