@@ -64,7 +64,7 @@ def pdf_natal(chart_id: str):
             raw = container.user_repo.client.get(key)
             if raw:
                 pdf_bytes = (
-                    raw if isinstance(raw, (bytes, bytearray)) else str(raw).encode("latin-1")
+                    raw if isinstance(raw, bytes | bytearray) else str(raw).encode("latin-1")
                 )  # noqa: E501
         except Exception:
             pass

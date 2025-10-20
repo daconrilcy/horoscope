@@ -129,7 +129,7 @@ def _is_pydantic_model(cls: ast.ClassDef) -> bool:
 
 
 def generate_entity_docstring_for_function(fn: ast.AST, indent: str) -> list[str]:
-    assert isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef))
+    assert isinstance(fn, ast.FunctionDef | ast.AsyncFunctionDef)
     params = _format_params(fn.args)
     ret = _ann_to_str(fn.returns)
     lines: list[str] = []
@@ -179,7 +179,7 @@ def insert_module_docstring(lines: list[str], path: Path, module: ast.Module) ->
 def collect_docstring_insertions(tree: ast.AST, lines: list[str]) -> list[Insertion]:
     insertions: list[Insertion] = []
     for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             if not node.body:
                 continue
             # Always place docstring strictly at the first line of the body
@@ -228,7 +228,7 @@ def _remove_stray_string_exprs(lines: list[str], tree: ast.AST) -> tuple[list[st
         ):
             valid_ids.add(id(tree.body[0]))
     for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.body:
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) and node.body:
             first = node.body[0]
             if (
                 isinstance(first, ast.Expr)
@@ -282,7 +282,7 @@ def _replace_placeholder_docstrings(
 
     # Classes and functions
     for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.body:
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.body:
             first = node.body[0]
             if (
                 isinstance(first, ast.Expr)

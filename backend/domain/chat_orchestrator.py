@@ -23,7 +23,7 @@ class ChatOrchestrator:
         self.retriever = retriever or Retriever()
         self.llm = llm or OpenAILLM()
 
-    def advise(self, chart: dict, today: dict, question: str) -> str:
+    def advise(self, chart: dict, today: dict, question: str) -> tuple[str, dict | None]:
         base = f"precision={chart['chart'].get('precision_score', 1)}; eao={today.get('eao')}"
         r = self.retriever.query(Query(text=question, k=6))
         ctx = _ctx(r)
@@ -31,4 +31,8 @@ class ChatOrchestrator:
             {"role": "system", "content": SYSTEM},
             {"role": "user", "content": f"{base}\nQuestion: {question}\nContext:\n{ctx}"},
         ]
-        return self.llm.generate(messages)
+        out = self.llm.generate(messages)
+        # Accept either str or (text, usage) from LLM client
+        if isinstance(out, tuple) and len(out) == 2:
+            return out[0], out[1]
+        return str(out), None

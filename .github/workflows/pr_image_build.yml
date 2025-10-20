@@ -1,0 +1,104 @@
+name: PR Image Build (no push)
+
+on:
+  pull_request:
+    branches: [ "main", "develop", "release/**" ]
+    paths:
+      - "docker/**"
+      - "Dockerfile"
+      - "**/Dockerfile"
+      - ".github/workflows/pr_image_build.yml"
+      - "backend/**"
+  workflow_dispatch:
+    inputs:
+      trivy_mode:
+        description: "scan mode: warn|strict"
+        required: false
+        default: "strict"
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: pr-check
+  # change to "strict" pour bloquer sur vulnérabilités HIGH+
+  TRIVY_MODE: ${{ github.event.inputs.trivy_mode || 'strict' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (no push) with cache - target=ci
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          target: ci
+          push: false
+          no-cache: true
+          outputs: type=docker,dest=./pr-image-ci.tar
+
+      - name: Show image tar
+        run: |
+          ls -lh ./pr-image-ci.tar || true
+
+      - name: Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ./docker/Dockerfile
+          config: ./hadolint.yaml
+          failure-threshold: error
+
+      - name: Trivy FS scan (workspace)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          ignore-unfixed: true
+          format: 'table'
+          # Keep FS scan non-blocking in PR builds; the image scan remains strict
+          exit-code: '0'
+          severity: 'CRITICAL'
+
+      - name: Trivy Image scan (Docker tar, strict or warn)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          input: ./pr-image-ci.tar
+          ignore-unfixed: true
+          format: 'table'
+          exit-code: ${{ env.TRIVY_MODE == 'strict' && '1' || '0' }}
+          severity: 'HIGH,CRITICAL'
+          trivyignores: '.trivyignore'
+
+      - name: SBOM CycloneDX (from Docker tar)
+        run: |
+          trivy image --input ./pr-image-ci.tar --format cyclonedx --output ./sbom.cdx.json || true
+          ls -lh ./sbom.cdx.json || true
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: ./sbom.cdx.json
+          if-no-files-found: warn
+
+      - name: Gitleaks (secrets scan)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compile & Ruff (no tests in PR build)
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+          python -m compileall -q backend
+          ruff check backend --output-format=github
+          ruff format --check backend

@@ -42,7 +42,7 @@ class OpenAILLM(LLM):
         else:
             self.client = None
 
-    def generate(self, messages: list[dict[str, str]], **kwargs) -> str:
+    def generate(self, messages: list[dict[str, str]], **kwargs):  # returns str | (str, dict)
         """Génère une réponse à partir d'un historique de messages.
 
         Paramètres:
@@ -59,7 +59,7 @@ class OpenAILLM(LLM):
         if not self.client:
             # Fallback deterministic output for environments without OpenAI
             last = messages[-1]["content"] if messages else ""
-            return f"FAKE_OPENAI: {last[:80]}".strip()
+            return f"FAKE_OPENAI: {last[:80]}".strip(), None
 
         try:
             # Prefer chat.completions API if available
@@ -71,7 +71,18 @@ class OpenAILLM(LLM):
             choice = resp.choices[0]
             content = getattr(getattr(choice, "message", None), "content", None)
             if content:
-                return content
+                usage = getattr(resp, "usage", None)
+                usage_dict = None
+                if usage:
+                    try:
+                        usage_dict = {
+                            "prompt_tokens": int(getattr(usage, "prompt_tokens", 0)),
+                            "completion_tokens": int(getattr(usage, "completion_tokens", 0)),
+                            "total_tokens": int(getattr(usage, "total_tokens", 0)),
+                        }
+                    except Exception:
+                        usage_dict = None
+                return content, usage_dict
         except Exception:
             # Try the newer responses API as a fallback
             try:
@@ -82,11 +93,24 @@ class OpenAILLM(LLM):
                 )
                 # .output_text may exist on newer SDKs
                 content = getattr(resp, "output_text", None)
+                usage_dict = None
                 if content:
-                    return str(content)
+                    try:
+                        usage = getattr(resp, "usage", None)
+                        if usage and hasattr(usage, "usage"):  # new SDKs nest usage
+                            usage = usage.usage
+                        if usage:
+                            usage_dict = {
+                                "prompt_tokens": int(getattr(usage, "prompt_tokens", 0)),
+                                "completion_tokens": int(getattr(usage, "completion_tokens", 0)),
+                                "total_tokens": int(getattr(usage, "total_tokens", 0)),
+                            }
+                    except Exception:
+                        usage_dict = None
+                    return str(content), usage_dict
             except Exception:
                 pass
 
         # Last resort fallback
         last = messages[-1]["content"] if messages else ""
-        return f"FAKE_OPENAI: {last[:80]}".strip()
+        return f"FAKE_OPENAI: {last[:80]}".strip(), None

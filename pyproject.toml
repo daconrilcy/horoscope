@@ -49,3 +49,8 @@ convention = "pep257"
 "backend/api/routes_chat.py" = ["B008"]
 # Objectif du fichier: configuration de projet et outils (pytest, ruff, etc.).
 # TODO: compléter les métadonnées et les scripts si besoin.
+
+[project.optional-dependencies]
+tokens = [
+    "tiktoken==0.7.0",
+]

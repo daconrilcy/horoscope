@@ -1,0 +1,3 @@
+# Ignore CVEs not applicable/relevant to the lightweight CI image stage
+# Starlette DoS in multipart parsing; CI image is not exposed as a server.
+CVE-2024-47874

@@ -1,0 +1,15 @@
+# hadolint configuration to reduce targeted false positives
+# Docs: https://github.com/hadolint/hadolint#configure
+
+ignored:
+  # Allow not pinning versions in apk add (managed by CI scans + SBoM)
+  - DL3018
+  # Allow not pinning package versions (use Trivy to catch CVEs)
+  - DL3008
+  # Allow use of sudo in certain base images (if present)
+  - DL3002
+  # Multi-stage Dockerfile uses different CMDs per stage; reduce noise
+  - DL4003
+
+# You can tune severity thresholds as needed (we keep defaults):
+failure-threshold: error

@@ -1,31 +1,85 @@
 name: CI
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
+  push:
+    branches: [ main, master, develop ]
 
 jobs:
-  test:
+  lint-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pytest ruff
+          pip install -r requirements.txt
+          # Optional extras for token counting (non-fatal if missing)
+          pip install -r requirements.tokens.txt || true
+          pip install ruff pytest pytest-cov
+      - name: Compile sources
+        run: python -m compileall -q backend
+      - name: Ruff
+        run: |
+          ruff check backend
+      - name: Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ./docker/Dockerfile
+          config: ./hadolint.yaml
+          failure-threshold: error
+      - name: Tests (cov>=90%)
+        run: pytest --cov=backend --cov-fail-under=90 -q
 
-      - name: Lint (Ruff)
-        run: ruff check .
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Tests (Pytest)
-        run: pytest -q
-
+  container-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build image (export Docker tar) — target=ci
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: ci
+          push: false
+          no-cache: true
+          outputs: type=docker,dest=./ci-image.tar
+      - name: Show image tar
+        run: |
+          ls -lh ./ci-image.tar || true
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          input: ./ci-image.tar
+          format: table
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          scanners: 'vuln'
+          trivyignores: '.trivyignore'
+      - name: Trivy filesystem scan (fallback)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'

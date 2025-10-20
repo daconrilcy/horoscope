@@ -1,6 +1,4 @@
 # Objectif du fichier: Décrire l'objectif de requirements.txt
-# TODO: compléter cette description.
-
 fastapi==0.115.0
 starlette==0.38.6
 uvicorn[standard]==0.30.0
@@ -35,6 +33,6 @@ tenacity==8.5.0
 opentelemetry-sdk==1.26.0
 opentelemetry-instrumentation-fastapi==0.47b0
 opentelemetry-exporter-otlp==1.26.0
-python-multipart==0.0.9
+python-multipart==0.0.18
 SQLAlchemy==2.0.36
 alembic==1.13.2
