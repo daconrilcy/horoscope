@@ -76,6 +76,7 @@ jobs:
           format: 'table'
           exit-code: ${{ env.TRIVY_MODE == 'strict' && '1' || '0' }}
           severity: 'HIGH,CRITICAL'
+          trivyignores: '.trivyignore'
 
       - name: SBOM CycloneDX (from Docker tar)
         run: |
