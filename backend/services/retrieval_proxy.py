@@ -10,7 +10,18 @@
 from __future__ import annotations
 
 import os
+import random
+import time
 from abc import ABC, abstractmethod
+
+import httpx
+import structlog
+
+from backend.app.metrics import (
+    RETRIEVAL_ERRORS,
+    RETRIEVAL_LATENCY,
+    RETRIEVAL_REQUESTS,
+)
 
 
 class BaseRetrievalAdapter(ABC):
@@ -80,18 +91,127 @@ class FAISSAdapter(BaseRetrievalAdapter):
         return results[: max(0, top_k)]
 
 
+class RetrievalNetworkError(RuntimeError):
+    """Erreur réseau entre l'adaptateur et le backend managé."""
+
+
+class RetrievalBackendHTTPError(RuntimeError):
+    """Erreur HTTP renvoyée par le backend managé (avec code explicite)."""
+
+    def __init__(self, status_code: int, message: str | None = None) -> None:
+        self.status_code = status_code
+        super().__init__(message or f"backend http error: {status_code}")
+
+
 class WeaviateAdapter(BaseRetrievalAdapter):
-    """Adaptateur Weaviate (squelette)."""
+    """Adaptateur Weaviate via API HTTP (GraphQL).
+
+    Variables d'environnement utilisées:
+      - `WEAVIATE_URL`: URL de l'instance (ex: https://demo.weaviate.network)
+      - `WEAVIATE_API_KEY`: Clé API (si activée sur l'instance)
+
+    Implémentation minimale:
+      - `embed_texts`: placeholder contrôlé (la génération d'embeddings dépend
+        d'un provider externe; à brancher ultérieurement si requis par l'ingest).
+      - `search`: requête GraphQL `Get` avec `nearText`; pagination via `limit`.
+    """
+
+    def __init__(self) -> None:
+        self.base_url = (os.getenv("WEAVIATE_URL") or "").rstrip("/")
+        self.api_key = os.getenv("WEAVIATE_API_KEY") or ""
+        self._log = structlog.get_logger(__name__).bind(component="weaviate_adapter")
+        # Client HTTP réutilisable (timeouts/pool)
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        timeout = httpx.Timeout(connect=5.0, read=5.0, write=5.0, pool=5.0)
+        limits = httpx.Limits(max_keepalive_connections=20, max_connections=50)
+        self._client = httpx.Client(headers=headers, timeout=timeout, limits=limits)
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """Retourne des embeddings placeholder (à brancher sur un provider externe).
+
+        Pour #2, l'accent est mis sur la recherche managée Weaviate; la génération
+        d'embeddings sera utilisée par les scripts d'ingest ultérieurement.
+        """
         if not texts:
             raise ValueError("texts ne doit pas être vide")
-        return [[0.0, 0.0, 0.0] for _ in texts]
+        # Placeholder déterministe de taille 3 pour tests unitaires.
+        return [[0.1, 0.2, 0.3] for _ in texts]
 
     def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        """Recherche semantique via Weaviate GraphQL `nearText`.
+
+        Args:
+            query: texte de requête.
+            top_k: nombre de résultats (limit Weaviate).
+            tenant: identifiant locataire (si multi-tenant configuré côté classe).
+        Returns:
+            Liste de dicts standardisés: {id, score, metadata}.
+        """
         if not query:
             return []
-        return [{"id": "w_doc_1", "score": 0.9, "metadata": {"tenant": tenant or "default"}}]
+        if not self.base_url:
+            # Config absente: considérer comme pas de résultat (ne pas crasher l'API).
+            return []
+
+        # Hypothèse: classe Weaviate nommée "Document" avec champs _additional { id, certainty }
+        concept = query.replace('"', "")
+        limit = max(1, top_k)
+        gql_query = (
+            "{ Get { Document("
+            f'limit: {limit}, nearText: {{ concepts: [\\"{concept}\\"] }}'
+            ") { _additional { id certainty } tenant } } }"
+        )
+        graphql = {"query": gql_query}
+
+        url = f"{self.base_url}/v1/graphql"
+
+        # Politique de retry: 3 tentatives sur erreurs réseau/5xx, backoff avec jitter.
+        attempts = 0
+        while True:
+            attempts += 1
+            try:
+                resp = self._client.post(url, json=graphql)
+                # 429 -> exposé explicitement pour que l'API réponde 429
+                if resp.status_code == 429:
+                    raise RetrievalBackendHTTPError(429, "rate-limited")
+                if 400 <= resp.status_code < 500:
+                    raise RetrievalBackendHTTPError(resp.status_code, "client error")
+                resp.raise_for_status()
+                break
+            except RetrievalBackendHTTPError:
+                raise
+            except httpx.HTTPStatusError as exc:  # pragma: no cover - handled via status above
+                code = exc.response.status_code if exc.response is not None else 0
+                if 500 <= code < 600 and attempts < 3:
+                    sleep = (2 ** (attempts - 1)) * 0.1 + random.random() * 0.05
+                    time.sleep(sleep)
+                    continue
+                raise RetrievalNetworkError(str(exc)) from exc
+            except httpx.HTTPError as exc:
+                if attempts < 3:
+                    sleep = (2 ** (attempts - 1)) * 0.1 + random.random() * 0.05
+                    time.sleep(sleep)
+                    continue
+                raise RetrievalNetworkError(str(exc)) from exc
+
+        data = resp.json()
+        hits: list[dict] = []
+        try:
+            docs = data["data"]["Get"]["Document"]
+        except Exception:
+            docs = []
+        for d in docs:
+            add = d.get("_additional", {})
+            hits.append(
+                {
+                    "id": add.get("id") or d.get("id") or "",
+                    "score": float(add.get("certainty") or 0.0),
+                    "metadata": {"tenant": d.get("tenant") or tenant or "default"},
+                }
+            )
+        return hits[: max(0, top_k)]
 
 
 class PineconeAdapter(BaseRetrievalAdapter):
@@ -131,7 +251,10 @@ class RetrievalProxy:
 
     def __init__(self) -> None:
         backend = (os.getenv("RETRIEVAL_BACKEND") or "faiss").lower()
+        self._backend = backend
         if backend == "weaviate":
+            if not (os.getenv("WEAVIATE_URL") or "").strip():
+                raise RuntimeError("WEAVIATE_URL est requis quand RETRIEVAL_BACKEND=weaviate")
             self._adapter: BaseRetrievalAdapter = WeaviateAdapter()
         elif backend == "pinecone":
             self._adapter = PineconeAdapter()
@@ -160,4 +283,16 @@ class RetrievalProxy:
         Returns:
             Résultats triés par score décroissant.
         """
-        return self._adapter.search(query=query, top_k=top_k, tenant=tenant)
+        start = time.perf_counter()
+        lbl_tenant = tenant or "default"
+        RETRIEVAL_REQUESTS.labels(self._backend, lbl_tenant).inc()
+        try:
+            return self._adapter.search(query=query, top_k=top_k, tenant=tenant)
+        except RetrievalBackendHTTPError as exc:
+            RETRIEVAL_ERRORS.labels(self._backend, str(exc.status_code), lbl_tenant).inc()
+            raise
+        except RetrievalNetworkError:
+            RETRIEVAL_ERRORS.labels(self._backend, "network", lbl_tenant).inc()
+            raise
+        finally:
+            RETRIEVAL_LATENCY.labels(self._backend, lbl_tenant).observe(time.perf_counter() - start)
