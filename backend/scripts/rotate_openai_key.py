@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import argparse
+
+from backend.infra.secrets.vault_client import VaultClient
+
 """Manual OpenAI key rotation helper (audit only).
 
 Usage (PowerShell):
@@ -10,13 +14,12 @@ Notes:
 - Writes an audit line with timestamp and key id into ./artifacts/secrets/rotation_*.log
 """
 
-import argparse
-from backend.infra.secrets.vault_client import VaultClient
-
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--key-id", required=True, help="Identifier of the new OpenAI key (no secret value)")
+    parser.add_argument(
+        "--key-id", required=True, help="Identifier of the new OpenAI key (no secret value)"
+    )
     args = parser.parse_args()
 
     vc = VaultClient()

@@ -72,6 +72,11 @@ class Settings(BaseSettings):
     # LLM Guard
     LLM_GUARD_ENABLE: bool = True
     LLM_GUARD_MAX_INPUT_LEN: int = 1000
+    # Rate limit & budgets
+    RATE_LIMIT_TENANT_QPS: int = 5
+    TENANT_DEFAULT_BUDGET_USD: float = 0.0
+    TENANT_BUDGETS_JSON: str = "{}"
+    RATE_LIMIT_EXEMPT_HEALTH: bool = False
 
 
 def get_settings() -> Settings:

@@ -48,5 +48,19 @@ Le guard applique:
 - Rotation manuelle (audit uniquement, pas de valeur de secret en sortie):
   - `python -m backend.scripts.rotate_openai_key --key-id NEW_KEY_ID`
 
-Artefacts d’audit:
+Artefacts d'audit:
 - Les logs de rotation sont écrits dans `artifacts/secrets/rotation_*.log` et ne doivent pas être commités.
+
+## Quotas & Budgets (Issue #11)
+
+- QPS par tenant via middleware (`X-Tenant`), 429 si dépassement.
+- Budgets LLM par tenant (avertissement à 80%, blocage doux à 100%).
+- Variables env: `RATE_LIMIT_TENANT_QPS`, `TENANT_DEFAULT_BUDGET_USD`, `TENANT_BUDGETS_JSON` (JSON `{tenant: budget_usd}`).
+- Métriques Prometheus:
+  - `rate_limit_blocks_total{tenant,reason}`
+  - `llm_cost_usd_total{tenant,model}`
+
+Notes de sécurité et d'architecture:
+- Confiance du header `X-Tenant`: ne pas faire confiance en prod sans mTLS/proxy d’auth; idéalement, dériver le tenant depuis un JWT/claim côté backend.
+- Fenêtrage QPS: granularité à la seconde, store en mémoire (par instance). Pour un déploiement multi-instance, utiliser Redis (issue ultérieure).
+- Exemptions: `/metrics` est ignoré par le rate-limit. `/health` peut être exempté via `RATE_LIMIT_EXEMPT_HEALTH=true`.
