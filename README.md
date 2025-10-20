@@ -252,3 +252,19 @@ Notes de sécurité et d'architecture:
 - Confiance du header `X-Tenant`: ne pas faire confiance en prod sans mTLS/proxy d’auth; idéalement, dériver le tenant depuis un JWT/claim côté backend.
 - Fenêtrage QPS: granularité à la seconde, store en mémoire (par instance). Pour un déploiement multi-instance, utiliser Redis (issue ultérieure).
 - Exemptions: `/metrics` est ignoré par le rate-limit. `/health` peut être exempté via `RATE_LIMIT_EXEMPT_HEALTH=true`.
+
+## Artéfacts CI et tableaux de bord
+
+- Bench retrieval (JSON) : `artifacts/bench/` (générés par CI et/ou scripts locaux)
+- Embeddings (JSON/metadata) : `artifacts/embeddings/` (workflow `.github/workflows/embeddings.yml`)
+- Dashboard Grafana (exemple) : `backend/docs/grafana_dashboard.json`
+- SLOs publiés : `slo.yaml` et `backend/docs/slo.yaml`
+
+## Definition of Done — Checklist PR
+
+- `python -m compileall backend tests` passe sans erreur
+- `ruff check backend tests` OK et `ruff format` appliqué
+- `pytest --cov-fail-under=90` OK
+- Commentaires/docstrings présents et utiles
+- README/Docs mis à jour si config/usage change
+- Aucun `typing.Dict/List/Optional/Str` dans le code

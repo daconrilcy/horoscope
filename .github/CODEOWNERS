@@ -1,0 +1,19 @@
+# .github/CODEOWNERS
+
+# Documentation / Process
+backend/docs/*        @C&C/docs-owners
+docs/RAPPORT_*        @C&C/docs-owners
+README.md             @C&C/docs-owners
+
+# SLOs / Observabilité
+slo.yaml              @C&C/sre-owners
+scripts/slo_*         @C&C/sre-owners
+.github/workflows/slo_* @C&C/sre-owners
+
+# CI / Workflows
+.github/workflows/*   @C&C/ci-owners
+
+# Sécurité / RGPD / Tenancy
+backend/domain/tenancy.py @C&C/security-owners
+scripts/purge_tenant.py   @C&C/security-owners
+
