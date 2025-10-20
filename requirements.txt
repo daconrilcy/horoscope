@@ -33,6 +33,6 @@ tenacity==8.5.0
 opentelemetry-sdk==1.26.0
 opentelemetry-instrumentation-fastapi==0.47b0
 opentelemetry-exporter-otlp==1.26.0
-python-multipart==0.0.9
+python-multipart==0.0.18
 SQLAlchemy==2.0.36
 alembic==1.13.2
