@@ -26,18 +26,19 @@ from backend.core.settings import get_settings
 class _Limiter:
     def __init__(self, qps: int) -> None:
         self.qps = max(1, int(qps))
-        # tenant -> (window_sec, count)
-        self._buckets: dict[str, tuple[int, int]] = {}
+        # tenant -> (window_start_monotonic, count)
+        self._buckets: dict[str, tuple[float, int]] = {}
 
     def allow(self, tenant: str) -> bool:
-        now = int(time.time())
-        window, count = self._buckets.get(tenant, (now, 0))
-        if window != now:
-            window, count = now, 0
+        now = time.perf_counter()
+        start, count = self._buckets.get(tenant, (now, 0))
+        # Rolling 1-second window based on monotonic clock to avoid boundary flakes
+        if now - start >= 1.0:
+            start, count = now, 0
         if count >= self.qps:
-            self._buckets[tenant] = (window, count)
+            self._buckets[tenant] = (start, count)
             return False
-        self._buckets[tenant] = (window, count + 1)
+        self._buckets[tenant] = (start, count + 1)
         return True
 
 
