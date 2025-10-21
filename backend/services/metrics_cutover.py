@@ -19,9 +19,10 @@ def _uniq_ids(ids: list[str]) -> list[str]:
 
 
 def agreement_at_k(truth_ids: list[str], cand_ids: list[str], k: int = 5) -> float:
-    """Compute agreement@k between truth and candidate ID lists.
+    """Compute agreement@k between truth and candidate IDs.
 
-    Returns a value in [0,1], deduplicating IDs and using min(k, len(truth)).
+    Returns a value in [0, 1]. IDs are deduplicated and we use
+    min(k, len(truth_ids)).
     """
     k = max(1, int(k))
     t = set(_uniq_ids(truth_ids)[:k])
@@ -40,8 +41,9 @@ def agreement_at_k(truth_ids: list[str], cand_ids: list[str], k: int = 5) -> flo
 def ndcg_at_10(truth_ids: list[str], cand_ids: list[str]) -> float:
     """Compute nDCG@10 with binary relevance from truth IDs.
 
-    DCG on the top-10 candidate list with rel=1 if candidate ID in `truth_ids`.
-    IDCG is the DCG with all relevant items at the top. Clamped to [0,1].
+    DCG is computed on the top-10 candidate list with rel=1 if the candidate
+    ID is present in `truth_ids`. IDCG is the DCG with all relevant items at
+    the top. The final score is clamped to [0, 1].
     """
     truth = set(_uniq_ids(truth_ids))
     cand = _uniq_ids(cand_ids)[:10]
@@ -77,11 +79,12 @@ class CutoverScores:
 
 
 def evaluate_from_truth(truth_entries: list[dict], fetch_func: Any, k: int = 10) -> CutoverScores:
-    """Evaluate agreement@5 and nDCG@10 using a truth set and a fetch function.
+    """Evaluate agreement@5 and nDCG@10 using a truth set plus a fetcher.
 
-    Each truth entry is a dict containing at least {"query": str, "truth_ids": list[str]}.
-    Optionally supports {"tenant": str} to pass to `fetch_func`.
-    The `fetch_func` signature must be (query: str, top_k: int, tenant: str|None) -> list[dict].
+    Each truth entry contains at least {"query": str, "truth_ids": list[str]}.
+    It may also include {"tenant": str} passed to the fetch function.
+    The fetch signature is: (query: str, top_k: int, tenant: str | None)
+    and must return a list of result dicts containing an "id" field.
     """
     if not truth_entries:
         return CutoverScores(agreement_at_5=0.0, ndcg_at_10=0.0, total=0)
@@ -120,4 +123,3 @@ def append_ndjson(path: str | Path, obj: dict) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     with open(p, "a", encoding="utf-8") as f:
         f.write(json.dumps(obj, ensure_ascii=False) + "\n")
-
