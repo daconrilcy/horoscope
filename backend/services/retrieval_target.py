@@ -40,7 +40,7 @@ def get_target_adapter():
 
 
 def write_to_target(_doc: dict, _tenant: str | None = None) -> None:
-    """Placeholder for target write logic.
+    """Write document to the target backend.
 
     Intentionally no-op for now. Tests may monkeypatch this to simulate
     success/failure. Real implementations should index documents to the target.
