@@ -46,6 +46,7 @@ def write_to_target(_doc: dict, _tenant: str | None = None) -> None:
 _cb_fail_count: int = 0
 _cb_open_until: float = 0.0
 _outbox: list[tuple[dict, str | None]] = []
+_outbox_lock = None  # lazy to avoid threading import at import-time for tests
 
 
 def _cb_threshold() -> int:
@@ -107,10 +108,29 @@ def safe_write_to_target(doc: dict, tenant: str | None = None) -> None:
 
 
 def _enqueue_outbox(doc: dict, tenant: str | None) -> None:
-    # Keep outbox bounded
-    if len(_outbox) >= _outbox_max():
-        _outbox.pop(0)
-    _outbox.append((doc, tenant))
+    from backend.app.metrics import (
+        RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE,
+        RETRIEVAL_DUAL_WRITE_OUTBOX_DROPPED,
+    )
+
+    global _outbox_lock
+    if _outbox_lock is None:
+        import threading as _th
+
+        _outbox_lock = _th.Lock()
+    dropped = False
+    with _outbox_lock:
+        if len(_outbox) >= _outbox_max():
+            # drop oldest
+            try:
+                _outbox.pop(0)
+            except Exception:
+                pass
+            dropped = True
+        _outbox.append((doc, tenant))
+        RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE.set(len(_outbox))
+    if dropped:
+        RETRIEVAL_DUAL_WRITE_OUTBOX_DROPPED.inc()
 
 
 def replay_outbox(limit: int | None = None) -> int:
@@ -121,8 +141,11 @@ def replay_outbox(limit: int | None = None) -> int:
         n = min(n, max(0, int(limit)))
     i = 0
     # Iterate over a snapshot to allow modification during replay
-    while i < n and _outbox:
-        doc, tenant = _outbox.pop(0)
+    while i < n:
+        try:
+            doc, tenant = _outbox.pop(0)
+        except Exception:
+            break
         try:
             write_to_target(doc, tenant)
             ok += 1
@@ -130,6 +153,12 @@ def replay_outbox(limit: int | None = None) -> int:
             # Re-enqueue at end
             _enqueue_outbox(doc, tenant)
         i += 1
+    try:
+        from backend.app.metrics import RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE
+
+        RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE.set(len(_outbox))
+    except Exception:
+        pass
     return ok
 
 
@@ -138,3 +167,9 @@ def _reset_cb_and_outbox_for_tests() -> None:  # pragma: no cover - used by test
     _cb_fail_count = 0
     _cb_open_until = 0.0
     _outbox = []
+    try:
+        from backend.app.metrics import RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE
+
+        RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE.set(0)
+    except Exception:
+        pass

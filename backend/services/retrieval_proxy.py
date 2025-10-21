@@ -404,42 +404,89 @@ def _ids(results: list[dict]) -> list[str]:
     return [str(r.get("id") or "") for r in results]
 
 
-def _agreement_at_5(primary: list[dict], shadow: list[dict]) -> float:
-    a = _ids(primary)[:5]
-    b = set(_ids(shadow)[:5])
+def agreement_at_k(primary: list[dict], shadow: list[dict], k: int = 5) -> float:
+    """Compute agreement@k as intersection size divided by k.
+
+    Deduplicates IDs preserving order; clamps to [0,1].
+    """
+    k = max(1, int(k))
+    def _uniq(seq: list[str]) -> list[str]:
+        seen: set[str] = set()
+        out: list[str] = []
+        for x in seq:
+            if x in seen:
+                continue
+            seen.add(x)
+            out.append(x)
+        return out
+
+    a = _uniq(_ids(primary))[:k]
+    b = set(_uniq(_ids(shadow))[:k])
     if not a:
         return 0.0
     inter = sum(1 for x in a if x in b)
-    return inter / float(len(a))
-
-
-def _ndcg_at_10(primary: list[dict], shadow: list[dict]) -> float:
-    a = _ids(primary)[:10]
-    b = _ids(shadow)[:10]
-    if not a:
+    v = inter / float(len(a))
+    if v < 0.0:
         return 0.0
-    bset = set(b)
-    # Relevance is binary: 1 if present in shadow's top10
+    if v > 1.0:
+        return 1.0
+    return v
+
+
+def ndcg_at_10(primary: list[dict], shadow: list[dict]) -> float:
+    """Compute nDCG@10 using shadow ranking with binary relevance vs primary.
+
+    - DCG on shadow top-10; rel=1 if ID present in primary list (any position).
+    - IDCG is ideal DCG with all relevant items at top.
+    - Deduplicate IDs to avoid bias; clamp to [0,1].
+    """
+    def _uniq(seq: list[str]) -> list[str]:
+        seen: set[str] = set()
+        out: list[str] = []
+        for x in seq:
+            if x in seen:
+                continue
+            seen.add(x)
+            out.append(x)
+        return out
+
+    prim_list = _uniq(_ids(primary))
+    prim = {rid: idx for idx, rid in enumerate(prim_list)}
+    kref = min(10, len(prim_list)) if prim_list else 10
+    sh = _uniq(_ids(shadow))[:10]
+    if not sh:
+        return 0.0
+    # DCG over shadow
     dcg = 0.0
-    rank = 0
-    for rid in a:
-        rel = 1.0 if rid in bset else 0.0
-        # positions are 1-based for DCG denominator log2(i+1)
-        dcg += (2**rel - 1.0) / math.log2(rank + 2)
-        rank += 1
-    rel_count = min(sum(1 for rid in a if rid in bset), len(a), 10)
-    if rel_count <= 0:
+    rels: list[float] = []
+    for i, rid in enumerate(sh):
+        if rid in prim:
+            r = prim[rid]
+            if r < kref:
+                rel = max(0.0, 1.0 - (float(r) / (float(kref) * 2.0)))
+            else:
+                rel = 0.0
+            rels.append(rel)
+        else:
+            rel = 0.0
+        dcg += rel / math.log2(i + 2)
+    if not rels:
         return 0.0
     idcg = 0.0
-    for i in range(rel_count):
-        idcg += (2**1.0 - 1.0) / math.log2(i + 2)
-    return dcg / idcg if idcg > 0 else 0.0
+    for i, rel in enumerate(sorted(rels, reverse=True)):
+        idcg += rel / math.log2(i + 2)
+    v = dcg / idcg if idcg > 0 else 0.0
+    if v < 0.0:
+        return 0.0
+    if v > 1.0:
+        return 1.0
+    return v
 
 
 def _compare_and_emit_metrics(primary: list[dict], shadow: list[dict], target_name: str, lbl_tenant: str) -> None:
     try:
-        agreement = _agreement_at_5(primary, shadow)
-        ndcg = _ndcg_at_10(primary, shadow)
+        agreement = agreement_at_k(primary, shadow, 5)
+        ndcg = ndcg_at_10(primary, shadow)
         # Observe with low-cardinality labels
         RETRIEVAL_SHADOW_AGREEMENT_AT_5.labels(target_name, str(min(10, len(primary))), "true").observe(agreement)
         RETRIEVAL_SHADOW_NDCG_AT_10.labels(target_name, str(min(10, len(primary))), "true").observe(ndcg)

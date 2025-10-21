@@ -38,6 +38,14 @@ RETRIEVAL_DUAL_WRITE_SKIPPED = Counter(
     "Dual-write operations skipped (e.g., circuit open)",
     ["reason"],
 )
+RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE = Gauge(
+    "retrieval_dual_write_outbox_size",
+    "Current size of dual-write outbox",
+)
+RETRIEVAL_DUAL_WRITE_OUTBOX_DROPPED = Counter(
+    "retrieval_dual_write_outbox_dropped_total",
+    "Outbox items dropped due to capacity limits",
+)
 RETRIEVAL_SHADOW_AGREEMENT_AT_5 = Histogram(
     "retrieval_shadow_agreement_at_5",
     "Agreement@5 between primary and shadow backends",
