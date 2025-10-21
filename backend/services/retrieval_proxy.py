@@ -24,11 +24,19 @@ from backend.app.metrics import (
     RETRIEVAL_LATENCY,
     RETRIEVAL_QUERIES_TOTAL,
     RETRIEVAL_REQUESTS,
+    RETRIEVAL_DUAL_WRITE_ERRORS,
+    RETRIEVAL_SHADOW_AGREEMENT_AT_5,
+    RETRIEVAL_SHADOW_NDCG_AT_10,
     labelize_tenant,
 )
 from backend.core.container import container
 from backend.infra.vecstores.faiss_store import FaissMultiTenantAdapter
 from backend.infra.vecstores.memory_adapter import MemoryMultiTenantAdapter
+from backend.config.flags import ff_retrieval_dual_write, ff_retrieval_shadow_read
+from backend.services import retrieval_target as rtarget
+from backend.domain.retrieval_types import Document
+import threading
+import math
 
 _hit_stats: dict[tuple[str, str], tuple[int, int]] = {}
 
@@ -325,6 +333,21 @@ class RetrievalProxy:
             RETRIEVAL_QUERIES_TOTAL.labels(self._backend, lbl_tenant).inc()
             if results:
                 RETRIEVAL_HITS_TOTAL.labels(self._backend, lbl_tenant).inc()
+            # Shadow-read: execute in background, do not impact response
+            if ff_retrieval_shadow_read():
+                target_name = rtarget.get_target_backend_name()
+
+                def _shadow_job() -> None:
+                    try:
+                        shadow = rtarget.get_target_adapter().search(
+                            query=query, top_k=top_k, tenant=tenant
+                        )
+                        _compare_and_emit_metrics(results, shadow, target_name, lbl_tenant)
+                    except Exception:
+                        # Shadow errors are ignored by design
+                        pass
+
+                threading.Thread(target=_shadow_job, daemon=True).start()
             return results
         except RetrievalBackendHTTPError as exc:
             RETRIEVAL_ERRORS.labels(self._backend, str(exc.status_code), lbl_tenant).inc()
@@ -334,3 +357,83 @@ class RetrievalProxy:
             raise
         finally:
             RETRIEVAL_LATENCY.labels(self._backend, lbl_tenant).observe(time.perf_counter() - start)
+
+    def ingest(self, doc: dict, tenant: str | None = None) -> None:
+        """Index a single document into primary (FAISS) and optionally target.
+
+        Primary write: always FAISS. If dual-write flag is ON, also write to the
+        configured target. Target errors are recorded in metrics and logs but do
+        not raise.
+        """
+        t = tenant or getattr(container.settings, "DEFAULT_TENANT", "default")
+        # Normalize and index into FAISS (primary)
+        try:
+            d = Document(id=str(doc.get("id") or ""), text=str(doc.get("text") or ""))
+        except Exception:
+            # Minimal validation: ignore invalid docs quietly
+            return
+        try:
+            FaissMultiTenantAdapter().index_for_tenant(t, [d])
+        except Exception:
+            # Primary failure should be rare; surface via log but do not raise here
+            structlog.get_logger(__name__).error("retrieval_ingest_primary_error", tenant=t)
+            return
+
+        # Dual-write to target if flag enabled
+        if ff_retrieval_dual_write():
+            target_name = rtarget.get_target_backend_name()
+            lbl_tenant = labelize_tenant(t, getattr(container.settings, "ALLOWED_TENANTS", []))
+            try:
+                rtarget.write_to_target(doc, t)
+            except Exception as exc:  # pragma: no cover - exercised via tests
+                RETRIEVAL_DUAL_WRITE_ERRORS.labels(target_name, lbl_tenant).inc()
+                structlog.get_logger(__name__).error(
+                    "retrieval_dual_write_error", target=target_name, tenant=t, error=repr(exc)
+                )
+
+
+def _ids(results: list[dict]) -> list[str]:
+    return [str(r.get("id") or "") for r in results]
+
+
+def _agreement_at_5(primary: list[dict], shadow: list[dict]) -> float:
+    a = _ids(primary)[:5]
+    b = set(_ids(shadow)[:5])
+    if not a:
+        return 0.0
+    inter = sum(1 for x in a if x in b)
+    return inter / float(len(a))
+
+
+def _ndcg_at_10(primary: list[dict], shadow: list[dict]) -> float:
+    a = _ids(primary)[:10]
+    b = _ids(shadow)[:10]
+    if not a:
+        return 0.0
+    bset = set(b)
+    # Relevance is binary: 1 if present in shadow's top10
+    dcg = 0.0
+    rank = 0
+    for rid in a:
+        rel = 1.0 if rid in bset else 0.0
+        # positions are 1-based for DCG denominator log2(i+1)
+        dcg += (2**rel - 1.0) / math.log2(rank + 2)
+        rank += 1
+    rel_count = min(sum(1 for rid in a if rid in bset), len(a), 10)
+    if rel_count <= 0:
+        return 0.0
+    idcg = 0.0
+    for i in range(rel_count):
+        idcg += (2**1.0 - 1.0) / math.log2(i + 2)
+    return dcg / idcg if idcg > 0 else 0.0
+
+
+def _compare_and_emit_metrics(primary: list[dict], shadow: list[dict], target_name: str, lbl_tenant: str) -> None:
+    try:
+        agreement = _agreement_at_5(primary, shadow)
+        ndcg = _ndcg_at_10(primary, shadow)
+        RETRIEVAL_SHADOW_AGREEMENT_AT_5.labels(target_name, lbl_tenant).set(agreement)
+        RETRIEVAL_SHADOW_NDCG_AT_10.labels(target_name, lbl_tenant).set(ndcg)
+    except Exception:
+        # Never raise from metrics computation
+        pass

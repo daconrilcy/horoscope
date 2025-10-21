@@ -27,6 +27,23 @@ RETRIEVAL_LATENCY = Histogram(
     ["backend", "tenant"],
 )
 
+# Migration metrics (dual-write/shadow-read)
+RETRIEVAL_DUAL_WRITE_ERRORS = Counter(
+    "retrieval_dual_write_errors_total",
+    "Total errors when writing to migration target during dual-write",
+    ["target", "tenant"],
+)
+RETRIEVAL_SHADOW_AGREEMENT_AT_5 = Gauge(
+    "retrieval_shadow_agreement_at_5",
+    "Agreement@5 between primary and shadow backends",
+    ["target", "tenant"],
+)
+RETRIEVAL_SHADOW_NDCG_AT_10 = Gauge(
+    "retrieval_shadow_ndcg_at_10",
+    "nDCG@10 between primary and shadow backends",
+    ["target", "tenant"],
+)
+
 # Business/chat metrics
 CHAT_REQUESTS = Counter(
     "chat_requests_total",

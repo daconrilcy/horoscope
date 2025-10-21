@@ -75,4 +75,12 @@ settings = get_settings()
 print(settings.APP_ENV, settings.DATABASE_URL)
 ```
 
-`get_settings()` construit une instance de configuration en appliquant les priorités ci‑dessus.
+`get_settings()` construit une instance de configuration en appliquant les priorités ci-dessus.
+
+## Flags de migration Retrieval (Phase 4.1)
+
+Ces variables contrôlent la migration du backend de recherche (dual-write & shadow-read).
+
+- `FF_RETRIEVAL_DUAL_WRITE` (ou `RETRIEVAL_DUAL_WRITE`) — active la double écriture vers la cible (défaut: OFF)
+- `FF_RETRIEVAL_SHADOW_READ` (ou `RETRIEVAL_SHADOW_READ`) — active la lecture fantôme sans impacter la réponse (défaut: OFF)
+- `RETRIEVAL_TARGET_BACKEND` — backend cible: `weaviate` | `pinecone` | `elastic` (défaut: `weaviate`)
