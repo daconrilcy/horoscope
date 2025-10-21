@@ -96,7 +96,7 @@ def safe_write_to_target(doc: dict, tenant: str | None = None) -> None:
     - On failure, increment fail count, open circuit when threshold reached,
       and enqueue to outbox (bounded).
     """
-    from backend.app.metrics import RETRIEVAL_DUAL_WRITE_SKIPPED, RETRIEVAL_DUAL_WRITE_ERRORS
+    from backend.app.metrics import RETRIEVAL_DUAL_WRITE_ERRORS, RETRIEVAL_DUAL_WRITE_SKIPPED
 
     global _cb_fail_count, _cb_open_until
     if _now() < _cb_open_until:
@@ -106,7 +106,7 @@ def safe_write_to_target(doc: dict, tenant: str | None = None) -> None:
     try:
         write_to_target(doc, tenant)
         _cb_fail_count = 0
-    except Exception as exc:  # pragma: no cover - behavior verified via counters in tests
+    except Exception:  # pragma: no cover - behavior verified via counters in tests
         _cb_fail_count += 1
         _enqueue_outbox(doc, tenant)
         if _cb_fail_count >= _cb_threshold():
@@ -124,8 +124,8 @@ def safe_write_to_target(doc: dict, tenant: str | None = None) -> None:
 
 def _enqueue_outbox(doc: dict, tenant: str | None) -> None:
     from backend.app.metrics import (
-        RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE,
         RETRIEVAL_DUAL_WRITE_OUTBOX_DROPPED,
+        RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE,
     )
 
     global _outbox_lock

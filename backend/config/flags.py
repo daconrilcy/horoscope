@@ -13,7 +13,6 @@ import os
 
 from backend.core.container import container
 
-
 _TRUE = {"1", "true", "yes", "on"}
 
 
