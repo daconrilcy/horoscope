@@ -62,6 +62,7 @@ RETRIEVAL_SHADOW_LATENCY = Histogram(
     "retrieval_shadow_latency_seconds",
     "Latency of shadow-read requests to target backend",
     ["backend", "sample"],
+    buckets=[0.05, 0.1, 0.2, 0.4, 0.8, 1.2, 2.0],
 )
 RETRIEVAL_SHADOW_DROPPED = Counter(
     "retrieval_shadow_dropped_total",

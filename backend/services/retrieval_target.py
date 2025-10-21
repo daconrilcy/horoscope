@@ -8,10 +8,13 @@ from __future__ import annotations
 import os
 
 
-
 def get_target_backend_name() -> str:
     """Return the configured migration target backend name."""
-    return (os.getenv("RETRIEVAL_TARGET_BACKEND") or os.getenv("RETRIEVAL_MIGRATION_TARGET") or "weaviate").lower()
+    return (
+        os.getenv("RETRIEVAL_TARGET_BACKEND")
+        or os.getenv("RETRIEVAL_MIGRATION_TARGET")
+        or "weaviate"
+    ).lower()
 
 
 def get_target_adapter():
@@ -31,7 +34,9 @@ def get_target_adapter():
         return PineconeAdapter()
     if name == "elastic":
         return ElasticVectorAdapter()
-    return WeaviateAdapter()
+    if name == "weaviate":
+        return WeaviateAdapter()
+    raise ValueError(f"invalid RETRIEVAL_TARGET_BACKEND: {name}")
 
 
 def write_to_target(_doc: dict, _tenant: str | None = None) -> None:
@@ -42,10 +47,11 @@ def write_to_target(_doc: dict, _tenant: str | None = None) -> None:
     """
     return None
 
+
 # --- Dual-write safety: circuit breaker + outbox (in-memory) ---
 _cb_fail_count: int = 0
 _cb_open_until: float = 0.0
-_outbox: list[tuple[dict, str | None]] = []
+_outbox: list[tuple[dict, str | None, float]] = []
 _outbox_lock = None  # lazy to avoid threading import at import-time for tests
 
 
@@ -68,6 +74,13 @@ def _outbox_max() -> int:
         return int(os.getenv("RETRIEVAL_DUAL_WRITE_OUTBOX_MAX") or 1000)
     except Exception:
         return 1000
+
+
+def _outbox_ttl_s() -> float:
+    try:
+        return float(os.getenv("RETRIEVAL_DUAL_WRITE_OUTBOX_TTL_S") or 86400.0)
+    except Exception:
+        return 86400.0
 
 
 def _now() -> float:
@@ -102,7 +115,9 @@ def safe_write_to_target(doc: dict, tenant: str | None = None) -> None:
         # but increment here as well in case safe_write_to_target is used directly.
         try:
             # Using generic labels; target/tenant not available here without duplication
-            RETRIEVAL_DUAL_WRITE_ERRORS.labels(get_target_backend_name(), str(tenant or "default")).inc()
+            RETRIEVAL_DUAL_WRITE_ERRORS.labels(
+                get_target_backend_name(), str(tenant or "default")
+            ).inc()
         except Exception:
             pass
 
@@ -127,7 +142,7 @@ def _enqueue_outbox(doc: dict, tenant: str | None) -> None:
             except Exception:
                 pass
             dropped = True
-        _outbox.append((doc, tenant))
+        _outbox.append((doc, tenant, _now()))
         RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE.set(len(_outbox))
     if dropped:
         RETRIEVAL_DUAL_WRITE_OUTBOX_DROPPED.inc()
@@ -143,7 +158,7 @@ def replay_outbox(limit: int | None = None) -> int:
     # Iterate over a snapshot to allow modification during replay
     while i < n:
         try:
-            doc, tenant = _outbox.pop(0)
+            doc, tenant, ts = _outbox.pop(0)
         except Exception:
             break
         try:
@@ -151,7 +166,12 @@ def replay_outbox(limit: int | None = None) -> int:
             ok += 1
         except Exception:
             # Re-enqueue at end
-            _enqueue_outbox(doc, tenant)
+            if _now() - ts <= _outbox_ttl_s():
+                _outbox.append((doc, tenant, ts))
+            else:
+                from backend.app.metrics import RETRIEVAL_DUAL_WRITE_OUTBOX_DROPPED
+
+                RETRIEVAL_DUAL_WRITE_OUTBOX_DROPPED.inc()
         i += 1
     try:
         from backend.app.metrics import RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE

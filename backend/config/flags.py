@@ -45,17 +45,31 @@ def _get_bool(*env_keys: str, fallback_setting: str | None = None, default: bool
 
 def ff_retrieval_dual_write() -> bool:
     """Return whether dual-write to target is enabled (default OFF)."""
-    return _get_bool("FF_RETRIEVAL_DUAL_WRITE", "RETRIEVAL_DUAL_WRITE", fallback_setting="RETRIEVAL_DUAL_WRITE", default=False)
+    return _get_bool(
+        "FF_RETRIEVAL_DUAL_WRITE",
+        "RETRIEVAL_DUAL_WRITE",
+        fallback_setting="RETRIEVAL_DUAL_WRITE",
+        default=False,
+    )
 
 
 def ff_retrieval_shadow_read() -> bool:
     """Return whether shadow-read is enabled (default OFF)."""
-    return _get_bool("FF_RETRIEVAL_SHADOW_READ", "RETRIEVAL_SHADOW_READ", fallback_setting="RETRIEVAL_SHADOW_READ", default=False)
+    return _get_bool(
+        "FF_RETRIEVAL_SHADOW_READ",
+        "RETRIEVAL_SHADOW_READ",
+        fallback_setting="RETRIEVAL_SHADOW_READ",
+        default=False,
+    )
 
 
 def shadow_sample_rate() -> float:
     """Return shadow-read sampling rate in [0,1] (default 0.25)."""
-    raw = os.getenv("FF_RETRIEVAL_SHADOW_SAMPLE_RATE") or os.getenv("RETRIEVAL_SHADOW_SAMPLE_RATE") or "0.25"
+    raw = (
+        os.getenv("FF_RETRIEVAL_SHADOW_SAMPLE_RATE")
+        or os.getenv("RETRIEVAL_SHADOW_SAMPLE_RATE")
+        or "0.25"
+    )
     try:
         v = float(str(raw))
         if v < 0.0:

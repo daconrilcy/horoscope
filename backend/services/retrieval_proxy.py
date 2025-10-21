@@ -43,6 +43,7 @@ from backend.config.flags import (
 from backend.services import retrieval_target as rtarget
 from backend.domain.retrieval_types import Document
 import threading
+import atexit
 import math
 
 _hit_stats: dict[tuple[str, str], tuple[int, int]] = {}
@@ -410,6 +411,7 @@ def agreement_at_k(primary: list[dict], shadow: list[dict], k: int = 5) -> float
     Deduplicates IDs preserving order; clamps to [0,1].
     """
     k = max(1, int(k))
+
     def _uniq(seq: list[str]) -> list[str]:
         seen: set[str] = set()
         out: list[str] = []
@@ -440,6 +442,7 @@ def ndcg_at_10(primary: list[dict], shadow: list[dict]) -> float:
     - IDCG is ideal DCG with all relevant items at top.
     - Deduplicate IDs to avoid bias; clamp to [0,1].
     """
+
     def _uniq(seq: list[str]) -> list[str]:
         seen: set[str] = set()
         out: list[str] = []
@@ -483,13 +486,19 @@ def ndcg_at_10(primary: list[dict], shadow: list[dict]) -> float:
     return v
 
 
-def _compare_and_emit_metrics(primary: list[dict], shadow: list[dict], target_name: str, lbl_tenant: str) -> None:
+def _compare_and_emit_metrics(
+    primary: list[dict], shadow: list[dict], target_name: str, lbl_tenant: str
+) -> None:
     try:
         agreement = agreement_at_k(primary, shadow, 5)
         ndcg = ndcg_at_10(primary, shadow)
         # Observe with low-cardinality labels
-        RETRIEVAL_SHADOW_AGREEMENT_AT_5.labels(target_name, str(min(10, len(primary))), "true").observe(agreement)
-        RETRIEVAL_SHADOW_NDCG_AT_10.labels(target_name, str(min(10, len(primary))), "true").observe(ndcg)
+        RETRIEVAL_SHADOW_AGREEMENT_AT_5.labels(
+            target_name, str(min(10, len(primary))), "true"
+        ).observe(agreement)
+        RETRIEVAL_SHADOW_NDCG_AT_10.labels(target_name, str(min(10, len(primary))), "true").observe(
+            ndcg
+        )
     except Exception:
         # Never raise from metrics computation
         pass
@@ -499,6 +508,7 @@ def _compare_and_emit_metrics(primary: list[dict], shadow: list[dict], target_na
 _shadow_exec_lock = threading.Lock()
 _shadow_queue: list[dict] | None = None  # type: ignore[assignment]
 _shadow_threads: list[threading.Thread] = []
+_shadow_shutdown_registered = False
 
 
 def _shadow_settings() -> tuple[int, int, float]:
@@ -531,6 +541,7 @@ def _ensure_shadow_workers() -> None:
 
         def _worker() -> None:
             import time as _t
+
             while True:
                 try:
                     task = _shadow_queue.get()  # type: ignore[union-attr]
@@ -538,6 +549,8 @@ def _ensure_shadow_workers() -> None:
                     break
                 if task is None:  # type: ignore[comparison-overlap]
                     continue
+                if isinstance(task, dict) and task.get("__stop__") is True:
+                    break
                 query = task["query"]
                 top_k = task["top_k"]
                 tenant = task["tenant"]
@@ -546,13 +559,17 @@ def _ensure_shadow_workers() -> None:
                 _, _, t_ms = _shadow_settings()
                 start = _t.perf_counter()
                 try:
-                    shadow = rtarget.get_target_adapter().search(query=query, top_k=top_k, tenant=tenant)
+                    shadow = rtarget.get_target_adapter().search(
+                        query=query, top_k=top_k, tenant=tenant
+                    )
                     elapsed = _t.perf_counter() - start
                     RETRIEVAL_SHADOW_LATENCY.labels(target_name, "true").observe(elapsed)
                     if elapsed * 1000.0 > t_ms:
                         RETRIEVAL_SHADOW_DROPPED.labels("timeout").inc()
                     else:
-                        _compare_and_emit_metrics(primary, shadow, target_name, labelize_tenant(tenant or "default", []))
+                        _compare_and_emit_metrics(
+                            primary, shadow, target_name, labelize_tenant(tenant or "default", [])
+                        )
                 except Exception:
                     # Swallow errors
                     pass
@@ -566,9 +583,15 @@ def _ensure_shadow_workers() -> None:
             t = threading.Thread(target=_worker, daemon=True)
             _shadow_threads.append(t)
             t.start()
+        global _shadow_shutdown_registered
+        if not _shadow_shutdown_registered:
+            atexit.register(_shutdown_shadow_executor)
+            _shadow_shutdown_registered = True
 
 
-def _shadow_submit(target_name: str, query: str, top_k: int, tenant: str | None, primary_results: list[dict]) -> None:
+def _shadow_submit(
+    target_name: str, query: str, top_k: int, tenant: str | None, primary_results: list[dict]
+) -> None:
     import queue as _queue
 
     _ensure_shadow_workers()
@@ -591,3 +614,16 @@ def _reset_shadow_executor_for_tests() -> None:  # pragma: no cover - used by te
     global _shadow_queue
     with _shadow_exec_lock:
         _shadow_queue = None
+
+
+def _shutdown_shadow_executor() -> None:  # pragma: no cover - process shutdown
+    try:
+        if _shadow_queue is None:
+            return
+        for _ in _shadow_threads:
+            try:
+                _shadow_queue.put_nowait({"__stop__": True})  # type: ignore[union-attr]
+            except Exception:
+                pass
+    except Exception:
+        pass
