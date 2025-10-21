@@ -1,0 +1,28 @@
+name: Cutover Metrics (hourly)
+on:
+  schedule:
+    - cron: "5 * * * *"
+  workflow_dispatch: {}
+jobs:
+  cutover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run cutover metrics
+        run: |
+          mkdir -p artifacts
+          python scripts/cutover_metrics.py \
+            --truth-set artifacts/truthset.json \
+            --k 10 \
+            --out artifacts/cutover_$(date +%F-%H).json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cutover_48h_log
+          path: artifacts/cutover_log.ndjson
