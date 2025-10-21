@@ -74,4 +74,3 @@ def validate_output(text: str, tenant: str | None) -> str:
         LLM_GUARD_PII_MASKED.labels("phone").inc()
     masked = new
     return masked
-
