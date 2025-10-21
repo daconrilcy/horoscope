@@ -9,8 +9,11 @@
 
 from __future__ import annotations
 
+import atexit
+import math
 import os
 import random
+import threading
 import time
 from abc import ABC, abstractmethod
 
@@ -18,33 +21,30 @@ import httpx
 import structlog
 
 from backend.app.metrics import (
+    RETRIEVAL_DUAL_WRITE_ERRORS,
     RETRIEVAL_ERRORS,
     RETRIEVAL_HIT_RATIO,
     RETRIEVAL_HITS_TOTAL,
     RETRIEVAL_LATENCY,
     RETRIEVAL_QUERIES_TOTAL,
     RETRIEVAL_REQUESTS,
-    RETRIEVAL_DUAL_WRITE_ERRORS,
     RETRIEVAL_SHADOW_AGREEMENT_AT_5,
-    RETRIEVAL_SHADOW_NDCG_AT_10,
-    RETRIEVAL_SHADOW_LATENCY,
     RETRIEVAL_SHADOW_DROPPED,
+    RETRIEVAL_SHADOW_LATENCY,
+    RETRIEVAL_SHADOW_NDCG_AT_10,
     labelize_tenant,
 )
-from backend.core.container import container
-from backend.infra.vecstores.faiss_store import FaissMultiTenantAdapter
-from backend.infra.vecstores.memory_adapter import MemoryMultiTenantAdapter
 from backend.config.flags import (
     ff_retrieval_dual_write,
     ff_retrieval_shadow_read,
     shadow_sample_rate,
     tenant_allowlist,
 )
-from backend.services import retrieval_target as rtarget
+from backend.core.container import container
 from backend.domain.retrieval_types import Document
-import threading
-import atexit
-import math
+from backend.infra.vecstores.faiss_store import FaissMultiTenantAdapter
+from backend.infra.vecstores.memory_adapter import MemoryMultiTenantAdapter
+from backend.services import retrieval_target as rtarget
 
 _hit_stats: dict[tuple[str, str], tuple[int, int]] = {}
 
