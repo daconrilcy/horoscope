@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -9,6 +10,8 @@ from backend.api.routes_auth import get_current_user
 from backend.app.metrics import (
     CHAT_LATENCY,
     CHAT_REQUESTS,
+    LLM_GUARD_BLOCKS,
+    LLM_GUARD_WARN,
     LLM_TOKENS_TOTAL,
     TOKEN_COUNT_STRATEGY_INFO,
     labelize_model,
@@ -97,7 +100,23 @@ def advise(payload: ChatPayload, request: Request, user=Depends(get_current_user
     try:
         clean = sanitize_input({"question": payload.question})
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        rule = str(exc)
+        env_flag = os.getenv("FF_GUARD_ENFORCE") or "true"
+        val = env_flag.strip().lower()
+        enforce = val in {"1", "true", "yes", "on"}
+        if enforce:
+            LLM_GUARD_BLOCKS.labels(rule=rule).inc()
+            raise HTTPException(status_code=400, detail=rule) from exc
+        # warn-only path: increment metric and continue with safe fallback
+        LLM_GUARD_WARN.labels(rule=rule).inc()
+        q = (payload.question or "").strip()
+        try:
+            max_len = int(getattr(container.settings, "LLM_GUARD_MAX_INPUT_LEN", 1000) or 1000)
+        except Exception:
+            max_len = 1000
+        if rule == "question_too_long" and len(q) > max_len:
+            q = q[:max_len]
+        clean = {"question": q}
     text, usage = orch.advise(chart, today, clean["question"])
     tokens = estimate_tokens(text, model, usage)
     LLM_TOKENS_TOTAL.labels(tenant=tenant_lbl, model=model_lbl).inc(tokens)

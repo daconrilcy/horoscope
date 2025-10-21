@@ -87,6 +87,23 @@ LLM_TOKENS_TOTAL = Counter(
     ["tenant", "model"],
 )
 
+# LLM Guard metrics
+LLM_GUARD_BLOCKS = Counter(
+    "llm_guard_block_total",
+    "Total requests blocked by LLM Guard",
+    ["rule"],
+)
+LLM_GUARD_WARN = Counter(
+    "llm_guard_warn_total",
+    "Total LLM Guard warnings (non-blocking)",
+    ["rule"],
+)
+LLM_GUARD_PII_MASKED = Counter(
+    "llm_guard_pii_masked_total",
+    "Total PII masking operations performed on outputs",
+    ["kind"],
+)
+
 # Retrieval hit ratio (gauge maintained by service code)
 RETRIEVAL_HIT_RATIO = Gauge(
     "retrieval_hit_ratio",
