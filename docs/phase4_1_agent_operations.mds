@@ -1,0 +1,413 @@
+# Phase 4.1 — Execution Plan (.mds) — Agent Instructions (ops & quality strictes)
+
+## 0) Portée & principe
+- **Objectif** : livrer la **Phase 4.1 (Hardening & Evidence Pack)** avant Phase 5. On ferme les gaps : LLM Guard **enforcé**, SLO **chiffrés**, **cutover retrieval** avec **gates** & **rollback drill**, **API governance**, **canary/blue-green scriptés**, **multi-tenant reliability**, **Evidence Pack** automatisé.
+- **Principe cardinal** : **1 issue = 1 PR**, exécution **indépendante**. Aucune PR ne traite plusieurs issues, sauf *refactor/chore dédié*.
+- **Hors scope** : Monétisation/Entitlements (Phase 5).
+
+---
+
+## 1) Contraintes dev **incompressibles**
+- **Python ≥ 3.10** (unions `X | None` autorisées).
+- **Typing interdit** : **ne pas** importer/écrire `typing.List`, `typing.Dict`, `typing.Str`, `typing.Optional`.  
+  Utiliser **`list`, `dict`, `str`, et `X | None`**.
+- **Ruff strict** + **mypy strict** + **coverage ≥ 90% par package touché**.
+- **Docstrings** : impératif (Ruff D401), sections `Args / Returns / Raises` pour fonctions publiques.
+- **Logs JSON structurés** avec `trace_id` ; **PII masquée** (emails, phones, tokens).
+
+### 1.1 Fichiers de config (mettre/mettre à jour dans le repo)
+#### `pyproject.toml` (Ruff)
+```toml
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E","W","F","I","N","D","UP","B","C90","S"]
+ignore = ["D203","D213"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D","S"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+```
+
+#### `mypy.ini`
+```ini
+[mypy]
+python_version = 3.10
+disallow_untyped_defs = True
+disallow_any_generics = True
+warn_unused_ignores = True
+no_implicit_optional = True
+strict_optional = True
+warn_return_any = True
+warn_redundant_casts = True
+warn_unused_configs = True
+exclude = (venv|.venv|build|dist|alembic/versions)
+
+[mypy-tests.*]
+ignore_errors = False
+```
+
+#### `Makefile`
+```makefile
+.PHONY: verify test lint type slo bench
+
+verify: lint type test slo
+	@echo "OK"
+
+lint:
+	ruff check .
+	ruff format --check .
+
+type:
+	mypy .
+
+test:
+	pytest -q --maxfail=1 --disable-warnings --cov=backend --cov-report=term --cov-report=json:coverage.json
+
+slo:
+	python scripts/slo_report.py --fail-on-breach
+
+bench:
+	python scripts/bench_multitenant.py --qps 50 --duration 300 --tenants 3 --report artifacts/bench.json
+```
+
+#### `scripts/check_no_typing_aliases.sh`
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+if grep -R -nE 'from typing import (List|Dict|Optional|Str)|typing\.(List|Dict|Optional|Str)\b' backend/; then
+  echo "❌ Interdit: typing.List/Dict/Optional/Str détecté."
+  exit 1
+fi
+echo "✅ Aucune utilisation interdite de typing.*"
+```
+> Rendre exécutable : `chmod +x scripts/check_no_typing_aliases.sh`
+
+---
+
+## 2) **Workflow par issue** (boucle indépendante)
+### 2.1 Branch & isolement
+- `git checkout -b feat/<ISSUE_ID>-<kebab-title>` (ex: `feat/PH4.1-04-llm-guard-enforcement`)
+- Limiter les changements **au module de l’issue**. Besoin cross-cutting ? **STOP** → créer **une refactor issue** séparée (dépendance).
+
+### 2.2 Feature flags (safe-by-default)
+- Tout changement runtime est **feature-flagué OFF** par défaut (ou allowlist tenant) :
+  - `FF_RETRIEVAL_DUAL_WRITE` (bool)
+  - `FF_RETRIEVAL_SHADOW_READ` (bool)
+  - `FF_GUARD_ENFORCE` (bool)
+- Flags via ENV/config. Documenter défauts et procédure d’activation.
+
+### 2.3 Standards de code
+- **Ruff strict**, **mypy strict**, **ban typing aliases**, **docstrings impératifs**.
+- Logs JSON (`trace_id`), **PII masquée**.
+
+### 2.4 Tests (par issue)
+- **Unit + intégration/e2e** pour le **périmètre** de l’issue uniquement.
+- Tests **déterministes** (fixed seeds).
+- **Coverage ≥ 90%** sur **packages touchés** (sinon PR bloquée).
+
+### 2.5 CI Gates (par PR)
+- `make verify` + `scripts/check_no_typing_aliases.sh` **doivent passer**.
+- Si l’issue touche SLO/cutover/bench : joindre **artefacts ciblés** (SLO report, bench JSON, cutover log).
+- PR **bloquée** si : ruff/mypy fail, coverage < 90%, SLO breach (endpoints impactés), gates cutover non atteints.
+
+### 2.6 Docs & runbooks
+- MAJ **seulement** les docs/runbooks concernés (API contracts, error envelope, flags, cutover runbook).
+
+### 2.7 PR unique & format
+- **Titre** : `[<ISSUE_ID>] <titre concis>`
+- **Corps** (template) : Scope / Out of scope / Acceptance / Artefacts / Flags / Risques & rollback (3 étapes).
+
+### 2.8 Statut & merge
+- Mettre à jour **uniquement** l’issue dans `phase4_1_issues.csv` (`status`, `dependencies` si découverts).
+- Rebase propre, merge. Si refactor partagé requis : créer, merger, rebase, puis merger l’issue.
+
+> **Ne jamais** clôturer >1 issue par PR (sauf refactor/chore dédié).
+
+---
+
+## 3) Tâches **opérationnelles détaillées** (par domaine)
+
+### 3.1 Retrieval Proxy — PH4.1-01/02/03
+**But** : dual-write & shadow-read **dans** le proxy ; **gates** + **journal 48h** ; **rollback drill**.
+
+- **Code**
+  - `backend/services/retrieval_proxy.py` :
+    - `ingest(doc: dict) -> None` : écrit FAISS; si `FF_RETRIEVAL_DUAL_WRITE` → écrit aussi cible; incrémente `retrieval_dual_write_errors_total` si échec cible.
+    - `search(query: str, k: int) -> list[dict]` : FAISS pour la réponse. Si `FF_RETRIEVAL_SHADOW_READ` → requête cible en parallèle; appelle `compare_and_emit_metrics()`.
+  - Métriques Prom:
+    - `retrieval_dual_write_errors_total`
+    - `retrieval_shadow_agreement_at_5`
+    - `retrieval_shadow_ndcg_at_10`
+- **Gates cutover**
+  - `agreement@5 ≥ 95%` **ET** `nDCG@10 ≥ 0,90` **48h** sous charge **multi-tenant**.
+  - `scripts/cutover_metrics.py` : calcule sur jeu de vérité gelé; exporte `artifacts/cutover_YYYYMMDD.json`; **exit 1** si < seuils.
+- **Journal 48h**
+  - Cron/Action horaire : append `artifacts/cutover_log.ndjson` (timestamp, scores, tailles, flags).
+- **Rollback drill**
+  - OFF dual-write → purge *delta* cible si incohérent → OFF shadow-read → retour FAISS-only → e2e OK → journal + post-mortem bref.
+
+### 3.2 Sécurité — LLM Guard — PH4.1-04
+**But** : enforcement injection/PII, logs structurés, métriques.
+
+- **Règles minimales** : injection (jailbreak/exfil) ; PII (email, phone, IBAN, carte).
+- **Comportement** :
+  - **Block** si règle bloquante (exfil/jailbreak) → log `{"rule_id":"inj_001","action":"block"}` ; `llm_guard_block_total++`.
+  - **Warn** PII → masking + annotation.
+- **Tests d’attaque** : prompts jailbreak connus, PII synthétiques, bypass guarding.
+- **Métriques** : `llm_guard_block_total`, `llm_guard_warn_total`.
+
+### 3.3 API Gateway & contrats — PH4.1-08/09/10/12/11
+**But** : `/v1`, enveloppe d’erreur, idempotency-keys, quotas GW, timeouts/backoff, métriques.
+
+- **Contrats**
+  - Erreurs : `{ "code": "string", "message": "string", "trace_id": "string" }`.
+  - POST idempotent : `Idempotency-Key` obligatoire; réutiliser la réponse sur retry.
+  - Versioning : forcer `/v1`; policy deprecation documentée.
+- **Quotas/Rate-limit au **gateway** (OIDC/tenant)**
+  - 429 + `Retry-After`; métriques par tenant : `apigw_requests_total{endpoint,tenant}`, `apigw_rate_limit_hits_total`.
+- **Timeouts/Backoff** : 3s read / 5s total (ex.), retry-budget contrôlé.
+- **Traces/Metrics** : `http_server_requests_seconds_bucket{route,method,status}`, propagation `trace_id`.
+
+### 3.4 Observabilité & SLO — PH4.1-06/11
+**But** : SLOs chiffrés + dashboards + error-budget.
+
+- **Cibles (ex.)** : `GET /chat/answer` → **P95 ≤ 300 ms**, **P99 ≤ 700 ms**, **err_rate ≤ 0,5%** @ QPS 50/tenant.
+- **Dashboards** : P95/P99 par endpoint, err_rate, burn-rate (1h/6h/24h).
+- **Policy** : burn-rate > seuil (ex. 2x/1h) → freeze déploiements.
+
+### 3.5 Workers / Idempotence / Noisy Neighbor — PH4.1-13/14/18
+**But** : exactly-once robuste et isolation.
+
+- **Idempotency ack post-commit** : répondre après commit DB.
+- **Fair scheduling** : concurrency par tenant + WFQ; métriques `celery_queue_length{tenant}`.
+- **Poison queue** : quarantine & replay; métrique `poison_messages_total`.
+
+### 3.6 Data lifecycle / DR — PH4.1-15/16/17
+- **PII masking** logs/traces; **TTL/rétentions** (logs/traces/indices).
+- **Catalogue PII** + **DPIA** à jour.
+- **Vector store DR** : test backup/restore; doc **RPO/RTO**; coûts egress; logs d’exécution.
+
+### 3.7 Evidence Pack — PH4.1-19/20
+- **Exports** : `coverage.json` (par package), `slo_report.json`, `bench_multitenant.json`, `cutover_*.json`, `cutover_log.ndjson`, dashboards (JSON/captures).
+- Pipeline qui versionne et **attache aux PRs** concernés.
+
+---
+
+## 4) CI/CD — Workflows modèles
+
+### 4.1 PR Quality Gate — `.github/workflows/pr_quality.yml`
+```yaml
+name: PR Quality
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.10" }
+      - run: pip install -r requirements-dev.txt
+      - name: Enforce "one issue per PR"
+        run: |
+          python - << 'PY'
+import json, re, sys, os
+with open(os.environ["GITHUB_EVENT_PATH"], "r", encoding="utf-8") as f:
+    ev = json.load(f)
+title = ev.get("pull_request", {}).get("title", "")
+body = ev.get("pull_request", {}).get("body", "") or ""
+ids = set(re.findall(r"PH4\.1-\d+", title + " " + body))
+if len(ids) != 1:
+    print("Exactly one issue ID (PH4.1-XX) must be referenced in PR title/body. Found:", ids)
+    sys.exit(1)
+print("OK: issue id", list(ids)[0])
+PY
+      - name: Ban typing aliases
+        run: bash scripts/check_no_typing_aliases.sh
+      - name: Ruff
+        run: make lint
+      - name: MyPy
+        run: make type
+      - name: Tests + Coverage
+        run: make test
+      - name: SLO Gate
+        run: make slo
+      - name: Upload coverage.json
+        uses: actions/upload-artifact@v4
+        with: { name: coverage, path: coverage.json }
+```
+
+### 4.2 Canary/Blue-Green — `.github/workflows/deploy_canary.yml`
+```yaml
+name: Deploy Canary
+on:
+  workflow_dispatch:
+    inputs:
+      env: { description: "environment", required: true, default: "staging" }
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/deploy_canary.sh ${{ inputs.env }}
+      - name: Observe burn-rate (15m)
+        run: python scripts/slo_burn_monitor.py --window 900 --abort-threshold 2.0
+      - name: Promote or Abort
+        run: ./scripts/promote_or_abort.sh ${{ inputs.env }}
+```
+
+---
+
+## 5) Exemples de squelettes (compatibles règles typing)
+
+### 5.1 `backend/app/middleware_llm_guard.py` (fragment)
+```python
+from __future__ import annotations
+import re
+from dataclasses import dataclass
+
+@dataclass
+class GuardResult:
+    blocked: bool
+    warnings: list[str]
+    rule_id: str | None
+
+PII_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+INJECTION = re.compile(r"(?i)\b(ignore|bypass|override)\b.*\b(instruction|policy|guard)\b")
+
+def check_text(text: str) -> GuardResult:
+    """Enforce guard on text."""
+    warns: list[str] = []
+    rule: str | None = None
+    if INJECTION.search(text):
+        return GuardResult(blocked=True, warnings=["prompt_injection"], rule_id="inj_001")
+    if PII_EMAIL.search(text):
+        warns.append("pii_email")
+        rule = "pii_001")
+    return GuardResult(blocked=False, warnings=warns, rule_id=rule)
+```
+
+### 5.2 `backend/services/retrieval_proxy.py` (fragment)
+```python
+from __future__ import annotations
+import logging
+log = logging.getLogger(__name__)
+
+def search(query: str, k: int) -> list[dict]:
+    """Execute retrieval with optional shadow-read (OFF by default)."""
+    results: list[dict] = faiss_search(query, k)
+    if get_flag("FF_RETRIEVAL_SHADOW_READ"):
+        try:
+            shadow = vector_store_search(query, k)
+            compare_and_emit_metrics(results, shadow)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("shadow_read_error", extra={"error": str(exc)})
+    return results
+
+def ingest(doc: dict) -> None:
+    """Ingest into primary and, if flagged, into target vector store."""
+    faiss_insert(doc)
+    if get_flag("FF_RETRIEVAL_DUAL_WRITE"):
+        try:
+            vector_store_insert(doc)
+        except Exception as exc:  # noqa: BLE001
+            incr("retrieval_dual_write_errors_total")
+            log.error("dual_write_error", extra={"error": str(exc)})
+```
+
+---
+
+## 6) Runbooks
+
+### 6.1 Cutover 48h — exécution
+1. **ON** `FF_RETRIEVAL_SHADOW_READ`, **OFF** `FF_RETRIEVAL_DUAL_WRITE`.
+2. Horaire : `scripts/cutover_metrics.py --truth-set data/truthset.json --k 10 --out artifacts/cutover_$(date +%F-%H).json`.
+3. **Seuils 48h** : `agreement@5 ≥ 95%` **et** `nDCG@10 ≥ 0,90`. Sous seuil → **Abort** (désactiver flags, incident).
+4. **Drill rollback** : OFF dual-write → purge delta cible si besoin → OFF shadow → FAISS-only → e2e OK → journal.
+
+### 6.2 Canary/Blue-Green
+1. Déployer **canary** (5–10% trafic).
+2. Surveiller **burn-rate SLO** 15 min.
+3. **Promote** si OK ; **Abort** si burn-rate > seuil → rollback auto, incident.
+
+### 6.3 Incident Sev1 (raccourci)
+- Freeze déploiements; logs/trace_id; revert PR fautive; post-mortem ≤ 24h.
+
+---
+
+## 7) Checklists d’acceptation
+
+### Retrieval
+- [ ] Flags dual-write/shadow-read **dans** le proxy
+- [ ] Métriques `agreement@5`, `nDCG@10` + export 48h
+- [ ] Drill rollback exécuté & journalisé
+- [ ] Tests unit/intégration (shadow, erreurs, métriques)
+
+### Sécurité
+- [ ] Règles injection/PII actives (**enforcement**)
+- [ ] `llm_guard_block_total` exposée
+- [ ] Tests d’attaque passants
+- [ ] Logs structurés sans PII
+
+### API Gateway
+- [ ] `/v1` partout + deprecation policy
+- [ ] Enveloppe d’erreur + `trace_id`
+- [ ] `Idempotency-Key` POST + tests
+- [ ] Quotas GW + `429` + `Retry-After`
+- [ ] Metrics par endpoint + traces
+
+### SRE
+- [ ] SLO cibles publiées + dashboards
+- [ ] Burn-rate policy & automation
+- [ ] `slo_report.py` échoue si breach
+
+### Workers
+- [ ] Ack post-commit, pas de double-effet
+- [ ] Concurrency par tenant + WFQ
+- [ ] Poison queue runbook + métriques
+
+### Data/DR
+- [ ] PII masking + TTL/rétentions
+- [ ] Catalogue PII + DPIA
+- [ ] DR vector store : test + RPO/RTO
+
+### Evidence
+- [ ] Coverage JSON (par package)
+- [ ] SLO report, bench, cutover logs
+- [ ] Dashboards JSON/snapshots attachés
+
+---
+
+## 8) Règles de blocage (ne pas merger si…)
+- ❌ PR référence **>1 issue** (ou 0).
+- ❌ `typing.List|Dict|Optional|Str` détecté.
+- ❌ Ruff/mypy en échec, **ou** coverage package < 90%.
+- ❌ SLO breach pour endpoints impactés.
+- ❌ Gates cutover non atteints.
+- ❌ PR modifie des modules **hors scope** de l’issue.
+
+---
+
+## 9) Statut & traçabilité
+- Mettre à jour `phase4_1_issues.csv` (colonnes `status`, `dependencies`) **par issue**.
+- PR : `Issue: PH4.1-XX`, `Depends on: PH4.1-YY` si applicable.
+- Créer une refactor/chore issue pour tout changement transverse (jamais piggyback).
+
+---
+
+## 10) Rappels qualité
+- Types natifs **obligatoires** : `list`, `dict`, `str`, unions `|`.
+- Docstrings **impératifs** (“Enforce…”, pas “Enforces…”).
+- Logs JSON, `trace_id`, **PII masquée**.
+- Tests déterministes; pas d’IO réseau non mocké.
+- Secrets via Vault/ENV; **jamais** commit.

@@ -27,6 +27,49 @@ RETRIEVAL_LATENCY = Histogram(
     ["backend", "tenant"],
 )
 
+# Migration metrics (dual-write/shadow-read)
+RETRIEVAL_DUAL_WRITE_ERRORS = Counter(
+    "retrieval_dual_write_errors_total",
+    "Total errors when writing to migration target during dual-write",
+    ["target", "tenant"],
+)
+RETRIEVAL_DUAL_WRITE_SKIPPED = Counter(
+    "retrieval_dual_write_skipped_total",
+    "Dual-write operations skipped (e.g., circuit open)",
+    ["reason"],
+)
+RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE = Gauge(
+    "retrieval_dual_write_outbox_size",
+    "Current size of dual-write outbox",
+)
+RETRIEVAL_DUAL_WRITE_OUTBOX_DROPPED = Counter(
+    "retrieval_dual_write_outbox_dropped_total",
+    "Outbox items dropped due to capacity limits",
+)
+RETRIEVAL_SHADOW_AGREEMENT_AT_5 = Histogram(
+    "retrieval_shadow_agreement_at_5",
+    "Agreement@5 between primary and shadow backends",
+    ["backend", "k", "sample"],
+    buckets=[x / 20.0 for x in range(0, 21)],  # 0.0..1.0 step 0.05
+)
+RETRIEVAL_SHADOW_NDCG_AT_10 = Histogram(
+    "retrieval_shadow_ndcg_at_10",
+    "nDCG@10 between primary and shadow backends",
+    ["backend", "k", "sample"],
+    buckets=[x / 20.0 for x in range(0, 21)],
+)
+RETRIEVAL_SHADOW_LATENCY = Histogram(
+    "retrieval_shadow_latency_seconds",
+    "Latency of shadow-read requests to target backend",
+    ["backend", "sample"],
+    buckets=[0.05, 0.1, 0.2, 0.4, 0.8, 1.2, 2.0],
+)
+RETRIEVAL_SHADOW_DROPPED = Counter(
+    "retrieval_shadow_dropped_total",
+    "Shadow-read tasks dropped",
+    ["reason"],
+)
+
 # Business/chat metrics
 CHAT_REQUESTS = Counter(
     "chat_requests_total",
