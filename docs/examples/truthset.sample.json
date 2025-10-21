@@ -1,0 +1,93 @@
+[
+  {
+    "query_id": "q001",
+    "query": "compatibilité signe solaire et ascendant",
+    "k": 10,
+    "baseline_topk": [
+      "doc_0001",
+      "doc_0004",
+      "doc_0020",
+      "doc_0102",
+      "doc_0301",
+      "doc_0410",
+      "doc_0505",
+      "doc_0601",
+      "doc_0602",
+      "doc_0700"
+    ],
+    "relevant_ids": ["doc_0001", "doc_0004", "doc_0020", "doc_0410", "doc_0505"]
+  },
+  {
+    "query_id": "q002",
+    "query": "calcul de thème astral natal",
+    "k": 10,
+    "baseline_topk": [
+      "doc_0200",
+      "doc_0201",
+      "doc_1000",
+      "doc_0002",
+      "doc_0003",
+      "doc_0510",
+      "doc_0800",
+      "doc_0900",
+      "doc_0901",
+      "doc_0903"
+    ],
+    "relevant_ids": ["doc_0200", "doc_0201", "doc_0002", "doc_0510"]
+  },
+  {
+    "query_id": "q003",
+    "query": "synastrie compatibilités couple",
+    "k": 10,
+    "baseline_topk": [
+      "doc_5000",
+      "doc_5010",
+      "doc_0200",
+      "doc_0102",
+      "doc_3111",
+      "doc_3112",
+      "doc_3113",
+      "doc_4100",
+      "doc_4200",
+      "doc_4300"
+    ],
+    "relevant_ids": ["doc_5000", "doc_5010", "doc_3111", "doc_3112", "doc_3113"]
+  },
+  {
+    "query_id": "q004",
+    "query": "transits planétaires du mois",
+    "k": 10,
+    "baseline_topk": [
+      "doc_0700",
+      "doc_0701",
+      "doc_0702",
+      "doc_0703",
+      "doc_1000",
+      "doc_1200",
+      "doc_1300",
+      "doc_1400",
+      "doc_1500",
+      "doc_1600"
+    ],
+    "relevant_ids": ["doc_0700", "doc_0701", "doc_0702"]
+  },
+  {
+    "query_id": "q005",
+    "query": "maisons astrologiques explications",
+    "k": 10,
+    "baseline_topk": [
+      "doc_2000",
+      "doc_2001",
+      "doc_2002",
+      "doc_2003",
+      "doc_2004",
+      "doc_2100",
+      "doc_2200",
+      "doc_2300",
+      "doc_2400",
+      "doc_2500"
+    ],
+    "relevant_ids": ["doc_2000", "doc_2001", "doc_2002", "doc_2100"]
+  }
+]
+
