@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -9,15 +10,14 @@ from backend.api.routes_auth import get_current_user
 from backend.app.metrics import (
     CHAT_LATENCY,
     CHAT_REQUESTS,
-    LLM_TOKENS_TOTAL,
-    TOKEN_COUNT_STRATEGY_INFO,
     LLM_GUARD_BLOCKS,
     LLM_GUARD_WARN,
+    LLM_TOKENS_TOTAL,
+    TOKEN_COUNT_STRATEGY_INFO,
     labelize_model,
     labelize_tenant,
 )
 from backend.app.middleware_llm_guard import sanitize_input, validate_output
-import os
 from backend.core.container import container
 from backend.core.settings import get_settings
 from backend.domain.chat_orchestrator import ChatOrchestrator
@@ -101,7 +101,8 @@ def advise(payload: ChatPayload, request: Request, user=Depends(get_current_user
         clean = sanitize_input({"question": payload.question})
     except ValueError as exc:
         rule = str(exc)
-        enforce = (os.getenv("FF_GUARD_ENFORCE") or "true").strip().lower() in {"1", "true", "yes", "on"}
+        val = (os.getenv("FF_GUARD_ENFORCE") or "true").strip().lower()
+        enforce = val in {"1", "true", "yes", "on"}
         if enforce:
             LLM_GUARD_BLOCKS.labels(rule=rule).inc()
             raise HTTPException(status_code=400, detail=rule) from exc
