@@ -1,0 +1,19 @@
+summary,days_overdue,risk_score,tags
+[EPIC] Phase 4 — Industrialisation & Gouvernance,0,4.0,epic;phase4
+Retrieval — Implémenter adaptateur managé (Weaviate OU Pinecone),0,4.0,retrieval;feature
+SLO — publication et contrôle (alertes mappées),0,4.0,slo;observability
+"Multi-tenant & RGPD — isolation, quotas, résidence UE, purge",0,4.0,compliance;security;multi-tenant
+"CI/CD — gates bloquants (cov≥90%), scans, smoke e2e, canary/blue-green",0,4.0,ci;security;release
+Observabilité — câbler metrics.py + dashboards + alertes,0,4.0,observability;costs
+Celery Monitoring — Exporter Prom + traces OTEL corrélées,0,4.0,ops;observability
+Celery Ops — retries/backoff par tâche + idempotence Redis + poison queue,0,4.0,ops;celery;reliability
+"Rate-limit/Quotas — par tenant (QPS, tokens, coût)",0,4.0,security;costs
+Sécurité — Vault branché + rotation clés,0,4.0,security;secrets
+Sécurité LLM — Guard I/O (anti prompt-injection + PII masking),0,4.0,security;llm
+Gouvernance — Workflow embeddings CI (hash→regen→insert version),0,4.0,governance;ci
+Gouvernance — Étendre ContentVersion + ORM + migrations,0,4.0,governance;data
+Retrieval — Criteria de bascule & rollback scripté,0,4.0,retrieval;migration;reliability
+Retrieval — Shadow-read + agreement@k,0,4.0,retrieval;migration;metrics
+Retrieval — Dual-write (FAISS + cible),0,4.0,retrieval;migration
+Retrieval — Bench réel (10k docs) + export JSON,0,4.0,retrieval;perf
+"Documentation & DoD — runbooks, README, rapport MAJ",0,4.0,docs;process

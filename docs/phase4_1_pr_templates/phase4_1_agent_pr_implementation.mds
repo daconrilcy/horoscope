@@ -1,0 +1,561 @@
+# Phase 4.1 — PR Implementation Playbook (.mds)
+_Date: 2025-10-21 14:06 UTC_
+
+> **But** : permettre à un agent d'implémenter **1 PR par issue** (20 issues) **sans dérive**, avec des étapes **opérationnelles** et des **contraintes de dev strictes** (Ruff strict, mypy strict, **interdit** `typing.List|Dict|Optional|Str`).  
+> **Règle d’or** : **1 issue = 1 branche = 1 PR** (sauf refactor/chore dédié).
+
+---
+
+## 0) Contraintes de développement (à respecter pour **chaque** PR)
+- **Python ≥ 3.10** ; utiliser `X | None` pour les optionnels (pas `typing.Optional`).
+- **Interdit** : `typing.List`, `typing.Dict`, `typing.Str`, `typing.Optional`.  
+  **Obligatoire** : `list`, `dict`, `str`, et unions `|`.
+- **Ruff strict** + **mypy strict** + **coverage ≥ 90% par package touché**.
+- **Docstrings** : première ligne **impérative** (Ruff `D401`). Ajouter `Args/Returns/Raises` pour API publiques.
+- **Logs** : JSON structurés, inclure `trace_id`. **Masquer PII** (emails, phones, tokens).
+- **Secrets** : jamais commit ; via Vault/ENV uniquement.
+- **Tests** : déterministes (seed fixe), pas d’IO réseau non mocké.
+- **CI “PR Quality”** doit passer : `ruff`, `mypy`, `pytest+coverage`, `scripts/slo_report.py`, **ban typing aliases**.
+
+### 0.1 Commandes à exécuter localement (par PR)
+```bash
+make lint && make type && make test && make slo
+bash scripts/check_no_typing_aliases.sh   # doit passer
+```
+
+### 0.2 Règle “1 PR = 1 issue” (obligatoire)
+- Branche : `feat/<ISSUE_ID>-<kebab-title>` (ex. `feat/PH4.1-04-llm-guard-enforcement`)
+- Titre PR : `[<ISSUE_ID>] <titre>`
+- Le corps de la PR **référence exactement 1 issue** `PH4.1-XX` (sinon CI bloque).
+
+---
+
+## 1) Template **générique** de PR (à reprendre sur chaque ticket)
+```
+Issue: PH4.1-XX
+Branch: feat/PH4.1-XX-<kebab-title>
+
+## Contexte
+<copier la description de l’issue>
+
+## Scope
+- Implémentation strictement limitée au module de l’issue.
+- Hors scope : refactors transverses (ouvrir une refactor/chore issue dédiée si nécessaire).
+
+## Acceptance Criteria
+- Implémentation conforme à l’issue.
+- Ruff strict + mypy strict OK ; **ban typing alias** OK.
+- Coverage ≥ 90% sur packages touchés.
+- Pas de régression SLO sur endpoints non concernés.
+
+## Feature Flags
+- <liste des flags si applicable; défaut **OFF** / allowlist tenant>
+- Documentation d’activation/désactivation incluse.
+
+## Tests
+- Unit + intégration/e2e pour le périmètre ; déterministes.
+- Artefacts joints si pertinent (SLO report, bench, cutover log).
+
+## Risques & Rollback
+1. Symptômes
+2. Actions (désactiver flags / revert)
+3. Vérifications post-rollback
+
+## Checklist
+- [ ] `make lint` / `make type` / `make test` / `make slo`
+- [ ] `scripts/check_no_typing_aliases.sh`
+- [ ] Docs/runbooks MAJ pour le périmètre
+```
+---
+
+## 2) **Directives par issue** (détaillées & opérationnelles)
+
+> **Notation** :
+> - **Fichiers** : chemins et fonctions cibles.
+> - **Implémentation** : tâches de dev précises, flags, métriques.
+> - **Tests** : cas à couvrir.
+> - **Artefacts** : ce qu’il faut joindre dans la PR.
+> - **Done** : critères de fin.
+
+### PH4.1-01 — RetrievalProxy : **dual-write & shadow-read (feature-flags)**
+**Fichiers**
+- `backend/services/retrieval_proxy.py`
+- `backend/services/retrieval_adapters.py` (si présent) ou créer `backend/services/retrieval_target.py`
+- `backend/config/flags.py` (ou module équivalent)
+
+**Implémentation**
+- Ajouter flags **OFF par défaut** :
+  - `FF_RETRIEVAL_DUAL_WRITE: bool`
+  - `FF_RETRIEVAL_SHADOW_READ: bool`
+- `ingest(doc: dict) -> None` :
+  - Toujours écrire sur **FAISS**.
+  - Si `FF_RETRIEVAL_DUAL_WRITE` → écrire aussi sur la **cible** (ex. Weaviate). Sur erreur cible : incrémenter `retrieval_dual_write_errors_total` + log JSON.
+- `search(query: str, k: int) -> list[dict]` :
+  - Réponse issue de FAISS.
+  - Si `FF_RETRIEVAL_SHADOW_READ` → requête **en parallèle** sur cible ; appeler `compare_and_emit_metrics(results, shadow)` (accord@5, ndcg@10). **Jamais** impacter la réponse.
+- **Métriques Prom**
+  - `retrieval_dual_write_errors_total`
+  - `retrieval_shadow_agreement_at_5`
+  - `retrieval_shadow_ndcg_at_10`
+
+**Tests**
+- Unit : ingestion OK/erreur cible, shadow-read OK/erreur, émission métriques.
+- Intégration : flags ON/OFF ; pas de régression latence (budget max défini dans tests).
+
+**Artefacts**
+- `coverage.json` partiel ; extrait logs métriques (si utile).
+
+**Done**
+- Flags documentés ; pas d’usage de `typing.*` ; coverage OK.
+
+---
+
+### PH4.1-02 — Cutover gates : **agreement@5 & nDCG@10** + **journal 48h**
+**Fichiers**
+- `scripts/cutover_metrics.py` (nouveau si absent)
+- `backend/services/metrics_cutover.py` (helpers)
+
+**Implémentation**
+- `cutover_metrics.py` :
+  - Entrées : `--truth-set <path.json>`, `--k 10`, `--out artifacts/cutover_YYYYMMDD-HH.json`
+  - Charge le **jeu de vérité** gelé, calcule `agreement@5`, `nDCG@10`.  
+  - **Exit code 1** si `< 95%` ou `< 0.90` respectivement.
+  - Append en **NDJSON** dans `artifacts/cutover_log.ndjson` (timestamp, scores, tailles, flags).
+- Action horaire (CI ou cron) pour 48h.
+
+**Tests**
+- Unit : calcul métriques sur dataset jouet (valeurs attendues).
+- E2E : pipeline horaire dry-run.
+
+**Artefacts**
+- Échantillon `cutover_*.json` + `cutover_log.ndjson` (quelques lignes).
+
+**Done**
+- Script idempotent ; seuils enforce ; doc “comment lire les scores”.
+
+---
+
+### PH4.1-03 — **Rollback drill** (bascule vecteur)
+**Fichiers**
+- `runbooks/rollback_retrieval.md`
+- `scripts/rollback_retrieval.sh` (optionnel)
+
+**Implémentation**
+- Documenter étapes : **OFF** dual-write → purge delta cible (si incohérent) → **OFF** shadow-read → FAISS-only → smoke tests → réouverture flags si OK.
+- Journal obligatoire : opérateur, horodatage, durée, résultat.
+
+**Tests**
+- “Game day” sur staging (script dry-run).
+
+**Artefacts**
+- Journal d’un drill (capturé dans la PR).
+
+**Done**
+- Runbook validé ; processus répétable.
+
+---
+
+### PH4.1-04 — **LLM Guard** : enforcement + tests d’attaque + métriques
+**Fichiers**
+- `backend/app/middleware_llm_guard.py`
+- `tests/security/test_llm_guard.py`
+
+**Implémentation**
+- Règles **minimales** : `prompt injection`, `data exfil`, `PII` (email/phone/IBAN/pan).
+- Flag `FF_GUARD_ENFORCE` (**OFF** par défaut). Si viol **bloquant** → refuser, tracer `{rule_id, action:"block"}` ; métrique `llm_guard_block_total`.
+- `warn` PII → masking + annotation.
+
+**Tests**
+- Attaques connues (jailbreak, exfil), détection PII, masking correct, comptage métriques.
+
+**Artefacts**
+- Extrait logs anonymisés + métriques exposées.
+
+**Done**
+- Enforcement effectif ; aucune PII en clair dans logs.
+
+---
+
+### PH4.1-05 — **Canary/Blue-Green scriptés** + **abort sur burn-rate**
+**Fichiers**
+- `.github/workflows/deploy_canary.yml`
+- `scripts/deploy_canary.sh`, `scripts/promote_or_abort.sh`, `scripts/slo_burn_monitor.py`
+
+**Implémentation**
+- Déploiement **canary** (5–10%). `slo_burn_monitor.py --window 900 --abort-threshold 2.0` ; si **> seuil** → abort & rollback auto.
+- Promotion si OK.
+
+**Tests**
+- Dry-run sur staging ; simulation burn-rate haute.
+
+**Artefacts**
+- Logs d’un canary réussi + abort simulé.
+
+**Done**
+- Workflows exécutables ; doc des conditions d’abort.
+
+---
+
+### PH4.1-06 — **SLOs chiffrés** par endpoint + **dashboards** + **policy burn-rate**
+**Fichiers**
+- `slo.yaml` (cibles P95/P99/err_rate par endpoint)
+- `scripts/slo_report.py`
+- `dashboards/slo.json` (ou provisioning)
+
+**Implémentation**
+- Définir cibles (ex. `GET /chat/answer`: P95≤300ms, P99≤700ms, err≤0.5% @ QPS 50/tenant).
+- `slo_report.py --fail-on-breach` ; JSON d’export.
+- Dashboard burn-rate (1h/6h/24h) + automatisme de **freeze** en cas de dépassement.
+
+**Tests**
+- Unit pour calculs ; e2e “fail on breach” avec jeu synthétique.
+
+**Artefacts**
+- `slo_report.json`, capture dashboard.
+
+**Done**
+- CI échoue si breach ; docs des seuils.
+
+---
+
+### PH4.1-07 — **Bench multi-tenant** (noisy neighbor, warm/cold) + rapport
+**Fichiers**
+- `scripts/bench_multitenant.py`
+- `artifacts/bench_multitenant.json`
+
+**Implémentation**
+- Paramètres : `--qps 50 --tenants 3 --duration 300 --topk 10 --chunk 512 --warm/--cold`.
+- Mesures P95/P99 par endpoint + variance.
+- Scénario **noisy neighbor** : un tenant sature CPU/IO.
+
+**Tests**
+- Dry-run rapide ; vérifier structure JSON.
+
+**Artefacts**
+- Rapport bench versionné.
+
+**Done**
+- Bench reproductible, documenté.
+
+---
+
+### PH4.1-08 — **Error envelope** + **Idempotency-Key (POST)**
+**Fichiers**
+- `backend/apigw/errors.py`, `backend/apigw/middleware.py`
+- `tests/apigw/test_errors_idempotency.py`
+
+**Implémentation**
+- Réponse erreur standard : `{"code": "...","message":"...","trace_id":"..."}`
+- POST idempotent : stockage clé (`Idempotency-Key`) + réponse réutilisable.
+
+**Tests**
+- Idempotence sur retry ; format d’erreur ; propagation `trace_id`.
+
+**Artefacts**
+- Exemple réponses.
+
+**Done**
+- Contrats uniformes ; tests verts.
+
+---
+
+### PH4.1-09 — **Quotas/rate-limit par tenant** au **gateway** + `429 Retry-After`
+**Fichiers**
+- `backend/apigw/rate_limit.py`
+- `tests/apigw/test_quota.py`
+
+**Implémentation**
+- Appliquer limites par **clé OIDC/tenant** ; émettre `429` + `Retry-After` ; métriques par tenant.
+
+**Tests**
+- Dépassement quotas, fenêtre sliding, header `Retry-After`.
+
+**Artefacts**
+- Capture métriques.
+
+**Done**
+- Protection en gateway, pas seulement en profondeur.
+
+---
+
+### PH4.1-10 — **Versioning /v1** + **deprecation policy**
+**Fichiers**
+- `backend/apigw/routes.py`, docs API
+
+**Implémentation**
+- Forcer `/v1` ; avertir routes legacy (warning + sunset date).
+
+**Tests**
+- Legacy → warning ; v1 OK.
+
+**Artefacts**
+- Extraits docs.
+
+**Done**
+- Politique publiée.
+
+---
+
+### PH4.1-11 — **Metrics par endpoint** + **traces corrélées**
+**Fichiers**
+- `backend/apigw/metrics.py` (Prom), `backend/apigw/tracing.py` (OTel)
+
+**Implémentation**
+- Exposer `http_server_requests_seconds_bucket{route,method,status}`, `*_total`.
+- Propager `trace_id` dans logs/réponses.
+
+**Tests**
+- Vérifier labels ; mapping trace_id.
+
+**Artefacts**
+- Capture dashboard.
+
+**Done**
+- Observabilité fine par route.
+
+---
+
+### PH4.1-12 — **Timeouts/backoff** au gateway + **retry-budget**
+**Fichiers**
+- `backend/apigw/timeouts.py`, docs
+
+**Implémentation**
+- Timeouts homogènes (ex. 3s read / 5s total) ; retries encadrés ; budget de retry par endpoint.
+
+**Tests**
+- Simuler lenteur ; vérifier backoff/budget.
+
+**Artefacts**
+- Doc paramétrage.
+
+**Done**
+- Résilience sans amplification d’erreurs.
+
+---
+
+### PH4.1-13 — **Idempotency ack post-commit (API→workers)**
+**Fichiers**
+- `backend/infra/ops/idempotency.py`
+- `backend/app/handlers/*.py`
+
+**Implémentation**
+- Accuser réception **après** commit DB ; empêcher double-exécution côté worker.
+
+**Tests**
+- Simuler retry réseau ; vérifier absence d’effet doublé.
+
+**Artefacts**
+- Log d’exécution démonstratif.
+
+**Done**
+- Exactly-once renforcé.
+
+---
+
+### PH4.1-14 — **Fair scheduling & concurrency par tenant (Celery)**
+**Fichiers**
+- `celeryconfig.py`, `backend/infra/ops/scheduling.py`
+- `tests/workers/test_scheduling.py`
+
+**Implémentation**
+- Concurrency par tenant + **WFQ** ; métriques `celery_queue_length{tenant}`.
+
+**Tests**
+- Noisy neighbor ; fairness mesuré.
+
+**Artefacts**
+- Graphe queues sous charge.
+
+**Done**
+- Isolation inter-tenant effective.
+
+---
+
+### PH4.1-15 — **PII masking** logs/traces + **TTL/rétentions**
+**Fichiers**
+- `backend/infra/logging.py`, `backend/infra/tracing.py`, config retention
+
+**Implémentation**
+- Masquer PII ; définir TTL/rétention (logs/traces/indices).
+
+**Tests**
+- Détection PII dans logs → masqués.
+
+**Artefacts**
+- Extraits logs avant/après.
+
+**Done**
+- Conformité renforcée.
+
+---
+
+### PH4.1-16 — **Catalogue PII** + **DPIA** à jour
+**Fichiers**
+- `docs/compliance/pii_catalogue.md`, `docs/compliance/dpia.md`
+
+**Implémentation**
+- Cartographier champs PII ; flux ; bases légales ; mesures techniques/org.
+
+**Tests**
+- N/A (review documentaire).
+
+**Artefacts**
+- Docs versionnées.
+
+**Done**
+- Traçabilité complète.
+
+---
+
+### PH4.1-17 — **DR vector store** : backup/restore + **RPO/RTO**
+**Fichiers**
+- `runbooks/dr_vector_store.md`, scripts `backup_*.sh`, `restore_*.sh`
+
+**Implémentation**
+- Procédures testées ; coûts d’egress documentés.
+
+**Tests**
+- Exécution sur staging ; validation intégrité.
+
+**Artefacts**
+- Journal DR.
+
+**Done**
+- RPO/RTO prouvés.
+
+---
+
+### PH4.1-18 — **Poison queue** : quarantine & replay + runbook
+**Fichiers**
+- `backend/infra/ops/poison_queue.py`, `runbooks/poison_queue.md`
+
+**Implémentation**
+- Détection messages corrompus → quarantine ; replay contrôlé.
+
+**Tests**
+- Cas d’empoisonnement ; reprise.
+
+**Artefacts**
+- Compteurs Poison.
+
+**Done**
+- Procédure reproductible.
+
+---
+
+### PH4.1-19 — **Automatiser** `.github/workflows/embeddings.yml`
+**Fichiers**
+- `.github/workflows/embeddings.yml`
+- `scripts/embeddings_refresh.py`
+
+**Implémentation**
+- Déclencheurs sur changement contenu/modèle ; artefacts signés (hash).
+
+**Tests**
+- Dry-run ; vérif artefacts.
+
+**Artefacts**
+- Log d’un run.
+
+**Done**
+- Ingestion 100% automatisée.
+
+---
+
+### PH4.1-20 — **Evidence Pack** : coverage, SLO, bench, snapshots
+**Fichiers**
+- `scripts/export_evidence.py`
+- Dossier `artifacts/`
+
+**Implémentation**
+- Exporter/packager : `coverage.json` (par package), `slo_report.json`, `bench_multitenant.json`, `cutover_*.json`, `cutover_log.ndjson`, snapshots dashboards.
+- Upload en artefacts CI et joindre aux PRs pertinentes.
+
+**Tests**
+- Vérifier contenu/chemins.
+
+**Artefacts**
+- Archive `artifacts/*.zip` (optionnel).
+
+**Done**
+- Pack prêt pour comité Go/No-Go.
+
+---
+
+## 3) Processus opérationnel (pour **chaque** PR)
+1. **Créer la branche** : `git checkout -b feat/PH4.1-XX-<kebab>`
+2. **Coder** selon la section de l’issue (respecter flags, métriques, chemins).
+3. **Tests** : ajouter unit/intégration/e2e spécifiques ; viser coverage ≥ 90%.
+4. **Vérifs locales** : `make lint && make type && make test && make slo` + `scripts/check_no_typing_aliases.sh`.
+5. **Commit & push** : messages clairs ; pas d’autres issues piggyback.
+6. **Ouvrir la PR** (titre & corps conformes au template). **Joindre artefacts** requis.
+7. **Mettre à jour** `phase4_1_issues.csv` (`status` → `ready_for_review` puis `done`).
+
+---
+
+## 4) Anti-dérive (ce qui bloque un merge)
+- Référence **≠ 1** issue dans la PR (0 ou >1) → **KO**.
+- Présence de `typing.List|Dict|Optional|Str` → **KO**.
+- Ruff/mypy KO, coverage package < 90% → **KO**.
+- Régression SLO sur endpoints impactés → **KO**.
+- Gates cutover non atteints pour issues retrieval → **KO**.
+- Modifs **hors scope** de l’issue → **KO**.
+
+---
+
+## 5) Annexes — Fragments de code compatibles **typing natifs**
+
+### 5.1 LLM Guard (extrait)
+```python
+from __future__ import annotations
+import re
+from dataclasses import dataclass
+
+@dataclass
+class GuardResult:
+    blocked: bool
+    warnings: list[str]
+    rule_id: str | None
+
+PII_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+INJECTION = re.compile(r"(?i)\b(ignore|bypass|override)\b.*\b(instruction|policy|guard)\b")
+
+def check_text(text: str) -> GuardResult:
+    """Enforce guard on text."""
+    warns: list[str] = []
+    rule: str | None = None
+    if INJECTION.search(text):
+        return GuardResult(blocked=True, warnings=["prompt_injection"], rule_id="inj_001")
+    if PII_EMAIL.search(text):
+        warns.append("pii_email")
+        rule = "pii_001"
+    return GuardResult(blocked=False, warnings=warns, rule_id=rule)
+```
+
+### 5.2 Retrieval Proxy (extrait)
+```python
+from __future__ import annotations
+import logging
+log = logging.getLogger(__name__)
+
+def search(query: str, k: int) -> list[dict]:
+    """Execute retrieval with optional shadow-read (OFF by default)."""
+    results: list[dict] = faiss_search(query, k)
+    if get_flag("FF_RETRIEVAL_SHADOW_READ"):
+        try:
+            shadow = vector_store_search(query, k)
+            compare_and_emit_metrics(results, shadow)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("shadow_read_error", extra={"error": str(exc)})
+    return results
+
+def ingest(doc: dict) -> None:
+    """Ingest into primary and, if flagged, into target vector store."""
+    faiss_insert(doc)
+    if get_flag("FF_RETRIEVAL_DUAL_WRITE"):
+        try:
+            vector_store_insert(doc)
+        except Exception as exc:  # noqa: BLE001
+            incr("retrieval_dual_write_errors_total")
+            log.error("dual_write_error", extra={"error": str(exc)})
+```

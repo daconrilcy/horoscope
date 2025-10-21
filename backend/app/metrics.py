@@ -33,15 +33,32 @@ RETRIEVAL_DUAL_WRITE_ERRORS = Counter(
     "Total errors when writing to migration target during dual-write",
     ["target", "tenant"],
 )
-RETRIEVAL_SHADOW_AGREEMENT_AT_5 = Gauge(
+RETRIEVAL_DUAL_WRITE_SKIPPED = Counter(
+    "retrieval_dual_write_skipped_total",
+    "Dual-write operations skipped (e.g., circuit open)",
+    ["reason"],
+)
+RETRIEVAL_SHADOW_AGREEMENT_AT_5 = Histogram(
     "retrieval_shadow_agreement_at_5",
     "Agreement@5 between primary and shadow backends",
-    ["target", "tenant"],
+    ["backend", "k", "sample"],
+    buckets=[x / 20.0 for x in range(0, 21)],  # 0.0..1.0 step 0.05
 )
-RETRIEVAL_SHADOW_NDCG_AT_10 = Gauge(
+RETRIEVAL_SHADOW_NDCG_AT_10 = Histogram(
     "retrieval_shadow_ndcg_at_10",
     "nDCG@10 between primary and shadow backends",
-    ["target", "tenant"],
+    ["backend", "k", "sample"],
+    buckets=[x / 20.0 for x in range(0, 21)],
+)
+RETRIEVAL_SHADOW_LATENCY = Histogram(
+    "retrieval_shadow_latency_seconds",
+    "Latency of shadow-read requests to target backend",
+    ["backend", "sample"],
+)
+RETRIEVAL_SHADOW_DROPPED = Counter(
+    "retrieval_shadow_dropped_total",
+    "Shadow-read tasks dropped",
+    ["reason"],
 )
 
 # Business/chat metrics

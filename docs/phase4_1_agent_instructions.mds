@@ -1,0 +1,49 @@
+# Phase 4.1 — Execution Plan (.mds) — Agent Instructions
+
+## Objectives
+Implement Phase 4.1 hardening and evidence pack (pre‑Phase 5). Focus on: LLM Guard enforcement, SLO gates, retrieval cutover gates, API governance, deploy strategy, multi‑tenant reliability, and evidence exports.
+
+## Scope (included)
+- Retrieval proxy: dual‑write & shadow‑read (feature flags); cutover gates (agreement@5, nDCG@10), 48h journal; rollback drill.
+- Security: LLM Guard (injection/PII) enforcement, logs structured, Prom metrics.
+- Observability: SLOs per endpoint, dashboards, error‑budget policies (burn‑rate).
+- API Gateway: /v1, error envelope, idempotency‑keys, quotas/rate‑limit at gateway, timeouts/backoff.
+- Workers: idempotency ack post‑commit, fair scheduling & concurrency per tenant, poison queue runbook.
+- Data lifecycle: PII masking in logs/traces, TTL/retention, PII catalogue, DPIA update.
+- CI/CD: canary/blue‑green scripted with abort on burn‑rate; embeddings.yml automation; Evidence Pack exports.
+
+## Non‑Goals
+- Monetization/Entitlements (handled in Phase 5).
+
+## Coding Standards
+- **Ruff strict**: enable rules for docs (D401 imperative), flake‑compatible, import order, complexity, naming.
+- **Typing**: do **not** use `typing.Dict`, `typing.List`, `typing.Optional`, `typing.Str`.
+  - Use native types: `dict`, `list`, `str`, and `X | None` for optionals.
+- **Docstrings**: first line in **imperative mood**; include Args/Returns/Raises for public functions.
+- **Idempotency**: all POST endpoints accept `Idempotency-Key`; ensure exactly‑once semantics with DB commit ack.
+- **Security**: no PII in logs; mask emails/phones; structured logs with `trace_id`.
+
+## Repo Tasks (map to issues ids)
+- PH4.1‑01/02/03: `backend/services/retrieval_proxy.py`, `backend/scripts/cutover_metrics.py`, `scripts/cutover_48h.sh`, rollback runbook.
+- PH4.1‑04: `backend/app/middleware_llm_guard.py` + tests (`tests/security/test_llm_guard.py`), metrics exporter.
+- PH4.1‑05: `.github/workflows/deploy_canary.yml`, rollback job, abort conditions.
+- PH4.1‑06/11: `slo.yaml`, `scripts/slo_report.py`, dashboards JSON; add Prom/trace for endpoints.
+- PH4.1‑07: `scripts/bench_multitenant.py` + report artifact (JSON/MD).
+- PH4.1‑08/09/10/12: `apigw` package (error envelope, idempotency, quotas, timeouts).
+- PH4.1‑13/14/18: API→workers idempotency ack; Celery WFQ & concurrency per tenant; poison queue.
+- PH4.1‑15/16: PII masking, TTL/retention, DPIA/docs.
+- PH4.1‑17: vector store DR test & docs.
+- PH4.1‑19/20: `embeddings.yml` automation; Evidence Pack exporter.
+
+## Tests & Quality Gates
+- Unit + Integration + e2e (golden paths for chat & retrieval). Coverage **≥ 90% par package**.
+- `make verify` runs: ruff, mypy, pytest, coverage, `slo_report.py` (fails on breach).
+- Block PR if: any P0 open, coverage < threshold, SLO breach, ruff/mypy errors, cutover gates not met.
+
+## Deliverables
+- Updated code + workflows + runbooks.
+- Artifacts: coverage JSON (per package), SLO report, bench report, dashboards (JSON), cutover 48h log, DR test log.
+- Updated docs: API contracts (/v1), error envelope, retry/backoff, quotas, idempotency, security.
+
+## Done‑Definition (Phase 4.1)
+- All gates in Phase 4.1 description are met; Evidence Pack published; 0 P0 and 0 overdue P1.

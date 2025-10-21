@@ -27,12 +27,19 @@ from backend.app.metrics import (
     RETRIEVAL_DUAL_WRITE_ERRORS,
     RETRIEVAL_SHADOW_AGREEMENT_AT_5,
     RETRIEVAL_SHADOW_NDCG_AT_10,
+    RETRIEVAL_SHADOW_LATENCY,
+    RETRIEVAL_SHADOW_DROPPED,
     labelize_tenant,
 )
 from backend.core.container import container
 from backend.infra.vecstores.faiss_store import FaissMultiTenantAdapter
 from backend.infra.vecstores.memory_adapter import MemoryMultiTenantAdapter
-from backend.config.flags import ff_retrieval_dual_write, ff_retrieval_shadow_read
+from backend.config.flags import (
+    ff_retrieval_dual_write,
+    ff_retrieval_shadow_read,
+    shadow_sample_rate,
+    tenant_allowlist,
+)
 from backend.services import retrieval_target as rtarget
 from backend.domain.retrieval_types import Document
 import threading
@@ -333,21 +340,22 @@ class RetrievalProxy:
             RETRIEVAL_QUERIES_TOTAL.labels(self._backend, lbl_tenant).inc()
             if results:
                 RETRIEVAL_HITS_TOTAL.labels(self._backend, lbl_tenant).inc()
-            # Shadow-read: execute in background, do not impact response
+            # Shadow-read: submit to bounded executor with sampling/allowlist
             if ff_retrieval_shadow_read():
-                target_name = rtarget.get_target_backend_name()
+                allow = tenant_allowlist()
+                ten = tenant or "default"
+                if not allow or ten in allow:
+                    import random as _rand
 
-                def _shadow_job() -> None:
-                    try:
-                        shadow = rtarget.get_target_adapter().search(
-                            query=query, top_k=top_k, tenant=tenant
+                    if _rand.random() <= shadow_sample_rate():
+                        target_name = rtarget.get_target_backend_name()
+                        _shadow_submit(
+                            target_name=target_name,
+                            query=query,
+                            top_k=top_k,
+                            tenant=tenant,
+                            primary_results=results,
                         )
-                        _compare_and_emit_metrics(results, shadow, target_name, lbl_tenant)
-                    except Exception:
-                        # Shadow errors are ignored by design
-                        pass
-
-                threading.Thread(target=_shadow_job, daemon=True).start()
             return results
         except RetrievalBackendHTTPError as exc:
             RETRIEVAL_ERRORS.labels(self._backend, str(exc.status_code), lbl_tenant).inc()
@@ -384,8 +392,8 @@ class RetrievalProxy:
             target_name = rtarget.get_target_backend_name()
             lbl_tenant = labelize_tenant(t, getattr(container.settings, "ALLOWED_TENANTS", []))
             try:
-                rtarget.write_to_target(doc, t)
-            except Exception as exc:  # pragma: no cover - exercised via tests
+                rtarget.safe_write_to_target(doc, t)
+            except Exception as exc:  # pragma: no cover - defensive
                 RETRIEVAL_DUAL_WRITE_ERRORS.labels(target_name, lbl_tenant).inc()
                 structlog.get_logger(__name__).error(
                     "retrieval_dual_write_error", target=target_name, tenant=t, error=repr(exc)
@@ -432,8 +440,107 @@ def _compare_and_emit_metrics(primary: list[dict], shadow: list[dict], target_na
     try:
         agreement = _agreement_at_5(primary, shadow)
         ndcg = _ndcg_at_10(primary, shadow)
-        RETRIEVAL_SHADOW_AGREEMENT_AT_5.labels(target_name, lbl_tenant).set(agreement)
-        RETRIEVAL_SHADOW_NDCG_AT_10.labels(target_name, lbl_tenant).set(ndcg)
+        # Observe with low-cardinality labels
+        RETRIEVAL_SHADOW_AGREEMENT_AT_5.labels(target_name, str(min(10, len(primary))), "true").observe(agreement)
+        RETRIEVAL_SHADOW_NDCG_AT_10.labels(target_name, str(min(10, len(primary))), "true").observe(ndcg)
     except Exception:
         # Never raise from metrics computation
         pass
+
+
+# --- Shadow-read bounded executor ---
+_shadow_exec_lock = threading.Lock()
+_shadow_queue: list[dict] | None = None  # type: ignore[assignment]
+_shadow_threads: list[threading.Thread] = []
+
+
+def _shadow_settings() -> tuple[int, int, float]:
+    import os as _os
+
+    try:
+        th = int(_os.getenv("RETRIEVAL_SHADOW_THREADS") or 2)
+    except Exception:
+        th = 2
+    try:
+        q = int(_os.getenv("RETRIEVAL_SHADOW_QUEUE_MAX") or 64)
+    except Exception:
+        q = 64
+    try:
+        t_ms = float(_os.getenv("RETRIEVAL_SHADOW_TIMEOUT_MS") or 800.0)
+    except Exception:
+        t_ms = 800.0
+    return th, q, t_ms
+
+
+def _ensure_shadow_workers() -> None:
+    global _shadow_queue
+    with _shadow_exec_lock:
+        if _shadow_queue is not None:
+            return
+        import queue as _queue
+
+        th, qmax, _ = _shadow_settings()
+        _shadow_queue = _queue.Queue(maxsize=max(0, qmax))  # type: ignore[assignment]
+
+        def _worker() -> None:
+            import time as _t
+            while True:
+                try:
+                    task = _shadow_queue.get()  # type: ignore[union-attr]
+                except Exception:
+                    break
+                if task is None:  # type: ignore[comparison-overlap]
+                    continue
+                query = task["query"]
+                top_k = task["top_k"]
+                tenant = task["tenant"]
+                primary = task["primary"]
+                target_name = task["target_name"]
+                _, _, t_ms = _shadow_settings()
+                start = _t.perf_counter()
+                try:
+                    shadow = rtarget.get_target_adapter().search(query=query, top_k=top_k, tenant=tenant)
+                    elapsed = _t.perf_counter() - start
+                    RETRIEVAL_SHADOW_LATENCY.labels(target_name, "true").observe(elapsed)
+                    if elapsed * 1000.0 > t_ms:
+                        RETRIEVAL_SHADOW_DROPPED.labels("timeout").inc()
+                    else:
+                        _compare_and_emit_metrics(primary, shadow, target_name, labelize_tenant(tenant or "default", []))
+                except Exception:
+                    # Swallow errors
+                    pass
+                finally:
+                    try:
+                        _shadow_queue.task_done()  # type: ignore[union-attr]
+                    except Exception:
+                        pass
+
+        for _ in range(max(0, th)):
+            t = threading.Thread(target=_worker, daemon=True)
+            _shadow_threads.append(t)
+            t.start()
+
+
+def _shadow_submit(target_name: str, query: str, top_k: int, tenant: str | None, primary_results: list[dict]) -> None:
+    import queue as _queue
+
+    _ensure_shadow_workers()
+    try:
+        # Pack minimal task
+        _shadow_queue.put_nowait(
+            {
+                "query": query,
+                "top_k": top_k,
+                "tenant": tenant,
+                "primary": primary_results,
+                "target_name": target_name,
+            }
+        )  # type: ignore[union-attr]
+    except _queue.Full:
+        RETRIEVAL_SHADOW_DROPPED.labels("queue_full").inc()
+
+
+def _reset_shadow_executor_for_tests() -> None:  # pragma: no cover - used by tests
+    global _shadow_queue
+    with _shadow_exec_lock:
+        _shadow_queue = None

@@ -7,7 +7,7 @@ from typing import Any
 from backend.app import metrics as m
 from backend.services import retrieval_target as rtarget
 from backend.core.container import container
-from backend.services.retrieval_proxy import RetrievalProxy
+from backend.services.retrieval_proxy import RetrievalProxy, _reset_shadow_executor_for_tests
 
 
 def test_dual_write_errors_metric_on_failure(monkeypatch: Any) -> None:
@@ -37,6 +37,7 @@ def test_shadow_read_emits_metrics(monkeypatch: Any) -> None:
     # Enable shadow-read; target adapter returns a controlled result set
     monkeypatch.setenv("FF_RETRIEVAL_SHADOW_READ", "true")
     monkeypatch.setenv("RETRIEVAL_TARGET_BACKEND", "elastic")
+    monkeypatch.setenv("FF_RETRIEVAL_SHADOW_SAMPLE_RATE", "1.0")
     # Ensure tenant label is not collapsed by whitelist
     try:
         monkeypatch.setattr(container.settings, "ALLOWED_TENANTS", [], raising=False)
@@ -71,18 +72,68 @@ def test_shadow_read_emits_metrics(monkeypatch: Any) -> None:
     proxy._adapter = _Primary()  # type: ignore[attr-defined]
     res = proxy.search(query="q", top_k=5, tenant="bench")
     assert isinstance(res, list)
-    # Allow shadow thread to run (poll up to 1s)
-    a = 0.0
-    n = 0.0
-    # Try both 'bench' and potential 'unknown' label depending on whitelist
+    # Allow shadow worker to run (poll up to 1s). Check histogram count via labels (backend, k, sample)
+    from prometheus_client import generate_latest
+
+    ok = False
     for _ in range(20):
-        a = float(m.RETRIEVAL_SHADOW_AGREEMENT_AT_5.labels("elastic", "bench")._value.get())  # type: ignore[attr-defined]
-        n = float(m.RETRIEVAL_SHADOW_NDCG_AT_10.labels("elastic", "bench")._value.get())  # type: ignore[attr-defined]
-        if a == 0.0 and n == 0.0:
-            a = float(m.RETRIEVAL_SHADOW_AGREEMENT_AT_5.labels("elastic", "unknown")._value.get())  # type: ignore[attr-defined]
-            n = float(m.RETRIEVAL_SHADOW_NDCG_AT_10.labels("elastic", "unknown")._value.get())  # type: ignore[attr-defined]
-        if a > 0.0 or n > 0.0:
+        scrape = generate_latest().decode("utf-8")
+        if (
+            "retrieval_shadow_agreement_at_5_count" in scrape
+            and 'backend="elastic",k="2",sample="true"' in scrape
+        ) and (
+            "retrieval_shadow_ndcg_at_10_count" in scrape
+            and 'backend="elastic",k="2",sample="true"' in scrape
+        ):
+            ok = True
             break
         time.sleep(0.05)
-    assert float(a) > 0.0
-    assert float(n) >= 0.0
+    assert ok
+
+
+def test_shadow_sample_rate_and_queue_drop(monkeypatch: Any) -> None:
+    _reset_shadow_executor_for_tests()
+    monkeypatch.setenv("FF_RETRIEVAL_SHADOW_READ", "true")
+    monkeypatch.setenv("RETRIEVAL_TARGET_BACKEND", "elastic")
+    monkeypatch.setenv("RETRIEVAL_SHADOW_THREADS", "0")
+    monkeypatch.setenv("RETRIEVAL_SHADOW_QUEUE_MAX", "1")
+    monkeypatch.setenv("FF_RETRIEVAL_SHADOW_SAMPLE_RATE", "1.0")
+
+    class _FakeAdapter:
+        def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:  # pragma: no cover - not used due to drop
+            return []
+
+    monkeypatch.setattr(rtarget, "get_target_adapter", lambda: _FakeAdapter())
+
+    proxy = RetrievalProxy()
+    proxy._adapter = type("P", (), {"search": lambda self, **kw: [{"id": "doc_1"}], "embed_texts": lambda self, t: []})()  # type: ignore
+    from prometheus_client import generate_latest
+    before_scrape = generate_latest().decode("utf-8")
+    proxy.search(query="q", top_k=1, tenant="tq")
+    proxy.search(query="q2", top_k=1, tenant="tq")
+    time.sleep(0.05)
+    after_scrape = generate_latest().decode("utf-8")
+    assert after_scrape.count('retrieval_shadow_dropped_total{reason="queue_full"}') >= before_scrape.count('retrieval_shadow_dropped_total{reason="queue_full"}') + 1
+
+
+def test_shadow_timeout_drops(monkeypatch: Any) -> None:
+    _reset_shadow_executor_for_tests()
+    monkeypatch.setenv("FF_RETRIEVAL_SHADOW_READ", "true")
+    monkeypatch.setenv("RETRIEVAL_TARGET_BACKEND", "elastic")
+    monkeypatch.setenv("FF_RETRIEVAL_SHADOW_SAMPLE_RATE", "1.0")
+    monkeypatch.setenv("RETRIEVAL_SHADOW_TIMEOUT_MS", "1")
+
+    class _SlowAdapter:
+        def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+            time.sleep(0.02)
+            return [{"id": "doc_slow"}]
+
+    monkeypatch.setattr(rtarget, "get_target_adapter", lambda: _SlowAdapter())
+    proxy = RetrievalProxy()
+    proxy._adapter = type("P", (), {"search": lambda self, **kw: [{"id": "doc_1"}]})()  # type: ignore
+    from prometheus_client import generate_latest
+    before_scrape = generate_latest().decode("utf-8")
+    proxy.search(query="q", top_k=1, tenant="tt")
+    time.sleep(0.05)
+    after_scrape = generate_latest().decode("utf-8")
+    assert after_scrape.count('retrieval_shadow_dropped_total{reason="timeout"}') >= before_scrape.count('retrieval_shadow_dropped_total{reason="timeout"}') + 1

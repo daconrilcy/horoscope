@@ -41,3 +41,100 @@ def write_to_target(_doc: dict, _tenant: str | None = None) -> None:
     success/failure. Real implementations should index documents to the target.
     """
     return None
+
+# --- Dual-write safety: circuit breaker + outbox (in-memory) ---
+_cb_fail_count: int = 0
+_cb_open_until: float = 0.0
+_outbox: list[tuple[dict, str | None]] = []
+
+
+def _cb_threshold() -> int:
+    try:
+        return int(os.getenv("RETRIEVAL_DUAL_WRITE_CB_THRESHOLD") or 3)
+    except Exception:
+        return 3
+
+
+def _cb_window_s() -> float:
+    try:
+        return float(os.getenv("RETRIEVAL_DUAL_WRITE_CB_WINDOW_S") or 30.0)
+    except Exception:
+        return 30.0
+
+
+def _outbox_max() -> int:
+    try:
+        return int(os.getenv("RETRIEVAL_DUAL_WRITE_OUTBOX_MAX") or 1000)
+    except Exception:
+        return 1000
+
+
+def _now() -> float:
+    import time as _t
+
+    return _t.time()
+
+
+def safe_write_to_target(doc: dict, tenant: str | None = None) -> None:
+    """Write to target with circuit-breaker and outbox fallback.
+
+    - If circuit is open, skip write and enqueue to outbox.
+    - On failure, increment fail count, open circuit when threshold reached,
+      and enqueue to outbox (bounded).
+    """
+    from backend.app.metrics import RETRIEVAL_DUAL_WRITE_SKIPPED, RETRIEVAL_DUAL_WRITE_ERRORS
+
+    global _cb_fail_count, _cb_open_until
+    if _now() < _cb_open_until:
+        RETRIEVAL_DUAL_WRITE_SKIPPED.labels("circuit_open").inc()
+        _enqueue_outbox(doc, tenant)
+        return
+    try:
+        write_to_target(doc, tenant)
+        _cb_fail_count = 0
+    except Exception as exc:  # pragma: no cover - behavior verified via counters in tests
+        _cb_fail_count += 1
+        _enqueue_outbox(doc, tenant)
+        if _cb_fail_count >= _cb_threshold():
+            _cb_open_until = _now() + _cb_window_s()
+        # Errors total is already incremented in proxy; keep proxy as source of truth
+        # but increment here as well in case safe_write_to_target is used directly.
+        try:
+            # Using generic labels; target/tenant not available here without duplication
+            RETRIEVAL_DUAL_WRITE_ERRORS.labels(get_target_backend_name(), str(tenant or "default")).inc()
+        except Exception:
+            pass
+
+
+def _enqueue_outbox(doc: dict, tenant: str | None) -> None:
+    # Keep outbox bounded
+    if len(_outbox) >= _outbox_max():
+        _outbox.pop(0)
+    _outbox.append((doc, tenant))
+
+
+def replay_outbox(limit: int | None = None) -> int:
+    """Replay items from outbox. Returns number of successful replays."""
+    ok = 0
+    n = len(_outbox)
+    if limit is not None:
+        n = min(n, max(0, int(limit)))
+    i = 0
+    # Iterate over a snapshot to allow modification during replay
+    while i < n and _outbox:
+        doc, tenant = _outbox.pop(0)
+        try:
+            write_to_target(doc, tenant)
+            ok += 1
+        except Exception:
+            # Re-enqueue at end
+            _enqueue_outbox(doc, tenant)
+        i += 1
+    return ok
+
+
+def _reset_cb_and_outbox_for_tests() -> None:  # pragma: no cover - used by tests
+    global _cb_fail_count, _cb_open_until, _outbox
+    _cb_fail_count = 0
+    _cb_open_until = 0.0
+    _outbox = []
