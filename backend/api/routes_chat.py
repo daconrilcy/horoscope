@@ -101,7 +101,8 @@ def advise(payload: ChatPayload, request: Request, user=Depends(get_current_user
         clean = sanitize_input({"question": payload.question})
     except ValueError as exc:
         rule = str(exc)
-        val = (os.getenv("FF_GUARD_ENFORCE") or "true").strip().lower()
+        env_flag = os.getenv("FF_GUARD_ENFORCE") or "true"
+        val = env_flag.strip().lower()
         enforce = val in {"1", "true", "yes", "on"}
         if enforce:
             LLM_GUARD_BLOCKS.labels(rule=rule).inc()
