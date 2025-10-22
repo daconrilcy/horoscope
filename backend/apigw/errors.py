@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 @dataclass
 class ErrorEnvelope:
     """Standard error envelope for API responses."""
-    
+
     code: str
     message: str
     trace_id: str | None = None
@@ -22,7 +22,7 @@ class ErrorEnvelope:
 
 class APIError(HTTPException):
     """Custom API error with standard envelope."""
-    
+
     def __init__(
         self,
         status_code: int,
@@ -51,7 +51,7 @@ def create_error_response(
         trace_id=trace_id,
         details=details,
     )
-    
+
     return JSONResponse(
         status_code=status_code,
         content={
@@ -69,18 +69,18 @@ def extract_trace_id(request: Request) -> str | None:
     trace_id = request.headers.get("X-Trace-ID")
     if trace_id:
         return trace_id
-        
+
     # Check for trace ID in request state (set by middleware)
     if hasattr(request.state, "trace_id"):
         return request.state.trace_id
-        
+
     return None
 
 
 def handle_api_error(request: Request, exc: APIError) -> JSONResponse:
     """Handle APIError exceptions with standard envelope."""
     trace_id = extract_trace_id(request) or exc.trace_id
-    
+
     log.error(
         "API error occurred",
         extra={
@@ -91,7 +91,7 @@ def handle_api_error(request: Request, exc: APIError) -> JSONResponse:
             "details": exc.details,
         },
     )
-    
+
     return create_error_response(
         status_code=exc.status_code,
         code=exc.code,
@@ -104,7 +104,7 @@ def handle_api_error(request: Request, exc: APIError) -> JSONResponse:
 def handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
     """Handle FastAPI HTTPException with standard envelope."""
     trace_id = extract_trace_id(request)
-    
+
     # Map common HTTP status codes to error codes
     error_codes = {
         400: "BAD_REQUEST",
@@ -120,9 +120,9 @@ def handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
         503: "SERVICE_UNAVAILABLE",
         504: "GATEWAY_TIMEOUT",
     }
-    
+
     code = error_codes.get(exc.status_code, "HTTP_ERROR")
-    
+
     log.error(
         "HTTP exception occurred",
         extra={
@@ -132,7 +132,7 @@ def handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
             "trace_id": trace_id,
         },
     )
-    
+
     return create_error_response(
         status_code=exc.status_code,
         code=code,
@@ -144,7 +144,7 @@ def handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
 def handle_generic_exception(request: Request, exc: Exception) -> JSONResponse:
     """Handle generic exceptions with standard envelope."""
     trace_id = extract_trace_id(request)
-    
+
     log.error(
         "Unexpected error occurred",
         extra={
@@ -156,7 +156,7 @@ def handle_generic_exception(request: Request, exc: Exception) -> JSONResponse:
         },
         exc_info=True,
     )
-    
+
     return create_error_response(
         status_code=500,
         code="INTERNAL_ERROR",
@@ -168,7 +168,7 @@ def handle_generic_exception(request: Request, exc: Exception) -> JSONResponse:
 # Common error codes
 class ErrorCodes:
     """Standard error codes for the API."""
-    
+
     # Client errors (4xx)
     BAD_REQUEST = "BAD_REQUEST"
     UNAUTHORIZED = "UNAUTHORIZED"
@@ -178,13 +178,13 @@ class ErrorCodes:
     CONFLICT = "CONFLICT"
     VALIDATION_ERROR = "VALIDATION_ERROR"
     RATE_LIMITED = "RATE_LIMITED"
-    
+
     # Server errors (5xx)
     INTERNAL_ERROR = "INTERNAL_ERROR"
     BAD_GATEWAY = "BAD_GATEWAY"
     SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE"
     GATEWAY_TIMEOUT = "GATEWAY_TIMEOUT"
-    
+
     # Business logic errors
     INVALID_TENANT = "INVALID_TENANT"
     QUOTA_EXCEEDED = "QUOTA_EXCEEDED"
@@ -193,9 +193,7 @@ class ErrorCodes:
 
 # Convenience functions for common errors
 def bad_request(
-    message: str, 
-    trace_id: str | None = None, 
-    details: dict[str, Any] | None = None
+    message: str, trace_id: str | None = None, details: dict[str, Any] | None = None
 ) -> APIError:
     """Create a 400 Bad Request error."""
     return APIError(400, ErrorCodes.BAD_REQUEST, message, trace_id, details)
@@ -217,18 +215,14 @@ def not_found(message: str, trace_id: str | None = None) -> APIError:
 
 
 def conflict(
-    message: str, 
-    trace_id: str | None = None, 
-    details: dict[str, Any] | None = None
+    message: str, trace_id: str | None = None, details: dict[str, Any] | None = None
 ) -> APIError:
     """Create a 409 Conflict error."""
     return APIError(409, ErrorCodes.CONFLICT, message, trace_id, details)
 
 
 def rate_limited(
-    message: str, 
-    trace_id: str | None = None, 
-    retry_after: int | None = None
+    message: str, trace_id: str | None = None, retry_after: int | None = None
 ) -> APIError:
     """Create a 429 Rate Limited error."""
     details = {"retry_after": retry_after} if retry_after else None
