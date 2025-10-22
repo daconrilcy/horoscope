@@ -2,6 +2,15 @@
   "service": "horoscope-backend",
   "version": 1,
   "owner": "team-astro",
+  "conventions": {
+    "latency_units": "seconds",
+    "error_rate_unit": "ratio",
+    "notes": "All latency targets are seconds; error_rate is a ratio (0-1)."
+  },
+  "defaults": {
+    "min_requests_window": {"window": "5m", "min_requests": 100},
+    "error_selector": "5xx"
+  },
   "slos": [
     {
       "id": "availability",
@@ -37,6 +46,57 @@
         {
           "name": "chat_p95_high",
           "expr": "histogram_quantile(0.95, sum by (le) (rate(chat_latency_seconds_bucket[5m]))) > 2",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "endpoint_chat_answer_latency",
+      "name": "GET /chat/answer latency",
+      "objective": "Latency P95/P99 for GET /chat/answer",
+      "route": "/chat/answer",
+      "method": "GET",
+      "target_p95_seconds": 0.30,
+      "target_p99_seconds": 0.70,
+      "window": "30d",
+      "min_requests_window": {"window": "5m", "min_requests": 100},
+      "alerts": [
+        {
+          "name": "chat_answer_p95_high",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{route=\"/chat/answer\",method=\"GET\"}[5m]))) > 0.30",
+          "severity": "warning"
+        },
+        {
+          "name": "chat_answer_p99_high",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{route=\"/chat/answer\",method=\"GET\"}[5m]))) > 0.70",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "endpoint_chat_answer_errors",
+      "name": "GET /chat/answer error rate",
+      "objective": "Error rate for GET /chat/answer",
+      "route": "/chat/answer",
+      "method": "GET",
+      "target_error_rate": 0.005,
+      "error_selector": "5xx",
+      "min_requests_window": {"window": "5m", "min_requests": 100},
+      "window": "30d",
+      "alerts": [
+        {
+          "name": "chat_answer_burn_rate_fast",
+          "expr": "((sum(rate(http_requests_total{route=\\\"/chat/answer\\\",method=\\\"GET\\\",status=~\\\"5..\\\"}[1h])) / sum(rate(http_requests_total{route=\\\"/chat/answer\\\",method=\\\"GET\\\"}[1h]))) / 0.005 > 14.4) and (sum(rate(http_requests_total{route=\\\"/chat/answer\\\",method=\\\"GET\\\"}[5m])) > 100)",
+          "severity": "critical"
+        },
+        {
+          "name": "chat_answer_burn_rate_medium",
+          "expr": "((sum(rate(http_requests_total{route=\\\"/chat/answer\\\",method=\\\"GET\\\",status=~\\\"5..\\\"}[6h])) / sum(rate(http_requests_total{route=\\\"/chat/answer\\\",method=\\\"GET\\\"}[6h]))) / 0.005 > 6) and (sum(rate(http_requests_total{route=\\\"/chat/answer\\\",method=\\\"GET\\\"}[5m])) > 100)",
+          "severity": "warning"
+        },
+        {
+          "name": "chat_answer_burn_rate_slow",
+          "expr": "((sum(rate(http_requests_total{route=\\\"/chat/answer\\\",method=\\\"GET\\\",status=~\\\"5..\\\"}[24h])) / sum(rate(http_requests_total{route=\\\"/chat/answer\\\",method=\\\"GET\\\"}[24h]))) / 0.005 > 1) and (sum(rate(http_requests_total{route=\\\"/chat/answer\\\",method=\\\"GET\\\"}[5m])) > 100)",
           "severity": "warning"
         }
       ]

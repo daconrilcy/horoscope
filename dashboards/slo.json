@@ -1,0 +1,61 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "SLO Overview — Horoscope",
+  "timezone": "browser",
+  "schemaVersion": 30,
+  "version": 1,
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Burn rate (1h) — GET /chat/answer",
+      "targets": [
+        {
+          "expr": "(sum(rate(http_requests_total{route=\"/chat/answer\",method=\"GET\",status=~\"5..\"}[1h])) / sum(rate(http_requests_total{route=\"/chat/answer\",method=\"GET\"}[1h]))) / 0.005",
+          "legendFormat": "burn_rate_1h"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Burn rate (6h) — GET /chat/answer",
+      "targets": [
+        {
+          "expr": "(sum(rate(http_requests_total{route=\"/chat/answer\",method=\"GET\",status=~\"5..\"}[6h])) / sum(rate(http_requests_total{route=\"/chat/answer\",method=\"GET\"}[6h]))) / 0.005",
+          "legendFormat": "burn_rate_6h"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Burn rate (24h) — GET /chat/answer",
+      "targets": [
+        {
+          "expr": "(sum(rate(http_requests_total{route=\"/chat/answer\",method=\"GET\",status=~\"5..\"}[24h])) / sum(rate(http_requests_total{route=\"/chat/answer\",method=\"GET\"}[24h]))) / 0.005",
+          "legendFormat": "burn_rate_24h"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Latency P95 — GET /chat/answer",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{route=\"/chat/answer\",method=\"GET\"}[5m])))"
+        }
+      ],
+      "options": {"reduceOptions": {"values": false}}
+    },
+    {
+      "type": "stat",
+      "title": "Latency P99 — GET /chat/answer",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{route=\"/chat/answer\",method=\"GET\"}[5m])))"
+        }
+      ],
+      "options": {"reduceOptions": {"values": false}}
+    }
+  ]
+}
+

@@ -1,0 +1,25 @@
+name: SLO Gate
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  slo-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: SLO report (fail on breach)
+        env:
+          SLO_FAIL_ON_BREACH: "1"
+          # Optionnel: fournir un metrics.json synthétique
+          # SLO_METRICS_JSON: artifacts/slo/metrics.json
+        run: make slo
+
