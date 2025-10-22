@@ -113,16 +113,17 @@ class TestErrorEnvelope:
         request = MagicMock()
         request.headers = {}
         request.state = MagicMock()
-        
+        request.state.trace_id = None
+
         error = APIError(
             status_code=400,
             code="BAD_REQUEST",
             message="Invalid input",
             trace_id="error-trace-123",
         )
-        
+
         response = handle_api_error(request, error)
-        
+
         assert response.status_code == 400
         content = json.loads(response.body.decode())
         assert content["code"] == "BAD_REQUEST"
@@ -134,10 +135,11 @@ class TestErrorEnvelope:
         request = MagicMock()
         request.headers = {}
         request.state = MagicMock()
-        
+        request.state.trace_id = None
+
         exc = HTTPException(status_code=404, detail="Not found")
         response = handle_http_exception(request, exc)
-        
+
         assert response.status_code == 404
         content = json.loads(response.body.decode())
         assert content["code"] == "NOT_FOUND"
@@ -148,10 +150,11 @@ class TestErrorEnvelope:
         request = MagicMock()
         request.headers = {}
         request.state = MagicMock()
-        
+        request.state.trace_id = None
+
         exc = ValueError("Something went wrong")
         response = handle_generic_exception(request, exc)
-        
+
         assert response.status_code == 500
         content = json.loads(response.body.decode())
         assert content["code"] == "INTERNAL_ERROR"
@@ -332,6 +335,88 @@ class TestIdempotencyMiddleware:
         assert response2.status_code == 200
 
 
+class TestIdempotencyMiddlewareMethods:
+    """Test individual methods of IdempotencyMiddleware."""
+    
+    def test_generate_request_hash(self) -> None:
+        """Test request hash generation."""
+        from backend.apigw.middleware import IdempotencyMiddleware
+        
+        middleware = IdempotencyMiddleware(None)
+        
+        # Mock request
+        request = MagicMock()
+        request.method = "POST"
+        request.url.path = "/test"
+        request.url.query = "param=value"
+        request._body = b'{"data": "test"}'
+        
+        hash1 = middleware._generate_request_hash(request)
+        assert isinstance(hash1, str)
+        assert len(hash1) == 64  # SHA256 hex length
+        
+        # Same request should generate same hash
+        hash2 = middleware._generate_request_hash(request)
+        assert hash1 == hash2
+        
+        # Different request should generate different hash
+        request.url.path = "/different"
+        hash3 = middleware._generate_request_hash(request)
+        assert hash1 != hash3
+        
+    def test_generate_request_hash_no_body(self) -> None:
+        """Test request hash generation without body."""
+        from backend.apigw.middleware import IdempotencyMiddleware
+        
+        middleware = IdempotencyMiddleware(None)
+        
+        # Mock request without body
+        request = MagicMock()
+        request.method = "POST"
+        request.url.path = "/test"
+        request.url.query = ""
+        
+        hash_result = middleware._generate_request_hash(request)
+        assert isinstance(hash_result, str)
+        assert len(hash_result) == 64
+        
+    def test_create_response_from_cache(self) -> None:
+        """Test creating response from cached data."""
+        from backend.apigw.middleware import IdempotencyMiddleware
+        
+        middleware = IdempotencyMiddleware(None)
+        
+        cached_data = {
+            "status_code": 201,
+            "headers": {"Content-Type": "application/json", "X-Custom": "value"},
+            "body": '{"message": "created"}',
+        }
+        
+        response = middleware._create_response_from_cache(cached_data)
+        
+        assert response.status_code == 201
+        assert response.headers["Content-Type"] == "application/json"
+        assert response.headers["X-Custom"] == "value"
+        assert response.body.decode() == '{"message": "created"}'
+        
+    def test_create_response_from_cache_minimal(self) -> None:
+        """Test creating response from minimal cached data."""
+        from backend.apigw.middleware import IdempotencyMiddleware
+        
+        middleware = IdempotencyMiddleware(None)
+        
+        cached_data = {
+            "status_code": 200,
+            "headers": {},
+            "body": None,
+        }
+        
+        response = middleware._create_response_from_cache(cached_data)
+        
+        assert response.status_code == 200
+        assert response.body.decode() == ""
+
+
 class TestIdempotencyStore:
     """Test idempotency store implementations."""
     
@@ -385,6 +470,29 @@ class TestIdempotencyStore:
         # Should be expired
         cached = await store.get("key-123", "hash-456")
         assert cached is None
+        
+    @pytest.mark.asyncio
+    async def test_in_memory_store_cache_key_format(self) -> None:
+        """Test cache key format."""
+        store = InMemoryIdempotencyStore()
+        
+        response_data = {
+            "status_code": 200,
+            "body": '{"message": "success"}',
+            "timestamp": time.time(),
+        }
+        
+        await store.set("key-123", "hash-456", response_data)
+        
+        # Test that different combinations don't interfere
+        cached1 = await store.get("key-123", "hash-456")
+        assert cached1 is not None
+        
+        cached2 = await store.get("key-456", "hash-123")
+        assert cached2 is None
+        
+        cached3 = await store.get("different-key", "hash-456")
+        assert cached3 is None
 
 
 class TestTraceIdMiddleware:
@@ -438,10 +546,6 @@ class TestAPIVersionMiddleware:
         
         @app.get("/v1/test")
         async def test_endpoint():
-            return {"message": "success"}
-            
-        @app.get("/v2/test")
-        async def test_endpoint_v2():
             return {"message": "success"}
             
         client = TestClient(app)
