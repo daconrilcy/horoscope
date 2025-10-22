@@ -25,8 +25,11 @@ from backend.apigw.errors import (
     unauthorized,
 )
 from backend.apigw.middleware import (
+    APIVersionMiddleware,
     IdempotencyMiddleware,
     InMemoryIdempotencyStore,
+    RequestLoggingMiddleware,
+    TraceIdMiddleware,
 )
 
 
@@ -335,9 +338,353 @@ class TestIdempotencyMiddleware:
         assert response2.status_code == 200
 
 
-class TestIdempotencyMiddlewareMethods:
-    """Test individual methods of IdempotencyMiddleware."""
+class TestTraceIdMiddlewareMethods:
+    """Test TraceIdMiddleware functionality."""
     
+    def test_trace_id_middleware_init(self) -> None:
+        """Test TraceIdMiddleware initialization."""
+        app = FastAPI()
+        middleware = TraceIdMiddleware(app)
+        assert middleware.app == app
+        
+    def test_trace_id_middleware_dispatch_with_header(self) -> None:
+        """Test TraceIdMiddleware dispatch with existing trace ID."""
+        from unittest.mock import AsyncMock
+        
+        app = FastAPI()
+        middleware = TraceIdMiddleware(app)
+        
+        # Mock request with existing trace ID
+        request = MagicMock()
+        request.headers = {"X-Trace-ID": "existing-trace-123"}
+        request.state = MagicMock()
+        
+        # Mock call_next
+        call_next = AsyncMock()
+        response = MagicMock()
+        response.headers = {}
+        call_next.return_value = response
+        
+        # Test dispatch
+        import asyncio
+        asyncio.run(middleware.dispatch(request, call_next))
+        
+        # Verify trace ID was set
+        assert request.state.trace_id == "existing-trace-123"
+        assert response.headers["X-Trace-ID"] == "existing-trace-123"
+        
+    def test_trace_id_middleware_dispatch_generate_new(self) -> None:
+        """Test TraceIdMiddleware dispatch generating new trace ID."""
+        from unittest.mock import AsyncMock
+        
+        app = FastAPI()
+        middleware = TraceIdMiddleware(app)
+        
+        # Mock request without trace ID
+        request = MagicMock()
+        request.headers = {}
+        request.state = MagicMock()
+        
+        # Mock call_next
+        call_next = AsyncMock()
+        response = MagicMock()
+        response.headers = {}
+        call_next.return_value = response
+        
+        # Test dispatch
+        import asyncio
+        asyncio.run(middleware.dispatch(request, call_next))
+        
+        # Verify new trace ID was generated
+        assert request.state.trace_id is not None
+        assert len(request.state.trace_id) == 36  # UUID length
+        assert response.headers["X-Trace-ID"] == request.state.trace_id
+
+
+class TestRequestLoggingMiddlewareMethods:
+    """Test RequestLoggingMiddleware functionality."""
+    
+    def test_request_logging_middleware_init(self) -> None:
+        """Test RequestLoggingMiddleware initialization."""
+        app = FastAPI()
+        middleware = RequestLoggingMiddleware(app)
+        assert middleware.app == app
+        
+    def test_request_logging_middleware_dispatch(self) -> None:
+        """Test RequestLoggingMiddleware dispatch."""
+        from unittest.mock import AsyncMock, patch
+        
+        app = FastAPI()
+        middleware = RequestLoggingMiddleware(app)
+        
+        # Mock request
+        request = MagicMock()
+        request.method = "GET"
+        request.url = MagicMock()
+        request.url.__str__ = MagicMock(return_value="http://testserver/test")
+        request.headers = {"user-agent": "test-agent", "content-length": "100"}
+        request.state = MagicMock()
+        request.state.trace_id = "test-trace-123"
+        
+        # Mock call_next
+        call_next = AsyncMock()
+        response = MagicMock()
+        response.status_code = 200
+        call_next.return_value = response
+        
+        # Test dispatch with logging
+        with patch("backend.apigw.middleware.log") as mock_log:
+            import asyncio
+            asyncio.run(middleware.dispatch(request, call_next))
+            
+            # Verify logging calls
+            assert mock_log.info.call_count == 2  # Request started + completed
+            
+            # Check request log
+            request_log = mock_log.info.call_args_list[0][1]["extra"]
+            assert request_log["method"] == "GET"
+            assert request_log["url"] == "http://testserver/test"
+            assert request_log["trace_id"] == "test-trace-123"
+            
+            # Check response log
+            response_log = mock_log.info.call_args_list[1][1]["extra"]
+            assert response_log["method"] == "GET"
+            assert response_log["status_code"] == 200
+            assert "duration" in response_log
+
+
+class TestAPIVersionMiddlewareMethods:
+    """Test APIVersionMiddleware functionality."""
+    
+    def test_api_version_middleware_init(self) -> None:
+        """Test APIVersionMiddleware initialization."""
+        app = FastAPI()
+        middleware = APIVersionMiddleware(app, "v2")
+        assert middleware.app == app
+        assert middleware.required_version == "v2"
+        
+    def test_api_version_middleware_dispatch_valid_version(self) -> None:
+        """Test APIVersionMiddleware dispatch with valid version."""
+        from unittest.mock import AsyncMock
+        
+        app = FastAPI()
+        middleware = APIVersionMiddleware(app, "v1")
+        
+        # Mock request with valid version
+        request = MagicMock()
+        request.url.path = "/v1/test"
+        
+        # Mock call_next
+        call_next = AsyncMock()
+        response = MagicMock()
+        call_next.return_value = response
+        
+        # Test dispatch
+        import asyncio
+        asyncio.run(middleware.dispatch(request, call_next))
+        
+        # Should call next middleware
+        call_next.assert_called_once_with(request)
+        
+    def test_api_version_middleware_dispatch_invalid_version(self) -> None:
+        """Test APIVersionMiddleware dispatch with invalid version."""
+        from unittest.mock import AsyncMock
+        
+        app = FastAPI()
+        middleware = APIVersionMiddleware(app, "v1")
+        
+        # Mock request with invalid version
+        request = MagicMock()
+        request.url.path = "/v2/test"
+        request.state = MagicMock()
+        request.state.trace_id = None
+        
+        # Mock call_next
+        call_next = AsyncMock()
+        
+        # Test dispatch
+        import asyncio
+        result = asyncio.run(middleware.dispatch(request, call_next))
+        
+        # Should return error response, not call next
+        call_next.assert_not_called()
+        assert result.status_code == 400
+        
+    def test_api_version_middleware_dispatch_health_check(self) -> None:
+        """Test APIVersionMiddleware dispatch with health check."""
+        from unittest.mock import AsyncMock
+        
+        app = FastAPI()
+        middleware = APIVersionMiddleware(app, "v1")
+        
+        # Mock request for health check
+        request = MagicMock()
+        request.url.path = "/health"
+        
+        # Mock call_next
+        call_next = AsyncMock()
+        response = MagicMock()
+        call_next.return_value = response
+        
+        # Test dispatch
+        import asyncio
+        asyncio.run(middleware.dispatch(request, call_next))
+        
+        # Should call next middleware (health check exempt)
+        call_next.assert_called_once_with(request)
+        
+    def test_api_version_middleware_dispatch_docs(self) -> None:
+        """Test APIVersionMiddleware dispatch with docs."""
+        from unittest.mock import AsyncMock
+        
+        app = FastAPI()
+        middleware = APIVersionMiddleware(app, "v1")
+        
+        # Mock request for docs
+        request = MagicMock()
+        request.url.path = "/docs"
+        
+        # Mock call_next
+        call_next = AsyncMock()
+        response = MagicMock()
+        call_next.return_value = response
+        
+        # Test dispatch
+        import asyncio
+        asyncio.run(middleware.dispatch(request, call_next))
+        
+        # Should call next middleware (docs exempt)
+        call_next.assert_called_once_with(request)
+
+
+    def test_idempotency_middleware_dispatch_non_post(self) -> None:
+        """Test IdempotencyMiddleware dispatch with non-POST request."""
+        from unittest.mock import AsyncMock
+        
+        app = FastAPI()
+        middleware = IdempotencyMiddleware(app)
+        
+        # Mock GET request
+        request = MagicMock()
+        request.method = "GET"
+        
+        # Mock call_next
+        call_next = AsyncMock()
+        response = MagicMock()
+        call_next.return_value = response
+        
+        # Test dispatch
+        import asyncio
+        asyncio.run(middleware.dispatch(request, call_next))
+        
+        # Should call next middleware (non-POST requests pass through)
+        call_next.assert_called_once_with(request)
+        
+    def test_idempotency_middleware_dispatch_no_key(self) -> None:
+        """Test IdempotencyMiddleware dispatch without idempotency key."""
+        from unittest.mock import AsyncMock
+        
+        app = FastAPI()
+        middleware = IdempotencyMiddleware(app)
+        
+        # Mock POST request without idempotency key
+        request = MagicMock()
+        request.method = "POST"
+        request.headers = {}
+        
+        # Mock call_next
+        call_next = AsyncMock()
+        response = MagicMock()
+        call_next.return_value = response
+        
+        # Test dispatch
+        import asyncio
+        asyncio.run(middleware.dispatch(request, call_next))
+        
+        # Should call next middleware (no key = pass through)
+        call_next.assert_called_once_with(request)
+        
+    def test_idempotency_middleware_dispatch_cached_response(self) -> None:
+        """Test IdempotencyMiddleware dispatch with cached response."""
+        from unittest.mock import AsyncMock, patch
+        
+        app = FastAPI()
+        store = InMemoryIdempotencyStore()
+        middleware = IdempotencyMiddleware(app, store)
+        
+        # Mock POST request with idempotency key
+        request = MagicMock()
+        request.method = "POST"
+        request.headers = {"Idempotency-Key": "test-key-123"}
+        request.url.path = "/test"
+        request.url.query = ""
+        request._body = b'{"data": "test"}'
+        request.state = MagicMock()
+        request.state.trace_id = "test-trace-123"
+        
+        # Mock call_next
+        call_next = AsyncMock()
+        
+        # Pre-populate cache
+        cached_data = {
+            "status_code": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": '{"message": "cached"}',
+            "timestamp": time.time(),
+        }
+        
+        # Test dispatch with cached response
+        with patch.object(store, 'get', return_value=cached_data):
+            with patch("backend.apigw.middleware.log") as mock_log:
+                import asyncio
+                asyncio.run(middleware.dispatch(request, call_next))
+                
+                # Should not call next middleware (cached response)
+                call_next.assert_not_called()
+                
+                # Should log cached response
+                mock_log.info.assert_called_once()
+                log_call = mock_log.info.call_args[1]["extra"]
+                assert log_call["idempotency_key"] == "test-key-123"
+                
+    def test_idempotency_middleware_dispatch_error_response(self) -> None:
+        """Test IdempotencyMiddleware dispatch with error response."""
+        from unittest.mock import AsyncMock
+        
+        app = FastAPI()
+        store = InMemoryIdempotencyStore()
+        middleware = IdempotencyMiddleware(app, store)
+        
+        # Mock POST request with idempotency key
+        request = MagicMock()
+        request.method = "POST"
+        request.headers = {"Idempotency-Key": "test-key-123"}
+        request.url.path = "/test"
+        request.url.query = ""
+        request._body = b'{"data": "test"}'
+        request.state = MagicMock()
+        request.state.trace_id = "test-trace-123"
+        
+        # Mock call_next returning error response
+        call_next = AsyncMock()
+        response = MagicMock()
+        response.status_code = 400  # Error status
+        response.body = b'{"error": "bad request"}'
+        response.headers = {"Content-Type": "application/json"}
+        call_next.return_value = response
+        
+        # Test dispatch with error response
+        import asyncio
+        asyncio.run(middleware.dispatch(request, call_next))
+        
+        # Should call next middleware
+        call_next.assert_called_once_with(request)
+        
+        # Should not cache error responses
+        cached = asyncio.run(store.get("test-key-123", middleware._generate_request_hash(request)))
+        assert cached is None
+
+
     def test_generate_request_hash(self) -> None:
         """Test request hash generation."""
         from backend.apigw.middleware import IdempotencyMiddleware
