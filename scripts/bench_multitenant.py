@@ -7,7 +7,7 @@ import logging
 import random
 import statistics
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -102,7 +102,7 @@ class TenantSimulator:
                 "latency": latency,
                 "status_code": response.status_code,
                 "success": response.status_code == 200,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
         except Exception as exc:
@@ -116,7 +116,7 @@ class TenantSimulator:
                 "status_code": 0,
                 "success": False,
                 "error": str(exc),
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
 
@@ -228,7 +228,7 @@ class MultiTenantBenchmark:
                 "noisy_neighbor": self.config.noisy_neighbor,
                 "base_url": self.config.base_url,
             },
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "overall_metrics": overall_metrics,
             "tenant_metrics": tenant_metrics,
             "variance_analysis": self._calculate_variance(tenant_metrics),
