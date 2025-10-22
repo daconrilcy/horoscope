@@ -33,6 +33,7 @@ class APIError(HTTPException):
     ) -> None:
         super().__init__(status_code=status_code, detail=message)
         self.code = code
+        self.message = message
         self.trace_id = trace_id
         self.details = details
 
@@ -85,7 +86,7 @@ def handle_api_error(request: Request, exc: APIError) -> JSONResponse:
         "API error occurred",
         extra={
             "code": exc.code,
-            "message": exc.message,
+            "error_message": exc.message,
             "status_code": exc.status_code,
             "trace_id": trace_id,
             "details": exc.details,
@@ -127,7 +128,7 @@ def handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
         "HTTP exception occurred",
         extra={
             "code": code,
-            "message": str(exc.detail),
+            "error_message": str(exc.detail),
             "status_code": exc.status_code,
             "trace_id": trace_id,
         },
@@ -149,7 +150,7 @@ def handle_generic_exception(request: Request, exc: Exception) -> JSONResponse:
         "Unexpected error occurred",
         extra={
             "code": "INTERNAL_ERROR",
-            "message": "An unexpected error occurred",
+            "error_message": "An unexpected error occurred",
             "trace_id": trace_id,
             "exception_type": type(exc).__name__,
             "exception_message": str(exc),
