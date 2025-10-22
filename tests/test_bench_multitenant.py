@@ -334,5 +334,5 @@ class TestBenchmarkDeterministic:
         p99_manual = statistics.quantiles(latencies, n=100)[98]
         
         # Should match expected values (calculated from actual quantiles)
-        assert abs(p95_manual - 0.47) < 0.01  # 95th percentile of [0.1, 0.2, 0.3, 0.4, 0.5]
+        assert abs(p95_manual - 0.57) < 0.01  # 95th percentile of [0.1, 0.2, 0.3, 0.4, 0.5]
         assert abs(p99_manual - 0.495) < 0.01  # 99th percentile
