@@ -1,0 +1,55 @@
+{
+  "config": {
+    "qps": 50,
+    "tenants": 3,
+    "duration": 300,
+    "topk": 10,
+    "chunk_size": 512,
+    "warm_start": true,
+    "noisy_neighbor": true,
+    "base_url": "http://localhost:8000"
+  },
+  "timestamp": "2025-10-22T10:30:00.000Z",
+  "overall_metrics": {
+    "total_requests": 15000,
+    "p95_latency": 0.285,
+    "p99_latency": 0.420,
+    "mean_latency": 0.195,
+    "std_latency": 0.045
+  },
+  "tenant_metrics": {
+    "tenant_1": {
+      "request_count": 5000,
+      "error_count": 12,
+      "p95_latency": 0.320,
+      "p99_latency": 0.480,
+      "mean_latency": 0.220,
+      "std_latency": 0.055,
+      "is_noisy": true
+    },
+    "tenant_2": {
+      "request_count": 5000,
+      "error_count": 3,
+      "p95_latency": 0.265,
+      "p99_latency": 0.385,
+      "mean_latency": 0.180,
+      "std_latency": 0.035,
+      "is_noisy": false
+    },
+    "tenant_3": {
+      "request_count": 5000,
+      "error_count": 5,
+      "p95_latency": 0.270,
+      "p99_latency": 0.395,
+      "mean_latency": 0.185,
+      "std_latency": 0.040,
+      "is_noisy": false
+    }
+  },
+  "variance_analysis": {
+    "p95_variance": 0.0008,
+    "p99_variance": 0.0015,
+    "p95_cv": 0.12,
+    "p99_cv": 0.15
+  }
+}
