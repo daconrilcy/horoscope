@@ -335,4 +335,4 @@ class TestBenchmarkDeterministic:
         
         # Should match expected values (calculated from actual quantiles)
         assert abs(p95_manual - 0.57) < 0.01  # 95th percentile of [0.1, 0.2, 0.3, 0.4, 0.5]
-        assert abs(p99_manual - 0.495) < 0.01  # 99th percentile
+        assert abs(p99_manual - 0.594) < 0.01  # 99th percentile
