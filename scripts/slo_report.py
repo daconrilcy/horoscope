@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-"""Generate a monthly SLO report in Markdown from slo.yaml.
+"""Generate SLO report (Markdown/JSON) from slo.yaml and optional metrics.
 
 Usage:
-  python -m scripts.slo_report --output-dir artifacts/slo --month 2025-10
+  python -m scripts.slo_report --output-dir artifacts/slo --month 2025-10 \
+      --json-out artifacts/slo/slo_report.json \
+      --metrics artifacts/slo/metrics_sample.json --fail-on-breach
 
 Notes:
 - slo.yaml is JSON-compatible YAML to avoid extra dependencies.
@@ -17,6 +19,7 @@ import os
 import subprocess
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 
 def _load_slo_config(path: Path) -> dict:
@@ -83,6 +86,126 @@ def _status_icon(ok: bool | None) -> str:
     return "⚠️"
 
 
+def _load_metrics(path: Path | None) -> dict:
+    """Load optional synthetic metrics for breach evaluation.
+
+    Expected format:
+    {
+      "endpoints": {
+        "GET /chat/answer": {
+          "p95": 0.28, "p99": 0.62, "error_rate": 0.003,
+          "requests_5m": 200,
+          "burn_rate_1h": 1.2, "burn_rate_6h": 0.8
+        }
+      }
+    }
+    """
+    if path is None:
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _endpoint_key(slo: dict[str, Any]) -> str:
+    route = str(slo.get("route", ""))
+    method = str(slo.get("method", "")).upper() if slo.get("method") else ""
+    return f"{method} {route}".strip()
+
+
+def _min_requests_window_for(slo: dict[str, Any], cfg: dict[str, Any]) -> tuple[str, int]:
+    """Return (window, min_requests) for gating low-traffic evaluations."""
+    default_mrw = (cfg.get("defaults", {}).get("min_requests_window") or {})
+    mrw = (slo.get("min_requests_window") or default_mrw) if slo else default_mrw
+    window = str(mrw.get("window", "5m"))
+    try:
+        min_requests = int(mrw.get("min_requests", 0))
+    except Exception:
+        min_requests = 0
+    return window, min_requests
+
+
+def evaluate_breaches(cfg: dict, metrics: dict) -> list[dict[str, Any]]:
+    """Evaluate SLO breaches using optional synthetic metrics.
+
+    Rules:
+    - For endpoint latency SLOs: compare metrics[endpoint].p95/p99 to targets.
+    - For endpoint error SLOs: compare metrics[endpoint].error_rate to target.
+    - For budget: compare env LLM_BUDGET_MTD to target_usd.
+
+    Returns list of breaches with {id, reason}.
+    """
+    breaches: list[dict[str, Any]] = []
+    ep_stats: dict[str, dict[str, float]] = (metrics.get("endpoints") or {})  # type: ignore[assignment]
+    for slo in cfg.get("slos", []):
+        sid = str(slo.get("id", ""))
+        name = str(slo.get("name", sid))
+        # Traffic gating
+        key = _endpoint_key(slo)
+        stats = ep_stats.get(key, {})
+        window, min_req = _min_requests_window_for(slo, cfg)
+        req_cnt = 0
+        for k in ("requests_window_count", "requests_5m"):
+            if k in stats:
+                try:
+                    req_cnt = int(stats[k])
+                except Exception:
+                    req_cnt = 0
+                break
+        low_traffic = (min_req > 0 and req_cnt > 0 and req_cnt < min_req)
+        # Endpoint latency
+        if not low_traffic and ("target_p95_seconds" in slo or "target_p99_seconds" in slo):
+            if "target_p95_seconds" in slo:
+                p95 = float(stats.get("p95", float("nan")))
+                if p95 == p95 and p95 > float(slo["target_p95_seconds"]):
+                    breaches.append({
+                        "id": sid,
+                        "name": name,
+                        "reason": f"p95 {p95:.3f}s > {float(slo['target_p95_seconds']):.3f}s",
+                    })
+            if "target_p99_seconds" in slo:
+                p99 = float(stats.get("p99", float("nan")))
+                if p99 == p99 and p99 > float(slo["target_p99_seconds"]):
+                    breaches.append({
+                        "id": sid,
+                        "name": name,
+                        "reason": f"p99 {p99:.3f}s > {float(slo['target_p99_seconds']):.3f}s",
+                    })
+        # Endpoint error rate
+        if not low_traffic and "target_error_rate" in slo:
+            er = float(stats.get("error_rate", float("nan")))
+            if er == er and er > float(slo["target_error_rate"]):
+                breaches.append({
+                    "id": sid,
+                    "name": name,
+                    "reason": f"error_rate {er:.4f} > {float(slo['target_error_rate']):.4f}",
+                })
+        # Freeze policy: burn-rate 1h>2 AND 6h>1 → freeze
+        br1h = float(stats.get("burn_rate_1h", float("nan")))
+        br6h = float(stats.get("burn_rate_6h", float("nan")))
+        if br1h == br1h and br6h == br6h and br1h > 2.0 and br6h > 1.0 and not low_traffic:
+            breaches.append({
+                "id": f"policy_freeze_{sid}",
+                "name": f"Freeze policy — {name}",
+                "reason": f"burn_rate_1h={br1h:.2f} > 2.0 AND burn_rate_6h={br6h:.2f} > 1.0",
+            })
+        # Budget (best-effort)
+        if slo.get("id") == "llm_budget" and "target_usd" in slo:
+            try:
+                mtd_cost = float(os.getenv("LLM_BUDGET_MTD", "0") or 0)
+            except Exception:
+                mtd_cost = 0.0
+            target = float(slo["target_usd"])
+            if target > 0 and mtd_cost > target:
+                breaches.append({
+                    "id": sid,
+                    "name": name,
+                    "reason": f"budget {mtd_cost:.2f}USD > {target:.2f}USD",
+                })
+    return breaches
+
+
 def generate_report(output_dir: Path, month: str | None = None) -> Path:
     """Generate the SLO report in `output_dir` and return the file path."""
     cfg = _load_slo_config(Path("slo.yaml"))
@@ -147,13 +270,46 @@ def generate_report(output_dir: Path, month: str | None = None) -> Path:
     return out
 
 
+def export_json(output_path: Path, cfg: dict, breaches: list[dict[str, Any]], month: str | None) -> Path:
+    """Export a machine-readable SLO summary with breaches list."""
+    y, m, _ = _month_label(month)
+    freeze = any(b.get("id", "").startswith("policy_freeze_") for b in breaches)
+    payload = {
+        "service": cfg.get("service"),
+        "version": cfg.get("version"),
+        "owner": cfg.get("owner"),
+        "month": f"{y}-{m:02d}",
+        "slo_count": len(cfg.get("slos", [])),
+        "breaches": breaches,
+        "ok": len(breaches) == 0,
+        "freeze": freeze,
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return output_path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-dir", default="artifacts/slo", help="Output directory for the report")
+    parser.add_argument("--output-dir", default="artifacts/slo", help="Output directory for the Markdown report")
+    parser.add_argument("--json-out", default=None, help="Optional JSON export path")
+    parser.add_argument("--metrics", default=None, help="Optional synthetic metrics JSON for breach evaluation")
+    parser.add_argument("--fail-on-breach", action="store_true", help="Exit 1 if any SLO is breached")
     parser.add_argument("--month", default=None, help="YYYY-MM (default: current)")
     args = parser.parse_args()
-    p = generate_report(Path(args.output_dir), args.month)
-    print(str(p))
+    out_md = generate_report(Path(args.output_dir), args.month)
+    cfg = _load_slo_config(Path("slo.yaml"))
+    metrics = _load_metrics(Path(args.metrics)) if args.metrics else {}
+    breaches = evaluate_breaches(cfg, metrics)
+    if args.json_out:
+        out_json = export_json(Path(args.json_out), cfg, breaches, args.month)
+        print(str(out_json))
+    print(str(out_md))
+    if args.fail_on_breach and breaches:
+        # Print simple summary before failing
+        for b in breaches:
+            print(f"BREACH: {b['id']}: {b['reason']}")
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":  # pragma: no cover

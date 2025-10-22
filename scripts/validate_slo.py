@@ -31,6 +31,7 @@ def _require_keys(obj: dict[str, Any], keys: list[str], ctx: str) -> None:
 KNOWN_METRICS = {
     # HTTP/API
     "http_requests_total",
+    "http_server_requests_seconds_bucket",
     # Chat metrics
     "chat_latency_seconds_bucket",
     # LLM budgets/costs
