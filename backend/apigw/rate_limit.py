@@ -18,6 +18,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
 from backend.apigw.errors import create_error_response
+from backend.apigw.redis_store import redis_store
 from backend.app.metrics import (
     APIGW_RATE_LIMIT_BLOCKS,
     APIGW_RATE_LIMIT_DECISIONS,
@@ -112,17 +113,10 @@ class SlidingWindowRateLimiter:
 class TenantRateLimitMiddleware(BaseHTTPMiddleware):
     """Middleware pour appliquer le rate limiting par tenant."""
 
-    def __init__(
-        self,
-        app: Any,
-        config: RateLimitConfig | None = None,
-        enabled: bool = True,
-    ) -> None:
-        """Initialize tenant rate limit middleware."""
+    def __init__(self, app: Any, enabled: bool = True) -> None:
+        """Initialize rate limit middleware."""
         super().__init__(app)
-        self.config = config or RateLimitConfig()
         self.enabled = enabled
-        self.rate_limiter = SlidingWindowRateLimiter(self.config)
 
     async def dispatch(self, request: Request, call_next: Any) -> StarletteResponse:
         """Apply rate limiting to request."""
@@ -144,8 +138,8 @@ class TenantRateLimitMiddleware(BaseHTTPMiddleware):
             # Extract tenant from request
             tenant = self._extract_tenant(request)
 
-            # Check rate limit
-            result = self.rate_limiter.check_rate_limit(tenant)
+            # Check rate limit using Redis store
+            result = redis_store.check_rate_limit(route, tenant)
 
             if not result.allowed:
                 # Log rate limit violation with tenant in logs (not metrics)
@@ -183,14 +177,14 @@ class TenantRateLimitMiddleware(BaseHTTPMiddleware):
                 return response
 
             # Check if near limit (for pre-alerting)
-            if result.remaining / self.config.requests_per_minute < NEAR_LIMIT_THRESHOLD:
+            if result.remaining / redis_store.settings.RL_MAX_REQ_PER_WINDOW < NEAR_LIMIT_THRESHOLD:
                 APIGW_RATE_LIMIT_NEAR_LIMIT.labels(route=route).inc()
 
             # Add rate limit headers to successful responses
             response = await call_next(request)
 
             # Add rate limit headers
-            response.headers["X-RateLimit-Limit"] = str(self.config.requests_per_minute)
+            response.headers["X-RateLimit-Limit"] = str(redis_store.settings.RL_MAX_REQ_PER_WINDOW)
             response.headers["X-RateLimit-Remaining"] = str(result.remaining)
             response.headers["X-RateLimit-Reset"] = str(int(result.reset_time))
 

@@ -225,6 +225,12 @@ APIGW_TENANT_SPOOF_ATTEMPTS = Counter(
     ["route"],
 )
 
+APIGW_RATE_LIMIT_STORE_ERRORS = Counter(
+    "apigw_rate_limit_store_errors_total",
+    "Total rate limit store errors (Redis unavailable, etc.)",
+    ["route", "error_type"],
+)
+
 # Legacy metric for backward compatibility (deprecated)
 RATE_LIMIT_BLOCKS = APIGW_RATE_LIMIT_BLOCKS
 

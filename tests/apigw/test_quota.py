@@ -175,8 +175,7 @@ class TestTenantRateLimitMiddleware:
     @pytest.mark.asyncio
     async def test_rate_limit_headers_added(self) -> None:
         """Test que les headers de rate limit sont ajoutés."""
-        config = RateLimitConfig(requests_per_minute=10)
-        middleware = TenantRateLimitMiddleware(Mock(), config=config)
+        middleware = TenantRateLimitMiddleware(Mock())
         request = self.create_mock_request()
 
         async def call_next(req: Request) -> Response:
@@ -191,27 +190,43 @@ class TestTenantRateLimitMiddleware:
     @pytest.mark.asyncio
     async def test_rate_limit_exceeded_response(self) -> None:
         """Test la réponse 429 quand la limite est dépassée."""
-        config = RateLimitConfig(requests_per_minute=1)
-        middleware = TenantRateLimitMiddleware(Mock(), config=config)
+        with patch("backend.apigw.rate_limit.redis_store") as mock_redis_store:
+            # Mock Redis store to block second request
+            mock_result1 = Mock()
+            mock_result1.allowed = True
+            mock_result1.remaining = 59
+            mock_result1.reset_time = 1234567890.0
+            mock_result1.retry_after = None
+            
+            mock_result2 = Mock()
+            mock_result2.allowed = False
+            mock_result2.remaining = 0
+            mock_result2.reset_time = 1234567890.0
+            mock_result2.retry_after = 30
+            
+            mock_redis_store.check_rate_limit.side_effect = [mock_result1, mock_result2]
+            mock_redis_store.settings.RL_MAX_REQ_PER_WINDOW = 60
+            
+            middleware = TenantRateLimitMiddleware(Mock())
 
-        # First request should succeed
-        request1 = self.create_mock_request()
+            # First request should succeed
+            request1 = self.create_mock_request()
 
-        async def call_next1(req: Request) -> Response:
-            return Response("OK", status_code=200)
+            async def call_next1(req: Request) -> Response:
+                return Response("OK", status_code=200)
 
-        response1 = await middleware.dispatch(request1, call_next1)
-        assert response1.status_code == 200
+            response1 = await middleware.dispatch(request1, call_next1)
+            assert response1.status_code == 200
 
-        # Second request should be blocked
-        request2 = self.create_mock_request()
+            # Second request should be blocked
+            request2 = self.create_mock_request()
 
-        async def call_next2(req: Request) -> Response:
-            return Response("OK", status_code=200)
+            async def call_next2(req: Request) -> Response:
+                return Response("OK", status_code=200)
 
-        response2 = await middleware.dispatch(request2, call_next2)
-        assert response2.status_code == 429
-        assert "Retry-After" in response2.headers
+            response2 = await middleware.dispatch(request2, call_next2)
+            assert response2.status_code == 429
+            assert "Retry-After" in response2.headers
 
     def test_tenant_extraction_from_header(self) -> None:
         """Test l'extraction du tenant depuis les headers."""
@@ -457,12 +472,28 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_metrics_increment_correctly(self) -> None:
         """Test que les métriques s'incrémentent correctement."""
-        with patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS") as mock_decisions, \
+        with patch("backend.apigw.rate_limit.redis_store") as mock_redis_store, \
+             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS") as mock_decisions, \
              patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_BLOCKS") as mock_blocks, \
              patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_EVALUATION_TIME") as mock_eval_time:
             
-            config = RateLimitConfig(requests_per_minute=1)
-            middleware = TenantRateLimitMiddleware(Mock(), config=config)
+            # Mock Redis store responses
+            mock_result1 = Mock()
+            mock_result1.allowed = True
+            mock_result1.remaining = 59
+            mock_result1.reset_time = 1234567890.0
+            mock_result1.retry_after = None
+            
+            mock_result2 = Mock()
+            mock_result2.allowed = False
+            mock_result2.remaining = 0
+            mock_result2.reset_time = 1234567890.0
+            mock_result2.retry_after = 30
+            
+            mock_redis_store.check_rate_limit.side_effect = [mock_result1, mock_result2]
+            mock_redis_store.settings.RL_MAX_REQ_PER_WINDOW = 60
+            
+            middleware = TenantRateLimitMiddleware(Mock())
 
             # First request - should allow
             request1 = self.create_mock_request("/v1/chat/123")
@@ -529,13 +560,110 @@ class TestIntegration:
             assert "Retry-After" in response.headers
 
     @pytest.mark.asyncio
+    async def test_redis_store_integration(self) -> None:
+        """Test intégration avec le store Redis."""
+        with patch("backend.apigw.rate_limit.redis_store") as mock_redis_store:
+            # Mock Redis store response
+            mock_result = Mock()
+            mock_result.allowed = True
+            mock_result.remaining = 59
+            mock_result.reset_time = 1234567890.0
+            mock_result.retry_after = None
+            
+            mock_redis_store.check_rate_limit.return_value = mock_result
+            mock_redis_store.settings.RL_MAX_REQ_PER_WINDOW = 60
+            
+            middleware = TenantRateLimitMiddleware(Mock())
+            request = self.create_mock_request("/v1/chat/123")
+            
+            async def call_next(req: Request) -> Response:
+                return Response("OK", status_code=200)
+
+            response = await middleware.dispatch(request, call_next)
+            
+            # Vérifier que Redis store a été appelé
+            mock_redis_store.check_rate_limit.assert_called_once_with("/v1/chat/{id}", "default")
+            
+            # Vérifier la réponse
+            assert response.status_code == 200
+            assert "X-RateLimit-Limit" in response.headers
+            assert "X-RateLimit-Remaining" in response.headers
+            assert "X-RateLimit-Reset" in response.headers
+
+    @pytest.mark.asyncio
+    async def test_redis_store_blocked(self) -> None:
+        """Test blocage via Redis store."""
+        with patch("backend.apigw.rate_limit.redis_store") as mock_redis_store:
+            # Mock Redis store response - blocked
+            mock_result = Mock()
+            mock_result.allowed = False
+            mock_result.remaining = 0
+            mock_result.reset_time = 1234567890.0
+            mock_result.retry_after = 30
+            
+            mock_redis_store.check_rate_limit.return_value = mock_result
+            
+            middleware = TenantRateLimitMiddleware(Mock())
+            request = self.create_mock_request("/v1/chat/123")
+            
+            async def call_next(req: Request) -> Response:
+                return Response("OK", status_code=200)
+
+            response = await middleware.dispatch(request, call_next)
+            
+            # Vérifier que la requête a été bloquée
+            assert response.status_code == 429
+            assert "Retry-After" in response.headers
+            assert response.headers["Retry-After"] == "30"
+
+    @pytest.mark.asyncio
+    async def test_redis_store_fail_open(self) -> None:
+        """Test fail-open quand Redis est indisponible."""
+        with patch("backend.apigw.rate_limit.redis_store") as mock_redis_store:
+            # Mock Redis store fail-open
+            mock_result = Mock()
+            mock_result.allowed = True  # Fail-open allows request
+            mock_result.remaining = 59
+            mock_result.reset_time = 1234567890.0
+            mock_result.retry_after = None
+            
+            mock_redis_store.check_rate_limit.return_value = mock_result
+            mock_redis_store.settings.RL_MAX_REQ_PER_WINDOW = 60
+            
+            middleware = TenantRateLimitMiddleware(Mock())
+            request = self.create_mock_request("/v1/chat/123")
+            
+            async def call_next(req: Request) -> Response:
+                return Response("OK", status_code=200)
+
+            response = await middleware.dispatch(request, call_next)
+            
+            # Vérifier que la requête a été autorisée (fail-open)
+            assert response.status_code == 200
+
+    @pytest.mark.asyncio
     async def test_rate_limit_with_metrics(self) -> None:
         """Test que les métriques sont émises lors des blocages."""
-        with patch(
-            "backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS"
-        ) as mock_metrics:
-            config = RateLimitConfig(requests_per_minute=1)
-            middleware = TenantRateLimitMiddleware(Mock(), config=config)
+        with patch("backend.apigw.rate_limit.redis_store") as mock_redis_store, \
+             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS") as mock_metrics:
+            
+            # Mock Redis store responses
+            mock_result1 = Mock()
+            mock_result1.allowed = True
+            mock_result1.remaining = 59
+            mock_result1.reset_time = 1234567890.0
+            mock_result1.retry_after = None
+            
+            mock_result2 = Mock()
+            mock_result2.allowed = False
+            mock_result2.remaining = 0
+            mock_result2.reset_time = 1234567890.0
+            mock_result2.retry_after = 30
+            
+            mock_redis_store.check_rate_limit.side_effect = [mock_result1, mock_result2]
+            mock_redis_store.settings.RL_MAX_REQ_PER_WINDOW = 60
+            
+            middleware = TenantRateLimitMiddleware(Mock())
 
             # First request should succeed
             request1 = self.create_mock_request()
