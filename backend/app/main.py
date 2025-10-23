@@ -19,8 +19,8 @@ from backend.api.routes_auth import router as auth_router
 from backend.api.routes_chat import router as chat_router
 from backend.api.routes_health import router as health_router
 from backend.api.routes_horoscope import router as horoscope_router
+from backend.apigw.rate_limit import QuotaMiddleware, TenantRateLimitMiddleware
 from backend.app.metrics import PrometheusMiddleware, metrics_router
-from backend.app.middleware_rate_limit import RateLimitMiddleware
 from backend.app.tracing import setup_tracing
 from backend.core.container import container
 from backend.core.logging import setup_logging
@@ -43,7 +43,8 @@ def create_app() -> FastAPI:
     settings = container.settings
     app = FastAPI(title=settings.APP_NAME, debug=settings.APP_DEBUG)
     app.add_middleware(RequestIDMiddleware)
-    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(TenantRateLimitMiddleware)
+    app.add_middleware(QuotaMiddleware)
     app.add_middleware(PrometheusMiddleware)
     app.add_middleware(TimingMiddleware)
     app.include_router(health_router)
