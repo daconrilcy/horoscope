@@ -1,5 +1,4 @@
-"""
-Configuration de test pour pytest avec gestion des chemins.
+"""Configuration de test pour pytest avec gestion des chemins.
 
 Ce module configure pytest pour résoudre les imports backend en ajoutant la racine du projet au
 sys.path pour les tests.

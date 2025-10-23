@@ -1,5 +1,4 @@
-"""
-Middleware de protection LLM contre les injections et fuites de données.
+"""Middleware de protection LLM contre les injections et fuites de données.
 
 Ce module implémente des garde-fous pour protéger les interactions LLM : sanitisation des entrées,
 détection d'injections de prompts, masquage des données personnelles et validation des sorties.
@@ -14,8 +13,7 @@ from backend.core.settings import get_settings
 
 
 def sanitize_input(payload: dict) -> dict:
-    """
-    Sanitize input payload (length, denylist).
+    """Sanitize input payload (length, denylist).
 
     - Trim text fields.
     - Enforce max length via LLM_GUARD_MAX_INPUT_LEN (default 1000).
@@ -62,8 +60,7 @@ def enforce_policies(context: dict) -> dict:
 
 
 def validate_output(text: str, tenant: str | None) -> str:
-    """
-    Validate and filter output (mask PII and leaks).
+    """Validate and filter output (mask PII and leaks).
 
     - Mask emails and simple phone numbers (count masks via metrics).
     - If LLM_GUARD_ENABLE=false, return the text unchanged.
@@ -73,9 +70,7 @@ def validate_output(text: str, tenant: str | None) -> str:
         return text
     masked = text
     # Emails
-    new = re.sub(
-        r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "[redacted-email]", masked
-    )
+    new = re.sub(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "[redacted-email]", masked)
     if new != masked:
         LLM_GUARD_PII_MASKED.labels("email").inc()
     masked = new

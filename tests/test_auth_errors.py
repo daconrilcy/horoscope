@@ -1,5 +1,4 @@
-"""
-Tests pour les erreurs d'authentification.
+"""Tests pour les erreurs d'authentification.
 
 Ce module teste les cas d'erreur dans l'authentification, incluant les inscriptions en double et les
 tokens invalides.

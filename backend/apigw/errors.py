@@ -1,5 +1,4 @@
-"""
-Gestion standardisée des erreurs API avec enveloppes d'erreur.
+"""Gestion standardisée des erreurs API avec enveloppes d'erreur.
 
 Ce module fournit une gestion centralisée des erreurs avec des enveloppes standardisées, des codes
 d'erreur cohérents et un support pour le tracing des requêtes.

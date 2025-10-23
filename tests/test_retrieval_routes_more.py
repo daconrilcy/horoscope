@@ -1,5 +1,4 @@
-"""
-Tests supplémentaires pour les routes de récupération.
+"""Tests supplémentaires pour les routes de récupération.
 
 Ce module teste des cas supplémentaires des routes de récupération, incluant les erreurs de
 validation et les cas limites.

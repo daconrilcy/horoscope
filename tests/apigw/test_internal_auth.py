@@ -1,5 +1,4 @@
-"""
-Tests pour la vérification HMAC des headers internes.
+"""Tests pour la vérification HMAC des headers internes.
 
 Tests de signature HMAC, vérification timestamp, et prévention replay.
 """
@@ -50,9 +49,7 @@ class TestInternalAuthVerifier:
         method = "GET"
 
         # Generate valid signature
-        signature = self.verifier._generate_signature(
-            "v1", timestamp, nonce, path, method
-        )
+        signature = self.verifier._generate_signature("v1", timestamp, nonce, path, method)
 
         request = self.create_mock_request(
             headers={
@@ -103,9 +100,7 @@ class TestInternalAuthVerifier:
         timestamp = int(time.time()) - 600
         nonce = "test-nonce-123"
 
-        signature = self.verifier._generate_signature(
-            "v1", timestamp, nonce, "/v1/test", "GET"
-        )
+        signature = self.verifier._generate_signature("v1", timestamp, nonce, "/v1/test", "GET")
 
         request = self.create_mock_request(
             headers={
@@ -125,9 +120,7 @@ class TestInternalAuthVerifier:
         nonce = "test-nonce-replay"
 
         # First use - should succeed
-        signature = self.verifier._generate_signature(
-            "v1", timestamp, nonce, "/v1/test", "GET"
-        )
+        signature = self.verifier._generate_signature("v1", timestamp, nonce, "/v1/test", "GET")
 
         request1 = self.create_mock_request(
             headers={
@@ -159,9 +152,7 @@ class TestInternalAuthVerifier:
         timestamp = int(time.time())
         nonce = "test-nonce-v2"
 
-        signature = self.verifier._generate_signature(
-            "v2", timestamp, nonce, "/v1/test", "GET"
-        )
+        signature = self.verifier._generate_signature("v2", timestamp, nonce, "/v1/test", "GET")
 
         request = self.create_mock_request(
             headers={

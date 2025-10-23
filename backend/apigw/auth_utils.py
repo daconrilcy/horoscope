@@ -1,5 +1,4 @@
-"""
-Utilitaires d'authentification et extraction sécurisée des tenants.
+"""Utilitaires d'authentification et extraction sécurisée des tenants.
 
 Ce module implémente le trust model pour l'extraction des tenants :
 - JWT = source de vérité
@@ -20,8 +19,7 @@ log = logging.getLogger(__name__)
 
 
 def extract_tenant_secure(request: Request) -> tuple[str, str, bool]:
-    """
-    Extract tenant identifier with secure trust model.
+    """Extract tenant identifier with secure trust model.
 
     Trust model:
     1. JWT claims (tenant_id) = source of truth
@@ -93,8 +91,7 @@ def _extract_tenant_from_jwt(request: Request) -> str | None:
 
 
 def _is_internal_traffic(request: Request) -> bool:
-    """
-    Check if request is from internal/trusted source (legacy function).
+    """Check if request is from internal/trusted source (legacy function).
 
     This function is kept for backward compatibility but should not be used. Use
     verify_internal_traffic from internal_auth module instead.
@@ -104,8 +101,7 @@ def _is_internal_traffic(request: Request) -> bool:
 
 
 def get_tenant_source_info(request: Request) -> dict[str, Any]:
-    """
-    Get detailed tenant source information for logging.
+    """Get detailed tenant source information for logging.
 
     Returns:
         Dictionary with tenant source information

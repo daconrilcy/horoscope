@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Exemple de client Python pour gérer les rate limits et quotas de l'API.
+"""Exemple de client Python pour gérer les rate limits et quotas de l'API.
 
 Ce script démontre comment :
 - Gérer les réponses 429 (Too Many Requests)
@@ -53,8 +52,7 @@ class APIError(Exception):
         trace_id: str | None = None,
         details: dict[str, Any] | None = None,
     ):
-        """
-        Initialise une erreur API.
+        """Initialise une erreur API.
 
         Args:
             code: Code d'erreur
@@ -80,8 +78,7 @@ class RateLimitError(APIError):
         details: dict[str, Any],
         retry_after: int,
     ):
-        """
-        Initialise une erreur de rate limiting.
+        """Initialise une erreur de rate limiting.
 
         Args:
             code: Code d'erreur
@@ -105,8 +102,7 @@ class QuotaExceededError(APIError):
         details: dict[str, Any],
         retry_after: int,
     ):
-        """
-        Initialise une erreur de quota dépassé.
+        """Initialise une erreur de quota dépassé.
 
         Args:
             code: Code d'erreur
@@ -123,8 +119,7 @@ class APIClient:
     """Client API avec gestion des rate limits."""
 
     def __init__(self, base_url: str, jwt_token: str):
-        """
-        Initialise le client API.
+        """Initialise le client API.
 
         Args:
             base_url: URL de base de l'API
@@ -145,9 +140,7 @@ class APIClient:
             remaining=int(headers.get("X-RateLimit-Remaining", 0)),
             reset=int(headers.get("X-RateLimit-Reset", 0)),
             retry_after=(
-                int(headers.get("Retry-After", 0))
-                if headers.get("Retry-After")
-                else None
+                int(headers.get("Retry-After", 0)) if headers.get("Retry-After") else None
             ),
         )
 
@@ -202,26 +195,20 @@ class APIClient:
                 rate_limit_info = self._parse_rate_limit_headers(response)
 
                 # Log rate limit status
-                remaining_info = (
-                    f"{rate_limit_info.remaining}/{rate_limit_info.limit} remaining"
-                )
+                remaining_info = f"{rate_limit_info.remaining}/{rate_limit_info.limit} remaining"
                 print(f"Rate limit: {remaining_info}")
 
                 return response.json()
 
             except RateLimitError as e:
                 last_exception = e
-                print(
-                    f"Rate limited (attempt {attempt + 1}/{max_retries}): {e.message}"
-                )
+                print(f"Rate limited (attempt {attempt + 1}/{max_retries}): {e.message}")
                 print(f"Waiting {e.retry_after} seconds...")
                 time.sleep(e.retry_after)
 
             except QuotaExceededError as e:
                 last_exception = e
-                print(
-                    f"Quota exceeded (attempt {attempt + 1}/{max_retries}): {e.message}"
-                )
+                print(f"Quota exceeded (attempt {attempt + 1}/{max_retries}): {e.message}")
                 print(f"Waiting {e.retry_after} seconds...")
                 time.sleep(e.retry_after)
 
@@ -246,9 +233,7 @@ class APIClient:
 
     def send_chat_message(self, message: str) -> dict[str, Any]:
         """Envoie un message de chat."""
-        return self.make_request_with_retry(
-            "POST", "/v1/chat/message", json={"message": message}
-        )
+        return self.make_request_with_retry("POST", "/v1/chat/message", json={"message": message})
 
     def search_retrieval(self, query: str, limit: int = 10) -> dict[str, Any]:
         """Effectue une recherche."""

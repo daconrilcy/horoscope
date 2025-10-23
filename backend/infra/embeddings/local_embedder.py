@@ -1,5 +1,4 @@
-"""
-Embedder local utilisant Sentence Transformers.
+"""Embedder local utilisant Sentence Transformers.
 
 Ce module implémente un embedder local utilisant Sentence Transformers avec fallback déterministe
 pour les environnements sans dépendances.
@@ -18,8 +17,7 @@ from backend.infra.embeddings.base import Embeddings
 
 
 class LocalEmbedder(Embeddings):
-    """
-    Embedder local utilisant Sentence Transformers.
+    """Embedder local utilisant Sentence Transformers.
 
     Génère des embeddings vectoriels en utilisant Sentence Transformers avec fallback déterministe
     pour les environnements sans dépendances.
@@ -28,16 +26,15 @@ class LocalEmbedder(Embeddings):
     _model = None
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        """
-        Initialise l'embedder local avec le modèle spécifié.
+        """Initialise l'embedder local avec le modèle spécifié.
 
         Args:
             model_name: Nom du modèle Sentence Transformers à utiliser.
         """
         # Avoid remote model loads in CI/test by default, or when explicitly disabled.
-        offline = (
-            os.getenv("EMBEDDINGS_OFFLINE", "").lower() in {"1", "true", "yes"}
-        ) or (os.getenv("CI", "").lower() == "true")
+        offline = (os.getenv("EMBEDDINGS_OFFLINE", "").lower() in {"1", "true", "yes"}) or (
+            os.getenv("CI", "").lower() == "true"
+        )
         if offline or SentenceTransformer is None:
             # lightweight fallback to avoid heavy deps and network during tests/CI
             self.model = None
@@ -51,8 +48,7 @@ class LocalEmbedder(Embeddings):
                 self.model = None
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        """
-        Génère des embeddings vectoriels pour une liste de textes.
+        """Génère des embeddings vectoriels pour une liste de textes.
 
         Args:
             texts: Liste des textes à convertir en embeddings.

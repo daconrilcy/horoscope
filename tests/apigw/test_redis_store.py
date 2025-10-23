@@ -1,5 +1,4 @@
-"""
-Tests pour le store Redis atomique.
+"""Tests pour le store Redis atomique.
 
 Tests de contention, défaillance Redis, et performance du rate limiting distribué.
 """
@@ -97,9 +96,7 @@ class TestRedisRateLimitStore:
         """Test fail-open en cas d'erreur de connexion Redis."""
         self.store._redis.evalsha.side_effect = ConnectionError("Redis unavailable")  # type: ignore[union-attr]
 
-        with patch(
-            "backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS"
-        ) as mock_metrics:
+        with patch("backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS") as mock_metrics:
             result = self.store.check_rate_limit("/v1/chat/123", "tenant1")
 
             # Fail-open: should allow request
@@ -116,9 +113,7 @@ class TestRedisRateLimitStore:
         """Test fail-open en cas de timeout Redis."""
         self.store._redis.evalsha.side_effect = TimeoutError("Redis timeout")  # type: ignore[union-attr]
 
-        with patch(
-            "backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS"
-        ) as mock_metrics:
+        with patch("backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS") as mock_metrics:
             result = self.store.check_rate_limit("/v1/chat/123", "tenant1")
 
             # Fail-open: should allow request
@@ -135,9 +130,7 @@ class TestRedisRateLimitStore:
         """Test fail-open en cas d'erreur inattendue."""
         self.store._redis.evalsha.side_effect = Exception("Unexpected error")  # type: ignore[union-attr]
 
-        with patch(
-            "backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS"
-        ) as mock_metrics:
+        with patch("backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS") as mock_metrics:
             result = self.store.check_rate_limit("/v1/chat/123", "tenant1")
 
             # Fail-open: should allow request
@@ -247,9 +240,7 @@ class TestRedisStoreIntegration:
             assert allowed_count == TEST_CONCURRENT_LIMIT
 
             # Vérifier que les 5 dernières ont été bloquées
-            blocked_results = [
-                r for r in results[TEST_CONCURRENT_LIMIT:] if not r.allowed
-            ]
+            blocked_results = [r for r in results[TEST_CONCURRENT_LIMIT:] if not r.allowed]
             assert len(blocked_results) == TEST_CONCURRENT_LIMIT
 
     def test_performance_evaluation_time(self) -> None:
@@ -299,9 +290,7 @@ class TestRedisStoreIntegration:
             assert result.allowed is False
             assert result.retry_after is not None
             assert result.retry_after >= 1
-            assert (
-                result.retry_after <= retry_after_seconds + 1
-            )  # Tolérance de 1 seconde
+            assert result.retry_after <= retry_after_seconds + 1  # Tolérance de 1 seconde
 
 
 class TestRateLimitResult:

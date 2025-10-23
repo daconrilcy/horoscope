@@ -1,5 +1,4 @@
-"""
-Configuration du tracing OpenTelemetry pour l'observabilité.
+"""Configuration du tracing OpenTelemetry pour l'observabilité.
 
 Ce module configure le tracing distribué avec OpenTelemetry pour exporter les traces vers un
 endpoint OTLP configuré via les variables d'environnement.
@@ -16,8 +15,7 @@ from backend.core.container import container
 
 
 def setup_tracing():
-    """
-    Configure le tracing OpenTelemetry pour l'observabilité.
+    """Configure le tracing OpenTelemetry pour l'observabilité.
 
     Initialise le provider de tracing et configure l'exporteur OTLP si l'endpoint est configuré dans
     les paramètres.

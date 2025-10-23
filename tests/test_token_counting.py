@@ -1,5 +1,4 @@
-"""
-Tests for token counting strategies.
+"""Tests for token counting strategies.
 
 Covers API usage, tiktoken path (with fake module), fallback to words, and auto preference for API
 over tiktoken.

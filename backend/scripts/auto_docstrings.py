@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # ruff: noqa
-"""
-Script utilitaire pour documenter automatiquement le projet.
+"""Script utilitaire pour documenter automatiquement le projet.
 
 Actions:
 - Ajouter/mettre à jour l'en-tête de module pour chaque fichier Python
@@ -29,8 +28,7 @@ SELF_PATH = Path(__file__).resolve()
 
 @dataclass
 class Insertion:
-    """
-    Représente une insertion de docstring dans un fichier.
+    """Représente une insertion de docstring dans un fichier.
 
     Contient l'index de ligne où insérer et les lignes de docstring à ajouter au fichier.
     """
@@ -40,8 +38,7 @@ class Insertion:
 
 
 def list_py_files(root: Path) -> Iterable[Path]:
-    """
-    Lister tous les fichiers Python dans un répertoire.
+    """Lister tous les fichiers Python dans un répertoire.
 
     Args:
         root: Répertoire racine à parcourir.
@@ -58,8 +55,7 @@ def list_py_files(root: Path) -> Iterable[Path]:
 
 
 def has_module_docstring(module: ast.Module) -> bool:
-    """
-    Vérifie si un module AST a une docstring.
+    """Vérifie si un module AST a une docstring.
 
     Args:
         module: Module AST à vérifier.
@@ -71,8 +67,7 @@ def has_module_docstring(module: ast.Module) -> bool:
 
 
 def get_shebang_and_encoding_prefix_len(lines: list[str]) -> int:
-    """
-    Calcule la longueur du préfixe shebang/encoding/commentaires vides.
+    """Calcule la longueur du préfixe shebang/encoding/commentaires vides.
 
     Args:
         lines: Lignes du fichier.
@@ -93,8 +88,7 @@ def get_shebang_and_encoding_prefix_len(lines: list[str]) -> int:
 
 
 def _get_purpose_by_name(name: str) -> str | None:
-    """
-    Détermine le but d'un module basé sur son nom.
+    """Détermine le but d'un module basé sur son nom.
 
     Args:
         name: Nom du fichier en minuscules.
@@ -110,8 +104,7 @@ def _get_purpose_by_name(name: str) -> str | None:
 
 
 def _get_purpose_by_parent(parent: str) -> str | None:
-    """
-    Détermine le but d'un module basé sur son répertoire parent.
+    """Détermine le but d'un module basé sur son répertoire parent.
 
     Args:
         parent: Nom du répertoire parent en minuscules.
@@ -130,8 +123,7 @@ def _get_purpose_by_parent(parent: str) -> str | None:
 
 
 def guess_module_purpose(path: Path) -> str:
-    """
-    Devine le but d'un module basé sur son chemin.
+    """Devine le but d'un module basé sur son chemin.
 
     Args:
         path: Chemin vers le fichier module.
@@ -156,8 +148,7 @@ def guess_module_purpose(path: Path) -> str:
 
 
 def make_module_docstring(path: Path) -> list[str]:
-    """
-    Génère une docstring de module basée sur le chemin.
+    """Génère une docstring de module basée sur le chemin.
 
     Args:
         path: Chemin vers le fichier module.
@@ -221,8 +212,7 @@ def _is_pydantic_model(cls: ast.ClassDef) -> bool:
 
 
 def generate_entity_docstring_for_function(fn: ast.AST, indent: str) -> list[str]:
-    """
-    Génère une docstring pour une fonction AST.
+    """Génère une docstring pour une fonction AST.
 
     Args:
         fn: Nœud AST de la fonction.
@@ -249,8 +239,7 @@ def generate_entity_docstring_for_function(fn: ast.AST, indent: str) -> list[str
 
 
 def generate_entity_docstring_for_class(cls: ast.ClassDef, indent: str) -> list[str]:
-    """
-    Génère une docstring pour une classe AST.
+    """Génère une docstring pour une classe AST.
 
     Args:
         cls: Nœud AST de la classe.
@@ -275,8 +264,7 @@ def generate_entity_docstring_for_class(cls: ast.ClassDef, indent: str) -> list[
 
 
 def first_body_indent(lines: list[str], lineno: int) -> str:
-    """
-    Récupère l'indentation de la première ligne du corps.
+    """Récupère l'indentation de la première ligne du corps.
 
     Args:
         lines: Lignes du fichier.
@@ -290,11 +278,8 @@ def first_body_indent(lines: list[str], lineno: int) -> str:
     return line[: len(line) - len(line.lstrip(" \t"))]
 
 
-def insert_module_docstring(
-    lines: list[str], path: Path, module: ast.Module
-) -> list[str]:
-    """
-    Insère une docstring de module dans les lignes.
+def insert_module_docstring(lines: list[str], path: Path, module: ast.Module) -> list[str]:
+    """Insère une docstring de module dans les lignes.
 
     Args:
         lines: Lignes du fichier.
@@ -322,9 +307,7 @@ def collect_docstring_insertions(tree: ast.AST, lines: list[str]) -> list[Insert
                 first_stmt = node.body[0]
                 indent = first_body_indent(lines, first_stmt.lineno)
                 doc_lines = generate_entity_docstring_for_function(node, indent)
-                insertions.append(
-                    Insertion(index=first_stmt.lineno - 1, lines=doc_lines)
-                )
+                insertions.append(Insertion(index=first_stmt.lineno - 1, lines=doc_lines))
         elif isinstance(node, ast.ClassDef):
             if not ast.get_docstring(node, clean=False):
                 indent = first_body_indent(lines, node.lineno + 1)
@@ -364,9 +347,7 @@ def _is_valid_docstring(node: ast.AST, tree: ast.AST) -> bool:
         and tree.body
         and isinstance(tree.body[0], ast.Expr)
         and isinstance(getattr(tree.body[0], "value", None), ast.Constant)
-        and isinstance(
-            cast(ast.Constant, cast(ast.Expr, tree.body[0]).value).value, str
-        )
+        and isinstance(cast(ast.Constant, cast(ast.Expr, tree.body[0]).value).value, str)
         and id(node) == id(tree.body[0])
     ):
         return True
@@ -374,9 +355,7 @@ def _is_valid_docstring(node: ast.AST, tree: ast.AST) -> bool:
     # Docstring de fonction/classe
     for parent_node in ast.walk(tree):
         if (
-            isinstance(
-                parent_node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-            )
+            isinstance(parent_node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
             and parent_node.body
             and isinstance(parent_node.body[0], ast.Expr)
             and id(node) == id(parent_node.body[0])
@@ -394,9 +373,7 @@ def _record_node_span(node: ast.AST, to_remove: list[tuple[int, int]]) -> None:
         to_remove.append((ln - 1, (eln or ln) - 1))
 
 
-def _remove_stray_string_exprs(
-    lines: list[str], tree: ast.AST
-) -> tuple[list[str], int]:
+def _remove_stray_string_exprs(lines: list[str], tree: ast.AST) -> tuple[list[str], int]:
     """Supprime les expressions de chaîne orphelines qui ne sont pas des docstrings."""
     to_remove: list[tuple[int, int]] = []
 
@@ -433,13 +410,10 @@ def _replace_placeholder_docstrings(
     # Module docstring
     if isinstance(tree, ast.Module) and tree.body:
         n0: ast.AST = tree.body[0]
-        if isinstance(n0, ast.Expr) and isinstance(
-            getattr(n0, "value", None), ast.Constant
-        ):
+        if isinstance(n0, ast.Expr) and isinstance(getattr(n0, "value", None), ast.Constant):
             const0: ast.Constant = cast(ast.Constant, n0.value)
             if isinstance(const0.value, str) and (
-                _is_placeholder_docstring(const0.value)
-                or "Objectif du module" in const0.value
+                _is_placeholder_docstring(const0.value) or "Objectif du module" in const0.value
             ):
                 header = make_module_docstring(path)
                 start = n0.lineno - 1  # type: ignore[attr-defined]
@@ -463,9 +437,7 @@ def _replace_placeholder_docstrings(
                     replacements.append((start, end, gen))
         elif isinstance(node, ast.ClassDef) and node.body:
             first_c = node.body[0]
-            if isinstance(first_c, ast.Expr) and isinstance(
-                first_c.value, ast.Constant
-            ):
+            if isinstance(first_c, ast.Expr) and isinstance(first_c.value, ast.Constant):
                 const_first_cls: ast.Constant = cast(ast.Constant, first_c.value)
                 if isinstance(const_first_cls.value, str) and _is_placeholder_docstring(
                     const_first_cls.value
@@ -486,8 +458,7 @@ def _replace_placeholder_docstrings(
 
 
 def process_py_file(path: Path) -> tuple[bool, str]:
-    """
-    Traite un fichier Python pour ajouter/mettre à jour les docstrings.
+    """Traite un fichier Python pour ajouter/mettre à jour les docstrings.
 
     Args:
         path: Chemin vers le fichier Python.
@@ -633,9 +604,7 @@ def main() -> None:
     args = parser.parse_args()
 
     root = Path(args.path).resolve()
-    run_for_root(
-        root, do_clean=(not args.no_clean), include_non_python=args.include_non_python
-    )
+    run_for_root(root, do_clean=(not args.no_clean), include_non_python=args.include_non_python)
 
     if args.include_non_python:
         other_changed = process_non_python_files()

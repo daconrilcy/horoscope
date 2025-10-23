@@ -1,5 +1,4 @@
-"""
-Tests pour la rotation des clés OpenAI.
+"""Tests pour la rotation des clés OpenAI.
 
 Ce module teste le processus de rotation des clés OpenAI avec vérification que les secrets ne sont
 pas exposés dans les logs d'audit.
@@ -17,8 +16,7 @@ from typing import Any
 
 
 def test_rotation_audit_does_not_log_secret(monkeypatch: Any, tmp_path: Path) -> None:
-    """
-    Teste que l'audit de rotation ne log pas les secrets.
+    """Teste que l'audit de rotation ne log pas les secrets.
 
     Vérifie que lors de la rotation des clés OpenAI, les secrets ne sont pas exposés dans les logs
     d'audit générés.

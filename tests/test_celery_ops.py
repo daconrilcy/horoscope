@@ -1,5 +1,4 @@
-"""
-Tests pour les opérations Celery.
+"""Tests pour les opérations Celery.
 
 Ce module teste les fonctionnalités d'idempotence, de suivi des échecs et des tâches Celery dans
 l'application.
@@ -39,9 +38,7 @@ def test_render_pdf_task_idempotent(monkeypatch: Any) -> None:
     # Ensure chart exists
 
     chart_id = "c123"
-    container.chart_repo.save(
-        {"id": chart_id, "owner": "t", "chart": {"precision_score": 1}}
-    )
+    container.chart_repo.save({"id": chart_id, "owner": "t", "chart": {"precision_score": 1}})
     r1 = render_pdf_task(chart_id)
     r2 = render_pdf_task(chart_id)
     assert r1 in {"ok", "not_found"}

@@ -29,8 +29,7 @@ def _parse_allowlist(allowlist: str) -> set[str]:
 
 
 def build_metrics_app(allowlist: str) -> Callable[[dict[str, Any], Callable], Any]:
-    """
-    Construit une appli WSGI filtrant par IP avant d'exposer /metrics.
+    """Construit une appli WSGI filtrant par IP avant d'exposer /metrics.
 
     - allowlist: liste d'IP séparées par des virgules (ex: "127.0.0.1,::1").
     """
@@ -51,8 +50,7 @@ def build_metrics_app(allowlist: str) -> Callable[[dict[str, Any], Callable], An
 
 
 def main() -> None:
-    """
-    Point d'entrée CLI.
+    """Point d'entrée CLI.
 
     Démarre un serveur WSGI minimal pour exposer /metrics.
     """

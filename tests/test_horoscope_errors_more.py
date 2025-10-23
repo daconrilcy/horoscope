@@ -1,5 +1,4 @@
-"""
-Tests supplémentaires pour les erreurs d'horoscope premium.
+"""Tests supplémentaires pour les erreurs d'horoscope premium.
 
 Ce module teste des cas d'erreur supplémentaires dans les endpoints d'horoscope premium, incluant
 les thèmes inconnus avec authentification.

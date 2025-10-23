@@ -1,5 +1,4 @@
-"""
-Tests pour la limitation de débit et les budgets.
+"""Tests pour la limitation de débit et les budgets.
 
 Ce module teste les fonctionnalités de limitation de débit par tenant et les contrôles de budget
 dans l'application.

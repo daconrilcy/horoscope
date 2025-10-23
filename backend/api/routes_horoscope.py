@@ -1,5 +1,4 @@
-"""
-Routes liées aux horoscopes: création de thème, lecture quotidienne et PDF.
+"""Routes liées aux horoscopes: création de thème, lecture quotidienne et PDF.
 
 Ce module regroupe les endpoints `/horoscope` pour créer un thème natal, récupérer les informations
 du jour, et générer un PDF sommaire avec cache.
@@ -20,16 +19,13 @@ from backend.domain.pdf_service import render_natal_pdf
 from backend.domain.services import HoroscopeService
 
 router = APIRouter(prefix="/horoscope", tags=["horoscope"])
-service = HoroscopeService(
-    container.astro, container.content_repo, container.chart_repo
-)
+service = HoroscopeService(container.astro, container.content_repo, container.chart_repo)
 current_user_dep = Depends(get_current_user)
 
 
 @router.post("/natal", response_model=NatalResponse)
 def create_natal(payload: BirthRequest):
-    """
-    Crée et enregistre un thème natal.
+    """Crée et enregistre un thème natal.
 
     Paramètres:
     - payload: `BirthRequest` contenant les informations de naissance.
@@ -43,8 +39,7 @@ def create_natal(payload: BirthRequest):
 
 @router.get("/today/{chart_id}", response_model=TodayResponse)
 def get_today(chart_id: str):
-    """
-    Retourne les informations quotidiennes pour un thème existant.
+    """Retourne les informations quotidiennes pour un thème existant.
 
     Paramètres:
     - chart_id: identifiant du thème natal préalablement créé.
@@ -70,16 +65,12 @@ def pdf_natal(chart_id: str):
     pdf_bytes: bytes | None = None
 
     # Try redis cache (reuse user_repo client if present)
-    if getattr(container, "user_repo", None) and getattr(
-        container.settings, "REDIS_URL", None
-    ):
+    if getattr(container, "user_repo", None) and getattr(container.settings, "REDIS_URL", None):
         try:
             raw = container.user_repo.client.get(key)
             if raw:
                 pdf_bytes = (
-                    raw
-                    if isinstance(raw, bytes | bytearray)
-                    else str(raw).encode("latin-1")
+                    raw if isinstance(raw, bytes | bytearray) else str(raw).encode("latin-1")
                 )
         except Exception:
             pass

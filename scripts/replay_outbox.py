@@ -1,7 +1,6 @@
-"""
-Script de rejeu sécurisé de l'outbox de dual-write.
+"""Script de rejeu sécurisé de l'outbox de dual-write.
 
-Ce script rejoue l'outbox de dual-write de manière sécurisée et sort avec un code non-zéro si des
+Ce script rejoue l'outbox de dual-write de manière sécurisée et sort avec un code non- zéro si des
 échecs persistent.
 """
 

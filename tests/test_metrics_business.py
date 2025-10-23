@@ -1,5 +1,4 @@
-"""
-Tests pour les métriques business.
+"""Tests pour les métriques business.
 
 Ce module teste les métriques business importantes pour le monitoring de l'application astrologique.
 """
@@ -34,9 +33,7 @@ def test_chat_and_retrieval_business_metrics() -> None:
     )
     chart_id = r.json()["id"]
     # Call chat advise without auth; may be 401/403 but metrics should be present
-    c.post(
-        "/chat/advise", json={"chart_id": chart_id, "question": "Hello?"}, headers={}
-    )
+    c.post("/chat/advise", json={"chart_id": chart_id, "question": "Hello?"}, headers={})
     # Trigger retrieval search to update hit ratio
     c.post("/internal/retrieval/search", json={"query": "x", "top_k": 2})
 

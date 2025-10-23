@@ -1,5 +1,4 @@
-"""
-Tests pour les chemins de configuration du container.
+"""Tests pour les chemins de configuration du container.
 
 Ce module teste les différents chemins de configuration du container selon les variables
 d'environnement et les dépendances disponibles.
@@ -57,6 +56,4 @@ def test_container_require_redis_without_url_raises(monkeypatch: Any) -> None:
         Container()
     except RuntimeError:
         raised = True
-    assert (
-        raised
-    ), "Container should raise when REQUIRE_REDIS=true and REDIS_URL is missing"
+    assert raised, "Container should raise when REQUIRE_REDIS=true and REDIS_URL is missing"

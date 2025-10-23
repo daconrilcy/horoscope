@@ -1,5 +1,4 @@
-"""
-Configuration centralisée Celery pour les tâches asynchrones.
+"""Configuration centralisée Celery pour les tâches asynchrones.
 
 Ce module définit la configuration globale de Celery incluant les politiques de retry, timeouts et
 limites de connexion au broker.

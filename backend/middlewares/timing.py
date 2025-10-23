@@ -1,5 +1,4 @@
-"""
-Middleware Starlette pour mesurer le temps de traitement des requêtes.
+"""Middleware Starlette pour mesurer le temps de traitement des requêtes.
 
 Ce module implémente un middleware qui ajoute l'en-tête X-Process-Time- ms avec la durée de
 traitement en millisecondes pour le monitoring des performances.
@@ -13,16 +12,14 @@ from starlette.types import ASGIApp
 
 
 class TimingMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware pour mesurer le temps de traitement des requêtes.
+    """Middleware pour mesurer le temps de traitement des requêtes.
 
     Mesure la durée de traitement de chaque requête HTTP et l'ajoute comme en-tête de réponse pour
     le monitoring des performances.
     """
 
     def __init__(self, app: ASGIApp, header_name: str = "X-Process-Time-ms") -> None:
-        """
-        Initialise le middleware avec le nom d'en-tête spécifié.
+        """Initialise le middleware avec le nom d'en-tête spécifié.
 
         Args:
             app: Application ASGI à wrapper.
@@ -32,8 +29,7 @@ class TimingMiddleware(BaseHTTPMiddleware):
         self.header_name = header_name
 
     async def dispatch(self, request, call_next: Callable):
-        """
-        Traite une requête en mesurant son temps de traitement.
+        """Traite une requête en mesurant son temps de traitement.
 
         Args:
             request: Requête HTTP entrante.

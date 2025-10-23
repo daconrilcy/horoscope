@@ -1,5 +1,4 @@
-"""
-Script d'ingestion de contenus pour l'index de recherche.
+"""Script d'ingestion de contenus pour l'index de recherche.
 
 Ce script lit un fichier JSON de snippets textuels et les indexe via le
 `Retriever` (qui utilise un magasin vectoriel minimal). Il est conçu pour
@@ -26,8 +25,7 @@ from backend.domain.retriever import Retriever  # noqa: E402
 
 
 def _load_documents(path: str) -> list[Document]:
-    """
-    Charge les snippets depuis `path` et construit des `Document`.
+    """Charge les snippets depuis `path` et construit des `Document`.
 
     Retourne une liste vide si le fichier n'existe pas.
     """
@@ -50,9 +48,7 @@ def _load_documents(path: str) -> list[Document]:
 
 def main() -> None:
     """Point d'entrée: lit le JSON et indexe les documents."""
-    parser = argparse.ArgumentParser(
-        description="Ingestion de contenus JSON vers l'index"
-    )
+    parser = argparse.ArgumentParser(description="Ingestion de contenus JSON vers l'index")
     parser.add_argument(
         "--path",
         type=str,

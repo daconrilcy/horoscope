@@ -1,5 +1,4 @@
-"""
-Tests pour les erreurs API Gateway et middleware d'idempotence.
+"""Tests pour les erreurs API Gateway et middleware d'idempotence.
 
 Ce module teste la gestion des erreurs standardisées, les middlewares d'idempotence, de tracing et
 de versioning de l'API Gateway.
@@ -678,9 +677,7 @@ class TestAPIVersionMiddlewareMethods:
         call_next.assert_called_once_with(request)
 
         # Should not cache error responses
-        cached = asyncio.run(
-            store.get("test-key-123", middleware._generate_request_hash(request))
-        )
+        cached = asyncio.run(store.get("test-key-123", middleware._generate_request_hash(request)))
         assert cached is None
 
     def test_generate_request_hash(self) -> None:

@@ -1,5 +1,4 @@
-"""
-Tests pour le module d'idempotence.
+"""Tests pour le module d'idempotence.
 
 Ce module teste les fonctionnalités d'idempotence pour les tâches, incluant la gestion des clés,
 l'expiration et les opérations de cache.
@@ -180,15 +179,11 @@ def test_failure_tracker_record_failure() -> None:
     tracker = FailureTracker()
 
     # Enregistrer une défaillance
-    result = tracker.on_failure(
-        "task_1", "task_id_1", max_failures=2, reason="test_error"
-    )
+    result = tracker.on_failure("task_1", "task_id_1", max_failures=2, reason="test_error")
     assert result is False  # Pas encore au seuil
 
     # Enregistrer une deuxième défaillance
-    result = tracker.on_failure(
-        "task_1", "task_id_2", max_failures=2, reason="test_error"
-    )
+    result = tracker.on_failure("task_1", "task_id_2", max_failures=2, reason="test_error")
     assert result is False  # Toujours pas au seuil
 
 

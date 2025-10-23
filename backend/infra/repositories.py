@@ -1,5 +1,4 @@
-"""
-Repositories pour la gestion des données.
+"""Repositories pour la gestion des données.
 
 Ce module fournit des implémentations de repositories pour différents types de données, avec des
 versions en mémoire et Redis.
@@ -12,8 +11,7 @@ import redis
 
 
 class InMemoryChartRepo:
-    """
-    Dépôt de thèmes en mémoire (utilisé pour dev/tests).
+    """Dépôt de thèmes en mémoire (utilisé pour dev/tests).
 
     Stocke les enregistrements dans un dict local, non persistant.
     """

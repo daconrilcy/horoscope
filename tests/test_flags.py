@@ -1,5 +1,4 @@
-"""
-Tests pour les feature flags.
+"""Tests pour les feature flags.
 
 Ce module teste le comportement des feature flags et leur configuration via les variables
 d'environnement.
@@ -41,7 +40,10 @@ def test_shadow_sample_rate_fallback_env_var(monkeypatch) -> None:
 
 
 def test_shadow_sample_rate_default(monkeypatch) -> None:
-    """Teste la valeur par défaut quand aucune variable d'environnement n'est définie."""
+    """Teste la valeur par défaut.
+
+    Teste la valeur par défaut quand aucune variable d'environnement n'est définie.
+    """
     monkeypatch.delenv("FF_RETRIEVAL_SHADOW_SAMPLE_RATE", raising=False)
     monkeypatch.delenv("RETRIEVAL_SHADOW_SAMPLE_RATE", raising=False)
     assert f.shadow_sample_rate() == DEFAULT_SHADOW_SAMPLE_RATE

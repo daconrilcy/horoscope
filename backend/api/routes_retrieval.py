@@ -3,8 +3,7 @@
 # Objet  : Endpoints internes pour /internal/retrieval/*.
 # Notes  : Valider tailles input, labels tenant, sans données sensibles.
 # ============================================================
-"""
-Routes de récupération de documents et d'embeddings.
+"""Routes de récupération de documents et d'embeddings.
 
 Ce module fournit les endpoints internes pour la recherche de documents, la génération d'embeddings
 et la gestion des vecteurs de recherche.
@@ -53,8 +52,7 @@ class SearchRequest(BaseModel):
 
 @router.post("/embed")
 def embed(req: EmbedRequest) -> dict:
-    """
-    Encode une liste de textes.
+    """Encode une liste de textes.
 
     Returns:
         dict: {"vectors": [[...], ...]}
@@ -67,8 +65,7 @@ def embed(req: EmbedRequest) -> dict:
 
 @router.post("/search")
 def search(req: SearchRequest, request: Request) -> dict:
-    """
-    Recherche sémantique sur le corpus indexé.
+    """Recherche sémantique sur le corpus indexé.
 
     Returns:
         dict: {"results": [{"id": str, "score": float, "metadata": dict}, ...]}
@@ -78,18 +75,12 @@ def search(req: SearchRequest, request: Request) -> dict:
     if not q:
         raise HTTPException(status_code=HTTP_STATUS_BAD_REQUEST, detail="query vide")
     if req.top_k < MIN_TOP_K or req.top_k > MAX_TOP_K:
-        raise HTTPException(
-            status_code=HTTP_STATUS_BAD_REQUEST, detail="top_k invalide"
-        )
+        raise HTTPException(status_code=HTTP_STATUS_BAD_REQUEST, detail="top_k invalide")
     if req.offset < 0:
-        raise HTTPException(
-            status_code=HTTP_STATUS_BAD_REQUEST, detail="offset invalide"
-        )
+        raise HTTPException(status_code=HTTP_STATUS_BAD_REQUEST, detail="offset invalide")
 
     # Correlation id / trace id (via header Request-ID si présent)
-    request_id = request.headers.get("X-Request-ID") or request.headers.get(
-        "X-Correlation-ID"
-    )
+    request_id = request.headers.get("X-Request-ID") or request.headers.get("X-Correlation-ID")
     logger = structlog.get_logger(__name__).bind(request_id=request_id)
     logger.info("retrieval_search", top_k=req.top_k, offset=req.offset)
 
@@ -111,12 +102,8 @@ def search(req: SearchRequest, request: Request) -> dict:
             HTTP_STATUS_BAD_REQUEST,
             HTTP_STATUS_UNPROCESSABLE_ENTITY,
         ):
-            raise HTTPException(
-                status_code=exc.status_code, detail="invalid request"
-            ) from exc
-        raise HTTPException(
-            status_code=HTTP_STATUS_BAD_REQUEST, detail="client error"
-        ) from exc
+            raise HTTPException(status_code=exc.status_code, detail="invalid request") from exc
+        raise HTTPException(status_code=HTTP_STATUS_BAD_REQUEST, detail="client error") from exc
     except RetrievalNetworkError as exc:
         # Transformer les erreurs réseau en 502 côté API, comme requis par #2.
         raise HTTPException(

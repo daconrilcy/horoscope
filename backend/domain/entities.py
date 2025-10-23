@@ -1,5 +1,4 @@
-"""
-Entités du domaine métier.
+"""Entités du domaine métier.
 
 Ce module définit les modèles de données principaux utilisés dans l'application astrologique.
 """

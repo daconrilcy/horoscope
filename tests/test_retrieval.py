@@ -1,5 +1,4 @@
-"""
-Tests pour la récupération de documents.
+"""Tests pour la récupération de documents.
 
 Ce module teste les fonctionnalités de recherche vectorielle et de récupération de documents dans
 l'application.

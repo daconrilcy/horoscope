@@ -1,5 +1,4 @@
-"""
-Tests pour l'adaptateur Weaviate via l'API FastAPI.
+"""Tests pour l'adaptateur Weaviate via l'API FastAPI.
 
 Ce module teste l'intégration de l'adaptateur Weaviate avec l'API FastAPI, incluant la gestion des
 erreurs réseau et du rate limiting.
@@ -42,8 +41,7 @@ class _DummyResp:
 
 
 def test_weaviate_search_ok(monkeypatch: Any) -> None:
-    """
-    Teste une recherche Weaviate réussie.
+    """Teste une recherche Weaviate réussie.
 
     Vérifie que l'adaptateur Weaviate fonctionne correctement avec une réponse GraphQL valide et
     retourne les bons résultats.
@@ -93,8 +91,7 @@ def test_weaviate_search_ok(monkeypatch: Any) -> None:
 
 
 def test_weaviate_search_502_on_network(monkeypatch: Any) -> None:
-    """
-    Teste la gestion des erreurs réseau avec Weaviate.
+    """Teste la gestion des erreurs réseau avec Weaviate.
 
     Vérifie qu'une erreur réseau lors de l'appel à Weaviate retourne correctement un code d'erreur
     502.
@@ -126,8 +123,7 @@ def test_weaviate_search_502_on_network(monkeypatch: Any) -> None:
 
 
 def test_weaviate_429_rate_limit(monkeypatch: Any) -> None:
-    """
-    Teste la gestion du rate limiting avec Weaviate.
+    """Teste la gestion du rate limiting avec Weaviate.
 
     Vérifie qu'une réponse 429 de Weaviate est correctement propagée au client avec le bon code
     d'erreur.
@@ -167,8 +163,7 @@ def test_weaviate_429_rate_limit(monkeypatch: Any) -> None:
 
 
 def test_search_topk_bounds_and_offset_errors() -> None:
-    """
-    Teste la validation des paramètres top_k et offset.
+    """Teste la validation des paramètres top_k et offset.
 
     Vérifie que les valeurs invalides pour top_k (hors limites) et offset (négatif) retournent des
     erreurs 400.
@@ -183,7 +178,5 @@ def test_search_topk_bounds_and_offset_errors() -> None:
     assert resp.status_code == TEST_HTTP_STATUS_BAD_REQUEST
     resp2 = client.post("/internal/retrieval/search", json={"query": "x", "top_k": 51})
     assert resp2.status_code == TEST_HTTP_STATUS_BAD_REQUEST
-    resp3 = client.post(
-        "/internal/retrieval/search", json={"query": "x", "top_k": 5, "offset": -1}
-    )
+    resp3 = client.post("/internal/retrieval/search", json={"query": "x", "top_k": 5, "offset": -1})
     assert resp3.status_code == TEST_HTTP_STATUS_BAD_REQUEST

@@ -1,5 +1,4 @@
-"""
-Interface de base pour les magasins vectoriels.
+"""Interface de base pour les magasins vectoriels.
 
 Ce module définit l'interface abstraite que doivent implémenter tous les magasins vectoriels pour la
 recherche de documents.
@@ -31,8 +30,7 @@ class VectorStoreProtocol(Protocol):
     """Protocole pour les magasins vectoriels avec support multi-tenant."""
 
     def index_for_tenant(self, tenant: str, docs: list[Document]) -> int:
-        """
-        Indexe des documents pour un tenant spécifique.
+        """Indexe des documents pour un tenant spécifique.
 
         Args:
             tenant: Identifiant du tenant.
@@ -43,8 +41,7 @@ class VectorStoreProtocol(Protocol):
         """
 
     def search_for_tenant(self, tenant: str, q: Query) -> list[ScoredDocument]:
-        """
-        Recherche des documents pour un tenant spécifique.
+        """Recherche des documents pour un tenant spécifique.
 
         Args:
             tenant: Identifiant du tenant.
@@ -55,8 +52,7 @@ class VectorStoreProtocol(Protocol):
         """
 
     def purge_tenant(self, tenant: str) -> None:
-        """
-        Supprime toutes les données d'un tenant.
+        """Supprime toutes les données d'un tenant.
 
         Args:
             tenant: Identifiant du tenant à purger.

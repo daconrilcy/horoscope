@@ -1,5 +1,4 @@
-"""
-Script de drill de rollback vers FAISS uniquement.
+"""Script de drill de rollback vers FAISS uniquement.
 
 Ce script effectue un drill de rollback (dry-run ou application) et ajoute un journal NDJSON pour
 l'audit des opérations de rollback.

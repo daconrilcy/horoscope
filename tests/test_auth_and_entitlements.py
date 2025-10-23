@@ -1,5 +1,4 @@
-"""
-Tests pour l'authentification et les permissions.
+"""Tests pour l'authentification et les permissions.
 
 Ce module teste les fonctionnalités d'authentification, d'inscription, de connexion et de gestion
 des permissions utilisateur.
@@ -31,7 +30,10 @@ def _create_chart(client: TestClient) -> str:
 
 
 def test_signup_login_and_premium_gate():
-    """Teste le flux complet d'inscription, connexion et vérification des permissions."""
+    """Teste le flux complet.
+
+    Teste le flux complet d'inscription, connexion et vérification des permissions.
+    """
     c = TestClient(app)
     # signup with plus entitlement
     r = c.post(

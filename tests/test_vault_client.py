@@ -1,5 +1,4 @@
-"""
-Tests pour le client Vault avec lecture et fallback environnement.
+"""Tests pour le client Vault avec lecture et fallback environnement.
 
 Ce module teste le client Vault incluant la lecture des secrets depuis l'environnement mock et le
 fallback vers les variables d'environnement.
@@ -19,8 +18,7 @@ from backend.infra.secrets.vault_client import VaultClient
 
 
 def test_vault_reads_mock_env(monkeypatch: Any) -> None:
-    """
-    Teste la lecture des secrets depuis l'environnement mock de Vault.
+    """Teste la lecture des secrets depuis l'environnement mock de Vault.
 
     Vérifie que le client Vault peut lire correctement les secrets configurés via les variables
     d'environnement mock.
@@ -33,8 +31,7 @@ def test_vault_reads_mock_env(monkeypatch: Any) -> None:
 
 
 def test_container_fallback_env_when_vault_disabled(monkeypatch: Any) -> None:
-    """
-    Teste le fallback vers l'environnement quand Vault est désactivé.
+    """Teste le fallback vers l'environnement quand Vault est désactivé.
 
     Vérifie que le container utilise les variables d'environnement standard quand Vault est
     désactivé.

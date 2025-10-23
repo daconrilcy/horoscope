@@ -1,5 +1,4 @@
-"""
-Tests pour l'application des garde-fous LLM.
+"""Tests pour l'application des garde-fous LLM.
 
 Ce module teste l'application stricte des garde-fous LLM et les métriques associées.
 """
@@ -26,9 +25,7 @@ from backend.core.container import container
 class _FakeLLM:
     """LLM factice pour les tests qui retourne une réponse simple."""
 
-    def generate(
-        self, messages: list[dict[str, Any]]
-    ) -> str:  # pragma: no cover - trivial
+    def generate(self, messages: list[dict[str, Any]]) -> str:  # pragma: no cover - trivial
         return "ok"
 
 
@@ -43,7 +40,10 @@ def _token(client: TestClient) -> str:
 
 
 def test_guard_warns_when_not_enforced(monkeypatch: Any) -> None:
-    """Teste que les garde-fous émettent des avertissements quand ils ne sont pas appliqués."""
+    """Teste que les garde-fous.
+
+    Teste que les garde-fous émettent des avertissements quand ils ne sont pas appliqués.
+    """
     app = FastAPI()
     app.include_router(auth_router)
     app.include_router(chat_router)

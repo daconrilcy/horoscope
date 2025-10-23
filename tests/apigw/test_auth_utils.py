@@ -1,5 +1,4 @@
-"""
-Tests pour le trust model JWT > header + anti-spoof.
+"""Tests pour le trust model JWT > header + anti-spoof.
 
 Tests de précédence JWT, détection de spoof, et cas internes.
 """
@@ -88,9 +87,7 @@ class TestExtractTenantSecure:
             user_state={"tenant": "jwt_tenant"},
         )
 
-        with patch(
-            "backend.apigw.auth_utils.APIGW_TENANT_SPOOF_ATTEMPTS"
-        ) as mock_metrics:
+        with patch("backend.apigw.auth_utils.APIGW_TENANT_SPOOF_ATTEMPTS") as mock_metrics:
             tenant, source, is_spoof = extract_tenant_secure(request)
 
             assert tenant == "jwt_tenant"  # JWT wins
@@ -119,9 +116,7 @@ class TestExtractTenantSecure:
             user_state={"tenant": "jwt_tenant"},
         )
 
-        with patch(
-            "backend.apigw.auth_utils.APIGW_TENANT_SPOOF_ATTEMPTS"
-        ) as mock_metrics:
+        with patch("backend.apigw.auth_utils.APIGW_TENANT_SPOOF_ATTEMPTS") as mock_metrics:
             tenant, source, is_spoof = extract_tenant_secure(request)
 
             assert tenant == "jwt_tenant"  # JWT still wins

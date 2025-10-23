@@ -1,5 +1,4 @@
-"""
-Tests supplémentaires pour les erreurs d'horoscope.
+"""Tests supplémentaires pour les erreurs d'horoscope.
 
 Ce module teste des cas d'erreur supplémentaires dans les endpoints d'horoscope, incluant les thèmes
 inconnus.

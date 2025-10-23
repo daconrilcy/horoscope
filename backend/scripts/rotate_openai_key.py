@@ -1,5 +1,4 @@
-"""
-Script d'aide à la rotation manuelle des clés OpenAI.
+"""Script d'aide à la rotation manuelle des clés OpenAI.
 
 Ce script facilite la rotation des clés OpenAI avec audit uniquement, sans afficher les valeurs
 secrètes et en écrivant des traces d'audit.
@@ -23,8 +22,7 @@ Notes:
 
 
 def main() -> None:
-    """
-    Point d'entrée principal pour la rotation des clés OpenAI.
+    """Point d'entrée principal pour la rotation des clés OpenAI.
 
     Enregistre une rotation de clé OpenAI à des fins d'audit sans jamais exposer la valeur du
     secret.

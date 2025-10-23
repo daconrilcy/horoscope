@@ -1,5 +1,4 @@
-"""
-Fakes et mocks pour les tests unitaires.
+"""Fakes et mocks pour les tests unitaires.
 
 Ce module fournit des implémentations factices des interfaces Embeddings et LLM pour les tests
 unitaires avec comportement déterministe.
@@ -14,16 +13,14 @@ from backend.infra.llm.base import LLM
 
 
 class FakeEmbeddings(Embeddings):
-    """
-    Implémentation factice d'Embeddings pour les tests.
+    """Implémentation factice d'Embeddings pour les tests.
 
     Génère des embeddings déterministes basés sur la longueur du texte pour faciliter les tests
     unitaires.
     """
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        """
-        Génère des embeddings factices basés sur la longueur.
+        """Génère des embeddings factices basés sur la longueur.
 
         Args:
             texts: Liste des textes à convertir en embeddings.
@@ -36,8 +33,7 @@ class FakeEmbeddings(Embeddings):
 
 
 class FakeLLM(LLM):
-    """
-    Implémentation factice de LLM pour les tests.
+    """Implémentation factice de LLM pour les tests.
 
     Retourne toujours la même réponse prédéfinie pour faciliter les tests unitaires sans dépendances
     externes.
@@ -68,8 +64,7 @@ class FakeLLM(LLM):
         with_usage: bool = False,
         **kwargs: Any,
     ) -> str | tuple[str, dict[str, int]]:
-        """
-        Génère une réponse factice prédéfinie.
+        """Génère une réponse factice prédéfinie.
 
         Args:
             messages: Liste des messages de conversation (ignorés).

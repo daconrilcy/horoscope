@@ -1,5 +1,4 @@
-"""
-Routes d'authentification pour l'API.
+"""Routes d'authentification pour l'API.
 
 Ce module fournit les endpoints d'inscription, de connexion et de gestion des tokens
 d'authentification pour l'application.
@@ -78,9 +77,7 @@ def get_current_user(authorization: str = Header(None)):
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="missing_token")
     token = authorization.split(" ", 1)[1]
-    data = decode_token(
-        token, container.settings.JWT_SECRET, container.settings.JWT_ALG
-    )
+    data = decode_token(token, container.settings.JWT_SECRET, container.settings.JWT_ALG)
     if not data:
         raise HTTPException(status_code=401, detail="invalid_token")
     user = container.user_repo.get_by_email(str(data.email))

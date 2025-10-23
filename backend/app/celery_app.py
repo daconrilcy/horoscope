@@ -32,8 +32,6 @@ except Exception as exc:  # ne jamais casser le worker pour l'observabilité
     # Log minimal sans secrets
     import logging
 
-    logging.getLogger(__name__).warning(
-        "celery_signals_binding_failed: %s", type(exc).__name__
-    )
+    logging.getLogger(__name__).warning("celery_signals_binding_failed: %s", type(exc).__name__)
 
 __all__ = ["celery_app"]

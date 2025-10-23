@@ -2,8 +2,7 @@
 # Tests : tests/test_llm_guard.py
 # Objet  : Garde-fous LLM (anti prompt-injection + PII masking).
 # ============================================================
-"""
-Tests pour les garde-fous LLM.
+"""Tests pour les garde-fous LLM.
 
 Ce module teste les fonctionnalités de protection contre l'injection de prompts et le masquage des
 données personnelles.
@@ -29,9 +28,7 @@ from backend.core.container import container
 class _FakeLLM:
     """LLM factice pour les tests qui retourne des données PII."""
 
-    def generate(
-        self, messages: list[dict[str, Any]]
-    ) -> str:  # pragma: no cover - trivial
+    def generate(self, messages: list[dict[str, Any]]) -> str:  # pragma: no cover - trivial
         return "Contact me at john.doe@example.com or +33 6 12 34 56 78"
 
 

@@ -1,5 +1,4 @@
-"""
-Client LLM basé sur l'API OpenAI avec fallback déterministe.
+"""Client LLM basé sur l'API OpenAI avec fallback déterministe.
 
 Implémente l'interface LLM en supportant:
 - chat.completions (SDK OpenAI)
@@ -20,8 +19,7 @@ from backend.infra.llm.base import LLM
 
 
 class OpenAILLM(LLM):
-    """
-    LLM basé sur OpenAI avec fallback.
+    """LLM basé sur OpenAI avec fallback.
 
     Utilise l'API OpenAI si le SDK et la clé API sont disponibles, sinon renvoie une réponse
     déterministe pour les tests.
@@ -61,8 +59,7 @@ class OpenAILLM(LLM):
         with_usage: bool = False,
         **kwargs: Any,
     ) -> str | tuple[str, dict[str, int]]:
-        """
-        Génère du texte (et éventuellement les métriques d'usage).
+        """Génère du texte (et éventuellement les métriques d'usage).
 
         - with_usage=False (défaut) -> str
         - with_usage=True -> (str, dict[str, int])
@@ -86,9 +83,7 @@ class OpenAILLM(LLM):
 
     # -------------------- Helpers internes --------------------
 
-    def _fallback_response(
-        self, messages: list[dict[str, str]]
-    ) -> tuple[str, dict[str, int]]:
+    def _fallback_response(self, messages: list[dict[str, str]]) -> tuple[str, dict[str, int]]:
         """Réponse déterministe (utile pour tests), usage vide."""
         last = messages[-1]["content"] if messages else ""
         return f"FAKE_OPENAI: {last[:80]}".strip(), {}
@@ -131,8 +126,7 @@ class OpenAILLM(LLM):
         return None
 
     def _extract_usage_dict(self, resp: Any) -> dict[str, int]:
-        """
-        Extrait les infos d'usage depuis la réponse OpenAI.
+        """Extrait les infos d'usage depuis la réponse OpenAI.
 
         Toujours un dict.
         """

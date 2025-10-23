@@ -1,5 +1,4 @@
-"""
-Rate limiting et quotas par tenant pour l'API Gateway.
+"""Rate limiting et quotas par tenant pour l'API Gateway.
 
 Ce module implémente un système de rate limiting basé sur des fenêtres glissantes avec support des
 quotas par tenant, métriques Prometheus et gestion des erreurs 429 avec Retry-After.
@@ -82,9 +81,7 @@ class SlidingWindowRateLimiter:
             # Calculate retry after
             if self._windows[tenant]:
                 oldest_request = min(self._windows[tenant])
-                retry_after = int(
-                    self.config.window_size_seconds - (current_time - oldest_request)
-                )
+                retry_after = int(self.config.window_size_seconds - (current_time - oldest_request))
                 retry_after = max(1, retry_after)
             else:
                 retry_after = self.config.window_size_seconds
@@ -169,9 +166,7 @@ class TenantRateLimitMiddleware(BaseHTTPMiddleware):
 
                 # Increment low-cardinality metrics
                 APIGW_RATE_LIMIT_DECISIONS.labels(route=route, result="block").inc()
-                APIGW_RATE_LIMIT_BLOCKS.labels(
-                    route=route, reason="rate_exceeded"
-                ).inc()
+                APIGW_RATE_LIMIT_BLOCKS.labels(route=route, reason="rate_exceeded").inc()
 
                 # Return 429 with Retry-After header
                 response = create_error_response(
@@ -189,19 +184,14 @@ class TenantRateLimitMiddleware(BaseHTTPMiddleware):
                 return response
 
             # Check if near limit (for pre-alerting)
-            if (
-                result.remaining / redis_store.settings.RL_MAX_REQ_PER_WINDOW
-                < NEAR_LIMIT_THRESHOLD
-            ):
+            if result.remaining / redis_store.settings.RL_MAX_REQ_PER_WINDOW < NEAR_LIMIT_THRESHOLD:
                 APIGW_RATE_LIMIT_NEAR_LIMIT.labels(route=route).inc()
 
             # Add rate limit headers to successful responses
             response = await call_next(request)
 
             # Add rate limit headers
-            response.headers["X-RateLimit-Limit"] = str(
-                redis_store.settings.RL_MAX_REQ_PER_WINDOW
-            )
+            response.headers["X-RateLimit-Limit"] = str(redis_store.settings.RL_MAX_REQ_PER_WINDOW)
             response.headers["X-RateLimit-Remaining"] = str(result.remaining)
             response.headers["X-RateLimit-Reset"] = str(int(result.reset_time))
 
@@ -213,9 +203,7 @@ class TenantRateLimitMiddleware(BaseHTTPMiddleware):
         finally:
             # Record evaluation time
             evaluation_time = time.perf_counter() - start_time
-            APIGW_RATE_LIMIT_EVALUATION_TIME.labels(route=route).observe(
-                evaluation_time
-            )
+            APIGW_RATE_LIMIT_EVALUATION_TIME.labels(route=route).observe(evaluation_time)
 
     def _extract_tenant(self, request: Request) -> str:
         """Extract tenant identifier from request (legacy method)."""
@@ -306,16 +294,12 @@ class QuotaMiddleware(BaseHTTPMiddleware):
         if path.startswith("/v1/chat/"):
             # Check chat quota
             if not self._check_endpoint_quota(tenant, "chat_requests_per_hour"):
-                return self._create_quota_exceeded_response(
-                    request, tenant, "chat requests"
-                )
+                return self._create_quota_exceeded_response(request, tenant, "chat requests")
 
         elif path.startswith("/v1/retrieval/") and not self._check_endpoint_quota(
             tenant, "retrieval_requests_per_hour"
         ):
-            return self._create_quota_exceeded_response(
-                request, tenant, "retrieval requests"
-            )
+            return self._create_quota_exceeded_response(request, tenant, "retrieval requests")
 
         return await call_next(request)
 

@@ -1,5 +1,4 @@
-"""
-Tests pour le flux de génération d'horoscopes.
+"""Tests pour le flux de génération d'horoscopes.
 
 Ce module teste le flux complet de génération d'horoscopes du thème natal aux transits du jour et au
 PDF.

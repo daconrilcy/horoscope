@@ -1,5 +1,4 @@
-"""
-Script de test de flux complet de chat.
+"""Script de test de flux complet de chat.
 
 Ce script teste le flux complet de l'application : inscription, connexion, création de thème natal
 et conseil via chat.
@@ -14,8 +13,7 @@ from backend.domain.chat_orchestrator import ChatOrchestrator
 
 
 def run():
-    """
-    Exécute un test de flux complet de chat.
+    """Exécute un test de flux complet de chat.
 
     Simule un flux utilisateur complet incluant l'inscription, la connexion, la création d'un thème
     natal et une interaction de chat.

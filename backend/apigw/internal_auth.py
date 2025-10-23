@@ -1,5 +1,4 @@
-"""
-Signature HMAC pour les headers internes.
+"""Signature HMAC pour les headers internes.
 
 Ce module implémente la vérification cryptographique des headers internes pour sécuriser le trafic
 entre services.
@@ -30,8 +29,7 @@ class InternalAuthVerifier:
         self._nonce_ttl = 600  # 10 minutes
 
     def verify_internal_auth(self, request: Request) -> bool:
-        """
-        Verify internal authentication header with HMAC signature.
+        """Verify internal authentication header with HMAC signature.
 
         Headers expected:
         - X-Internal-Auth: HMAC signature
@@ -134,9 +132,7 @@ class InternalAuthVerifier:
         message = f"{version}:{timestamp}:{nonce}:{method}:{path}"
 
         # Generate HMAC-SHA256 signature
-        signature = hmac.new(
-            secret_key.encode(), message.encode(), hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(secret_key.encode(), message.encode(), hashlib.sha256).hexdigest()
 
         return signature
 
@@ -160,9 +156,7 @@ class InternalAuthVerifier:
         # Clean expired nonces
         current_time = time.time()
         expired_nonces = [
-            n
-            for n, t in self._nonce_cache.items()
-            if current_time - t > self._nonce_ttl
+            n for n, t in self._nonce_cache.items() if current_time - t > self._nonce_ttl
         ]
         for expired_nonce in expired_nonces:
             del self._nonce_cache[expired_nonce]
@@ -173,8 +167,7 @@ internal_auth_verifier = InternalAuthVerifier()
 
 
 def verify_internal_traffic(request: Request) -> bool:
-    """
-    Verify if request is from internal/trusted source.
+    """Verify if request is from internal/trusted source.
 
     This function extends the basic internal traffic detection with cryptographic verification when
     HMAC headers are present.
@@ -188,8 +181,7 @@ def verify_internal_traffic(request: Request) -> bool:
 
 
 def _is_internal_traffic_basic(request: Request) -> bool:
-    """
-    Detect basic internal traffic (fallback).
+    """Detect basic internal traffic (fallback).
 
     This can be extended based on your infrastructure:
     - Check source IP ranges

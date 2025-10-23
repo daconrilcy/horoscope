@@ -38,7 +38,5 @@ class ContentVersionORM(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.now(UTC))
 
     __table_args__ = (
-        UniqueConstraint(
-            "source", "version", "tenant", name="uq_source_version_tenant"
-        ),
+        UniqueConstraint("source", "version", "tenant", name="uq_source_version_tenant"),
     )

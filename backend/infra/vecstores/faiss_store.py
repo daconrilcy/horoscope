@@ -1,5 +1,4 @@
-"""
-FAISS-backed vector store (Faiss-only, no fallback).
+"""FAISS-backed vector store (Faiss-only, no fallback).
 
 Requires `faiss-cpu` and `numpy` to be installed. Uses inner-product
 similarity (IndexFlatIP) for retrieval.
@@ -30,8 +29,7 @@ from backend.infra.vecstores.base import VectorStore, VectorStoreProtocol
 
 
 class FAISSVectorStore(VectorStore):
-    """
-    Store vectoriel FAISS pour l'indexation et la recherche.
+    """Store vectoriel FAISS pour l'indexation et la recherche.
 
     Implémente un store vectoriel utilisant FAISS avec support pour différents embedders (OpenAI ou
     local).
@@ -40,8 +38,7 @@ class FAISSVectorStore(VectorStore):
     embedder: OpenAIEmbedder | LocalEmbedder
 
     def __init__(self) -> None:
-        """
-        Initialise le store FAISS avec l'embedder approprié.
+        """Initialise le store FAISS avec l'embedder approprié.
 
         Sélectionne automatiquement l'embedder selon la configuration (OpenAI si clé API disponible,
         sinon local).
@@ -70,8 +67,7 @@ class FAISSVectorStore(VectorStore):
             self.index_ip = faiss.IndexFlatIP(dim)
 
     def index(self, docs: list[Document]) -> int:
-        """
-        Indexe une liste de documents dans le store FAISS.
+        """Indexe une liste de documents dans le store FAISS.
 
         Args:
             docs: Liste des documents à indexer.
@@ -92,8 +88,7 @@ class FAISSVectorStore(VectorStore):
         return len(docs)
 
     def search(self, q: Query) -> list[ScoredDocument]:
-        """
-        Recherche des documents similaires dans le store FAISS.
+        """Recherche des documents similaires dans le store FAISS.
 
         Args:
             q: Requête de recherche avec texte et nombre de résultats.
@@ -116,8 +111,7 @@ class FAISSVectorStore(VectorStore):
 
 
 class MultiTenantFAISS:
-    """
-    Simple multi-tenant wrapper around FAISSVectorStore.
+    """Simple multi-tenant wrapper around FAISSVectorStore.
 
     Maintains an isolated FAISSVectorStore per tenant, ensuring no cross-tenant visibility. Provides
     a purge method for RGPD (droit à l'oubli).
@@ -133,8 +127,7 @@ class MultiTenantFAISS:
         return self._stores[tenant]
 
     def index_for_tenant(self, tenant: str, docs: list[Document]) -> int:
-        """
-        Indexe des documents pour un tenant spécifique.
+        """Indexe des documents pour un tenant spécifique.
 
         Args:
             tenant: Identifiant du tenant.
@@ -146,8 +139,7 @@ class MultiTenantFAISS:
         return self._get(tenant).index(docs)
 
     def search_for_tenant(self, tenant: str, q: Query) -> list[ScoredDocument]:
-        """
-        Recherche des documents pour un tenant spécifique.
+        """Recherche des documents pour un tenant spécifique.
 
         Args:
             tenant: Identifiant du tenant.
@@ -159,8 +151,7 @@ class MultiTenantFAISS:
         return self._get(tenant).search(q)
 
     def purge_tenant(self, tenant: str) -> None:
-        """
-        Supprime toutes les données d'un tenant.
+        """Supprime toutes les données d'un tenant.
 
         Args:
             tenant: Identifiant du tenant à purger.
@@ -170,8 +161,7 @@ class MultiTenantFAISS:
 
 
 class FaissMultiTenantAdapter(VectorStoreProtocol):
-    """
-    FAISS multi-tenant adapter with optional persistence per tenant.
+    """FAISS multi-tenant adapter with optional persistence per tenant.
 
     Persistence layout: FAISS_DATA_DIR/<tenant>/{index.faiss, docs.json}
     Uses atomic rename for snapshots. Metrics are emitted for index/search/purge.
@@ -180,9 +170,7 @@ class FaissMultiTenantAdapter(VectorStoreProtocol):
     def __init__(self, data_dir: str | None = None) -> None:
         """Initialize FAISS multi-tenant adapter with optional persistence."""
         self._mt = MultiTenantFAISS()
-        self._dir = data_dir or getattr(
-            container.settings, "FAISS_DATA_DIR", "./var/faiss"
-        )
+        self._dir = data_dir or getattr(container.settings, "FAISS_DATA_DIR", "./var/faiss")
         if isinstance(self._dir, str):
             os.makedirs(self._dir, exist_ok=True)
 
@@ -224,8 +212,7 @@ class FaissMultiTenantAdapter(VectorStoreProtocol):
             pass
 
     def index_for_tenant(self, tenant: str, docs: list[Document]) -> int:
-        """
-        Indexe des documents pour un tenant spécifique.
+        """Indexe des documents pour un tenant spécifique.
 
         Args:
             tenant: Identifiant du tenant.
@@ -235,20 +222,15 @@ class FaissMultiTenantAdapter(VectorStoreProtocol):
             int: Nombre de documents indexés.
         """
         start = time.perf_counter()
-        tenant = safe_tenant(
-            tenant, getattr(container.settings, "DEFAULT_TENANT", "default")
-        )
+        tenant = safe_tenant(tenant, getattr(container.settings, "DEFAULT_TENANT", "default"))
         n = self._mt.index_for_tenant(tenant, docs)
         self._save(tenant)
         VECSTORE_INDEX.labels(tenant=tenant, backend="faiss").inc()
-        VECSTORE_OP_LATENCY.labels(op="index", backend="faiss").observe(
-            time.perf_counter() - start
-        )
+        VECSTORE_OP_LATENCY.labels(op="index", backend="faiss").observe(time.perf_counter() - start)
         return n
 
     def search_for_tenant(self, tenant: str, q: Query) -> list[ScoredDocument]:
-        """
-        Recherche des documents pour un tenant spécifique.
+        """Recherche des documents pour un tenant spécifique.
 
         Args:
             tenant: Identifiant du tenant.
@@ -258,9 +240,7 @@ class FaissMultiTenantAdapter(VectorStoreProtocol):
             list[ScoredDocument]: Liste des documents trouvés avec scores.
         """
         start = time.perf_counter()
-        tenant = safe_tenant(
-            tenant, getattr(container.settings, "DEFAULT_TENANT", "default")
-        )
+        tenant = safe_tenant(tenant, getattr(container.settings, "DEFAULT_TENANT", "default"))
         # lazy load on first search
         self._load(tenant)
         res = self._mt.search_for_tenant(tenant, q)
@@ -271,8 +251,7 @@ class FaissMultiTenantAdapter(VectorStoreProtocol):
         return res
 
     def purge_tenant(self, tenant: str) -> None:
-        """
-        Supprime toutes les données d'un tenant.
+        """Supprime toutes les données d'un tenant.
 
         Args:
             tenant: Identifiant du tenant à purger.
@@ -280,9 +259,7 @@ class FaissMultiTenantAdapter(VectorStoreProtocol):
         start = time.perf_counter()
         status = "success"
         error: str | None = None
-        tenant = safe_tenant(
-            tenant, getattr(container.settings, "DEFAULT_TENANT", "default")
-        )
+        tenant = safe_tenant(tenant, getattr(container.settings, "DEFAULT_TENANT", "default"))
         idx_path, docs_path = self._paths(tenant)
         try:
             self._mt.purge_tenant(tenant)
@@ -298,13 +275,9 @@ class FaissMultiTenantAdapter(VectorStoreProtocol):
             VECSTORE_OP_LATENCY.labels(op="purge", backend="faiss").observe(
                 time.perf_counter() - start
             )
-            self._audit_purge(
-                tenant=tenant, backend="faiss", status=status, error=error
-            )
+            self._audit_purge(tenant=tenant, backend="faiss", status=status, error=error)
 
-    def _audit_purge(
-        self, tenant: str, backend: str, status: str, error: str | None
-    ) -> None:
+    def _audit_purge(self, tenant: str, backend: str, status: str, error: str | None) -> None:
         try:
             actor = os.getenv("PURGE_ACTOR") or getpass.getuser() or "service"
         except Exception:  # pragma: no cover

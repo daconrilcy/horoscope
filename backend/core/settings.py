@@ -1,5 +1,4 @@
-"""
-Définition et chargement des paramètres de configuration applicative.
+"""Définition et chargement des paramètres de configuration applicative.
 
 Objectif du module
 ------------------

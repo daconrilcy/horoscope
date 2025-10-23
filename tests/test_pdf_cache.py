@@ -1,5 +1,4 @@
-"""
-Tests pour le cache PDF.
+"""Tests pour le cache PDF.
 
 Ce module teste le système de cache pour les PDFs d'horoscopes générés.
 """
@@ -33,9 +32,9 @@ def test_pdf_cached():
     c = TestClient(app)
     chart_id = _create_chart(c)
     r1 = c.get(f"/horoscope/pdf/natal/{chart_id}")
-    assert r1.status_code == TEST_HTTP_STATUS_OK and r1.headers[
-        "content-type"
-    ].startswith("application/pdf")
+    assert r1.status_code == TEST_HTTP_STATUS_OK and r1.headers["content-type"].startswith(
+        "application/pdf"
+    )
     # second call should hit cache (still 200)
     r2 = c.get(f"/horoscope/pdf/natal/{chart_id}")
     assert r2.status_code == TEST_HTTP_STATUS_OK

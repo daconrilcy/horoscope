@@ -1,5 +1,4 @@
-"""
-Module d'authentification et de gestion des tokens.
+"""Module d'authentification et de gestion des tokens.
 
 Ce module fournit les fonctions pour le hachage des mots de passe, la création et validation des
 tokens JWT, et la gestion des données d'authentification.
@@ -34,9 +33,7 @@ def verify_password(p: str, h: str) -> bool:
     return pwd_context.verify(p, h)
 
 
-def create_access_token(
-    secret: str, alg: str, expires_min: int, payload: dict[str, Any]
-) -> str:
+def create_access_token(secret: str, alg: str, expires_min: int, payload: dict[str, Any]) -> str:
     """Crée un token JWT d'accès avec expiration."""
     to_encode = payload.copy()
     expire = datetime.now(UTC) + timedelta(minutes=expires_min)

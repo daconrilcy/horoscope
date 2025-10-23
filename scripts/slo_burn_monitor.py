@@ -1,5 +1,4 @@
-"""
-Monitor SLO burn-rate and exit non-zero if above threshold.
+"""Monitor SLO burn-rate and exit non-zero if above threshold.
 
 Ce script surveille le burn-rate SLO et sort avec un code non-zéro si
 le seuil d'abort est dépassé, avec support pour les requêtes Prometheus.
@@ -51,8 +50,7 @@ def _query_prom_ratio(prom_url: str, window: int) -> float | None:
 
 
 def main() -> int:
-    """
-    Point d'entrée principal pour le monitoring du burn-rate SLO.
+    """Point d'entrée principal pour le monitoring du burn-rate SLO.
 
     Returns:
         int: Code de sortie (0 si OK, 1 si seuil dépassé).
@@ -61,9 +59,7 @@ def main() -> int:
     parser.add_argument("--window", type=int, default=900)
     parser.add_argument("--abort-threshold", type=float, default=2.0)
     parser.add_argument("--target-error", type=float, default=0.01)
-    parser.add_argument(
-        "--prom-url", type=str, default=os.getenv("PROM_QUERY_URL") or ""
-    )
+    parser.add_argument("--prom-url", type=str, default=os.getenv("PROM_QUERY_URL") or "")
     args = parser.parse_args()
 
     # error_rate ≈ 5xx_ratio; burn = error_rate / target_error

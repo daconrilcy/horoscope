@@ -1,7 +1,6 @@
-"""
-Moteur astrologique interne avec génération pseudo-aléatoire.
+"""Moteur astrologique interne avec génération pseudo-aléatoire.
 
-Ce module implémente un moteur astrologique interne qui génère des résultats pseudo-aléatoires pour
+Ce module implémente un moteur astrologique interne qui génère des résultats pseudo- aléatoires pour
 les calculs de thèmes natals et transits quotidiens.
 """
 
@@ -13,16 +12,14 @@ from backend.domain.uncertainty import precision_score
 
 
 class InternalAstroEngine:
-    """
-    Moteur astrologique interne avec génération pseudo-aléatoire.
+    """Moteur astrologique interne avec génération pseudo-aléatoire.
 
     Implémente des calculs astrologiques simplifiés avec génération pseudo-aléatoire pour les tests
     et le développement.
     """
 
     def __init__(self, seed: int | None = None):
-        """
-        Initialise le moteur avec une graine optionnelle.
+        """Initialise le moteur avec une graine optionnelle.
 
         Args:
             seed: Graine pour la génération pseudo-aléatoire (optionnel).
@@ -31,8 +28,7 @@ class InternalAstroEngine:
         self._rng = random.Random(seed)
 
     def compute_natal_chart(self, birth: BirthInput) -> dict[str, Any]:
-        """
-        Calculate a simplified natal chart.
+        """Calculate a simplified natal chart.
 
         Args:
             birth: Données de naissance avec informations temporelles.
@@ -47,11 +43,8 @@ class InternalAstroEngine:
             "factors": [{"axis": "SUN"}, {"axis": "ASC"}, {"axis": "MC"}],
         }
 
-    def compute_daily_transits(
-        self, natal: dict[str, Any], day_iso: str
-    ) -> list[dict[str, Any]]:
-        """
-        Calculate pseudo-random daily transits.
+    def compute_daily_transits(self, natal: dict[str, Any], day_iso: str) -> list[dict[str, Any]]:
+        """Calculate pseudo-random daily transits.
 
         Args:
             natal: Thème natal (non utilisé dans cette implémentation simplifiée).

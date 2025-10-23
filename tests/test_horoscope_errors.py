@@ -1,5 +1,4 @@
-"""
-Tests pour les erreurs d'horoscope.
+"""Tests pour les erreurs d'horoscope.
 
 Ce module teste les cas d'erreur dans les endpoints d'horoscope, incluant les thèmes manquants et
 les erreurs 404/422.

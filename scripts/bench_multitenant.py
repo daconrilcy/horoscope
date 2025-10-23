@@ -1,5 +1,4 @@
-"""
-Script de benchmark multi-tenant avec simulation de voisins bruyants.
+"""Script de benchmark multi-tenant avec simulation de voisins bruyants.
 
 Ce script mesure les performances multi-tenant avec contrôle QPS par tenant, scénarios warm/cold
 start et simulation de voisins bruyants pour évaluer l'isolation des performances entre tenants.
@@ -38,9 +37,7 @@ Features:
 """
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
 
 
@@ -63,8 +60,7 @@ class TenantSimulator:
 
     def __init__(self, tenant_id: str, config: BenchmarkConfig) -> None:
         """Initialize tenant simulator."""
-        """
-        Initialise un simulateur de tenant.
+        """Initialise un simulateur de tenant.
 
         Args:
             tenant_id: Identifiant unique du tenant.
@@ -135,8 +131,7 @@ class MultiTenantBenchmark:
 
     def __init__(self, config: BenchmarkConfig) -> None:
         """Initialize multi-tenant benchmark orchestrator."""
-        """
-        Initialise l'orchestrateur de benchmark multi-tenant.
+        """Initialise l'orchestrateur de benchmark multi-tenant.
 
         Args:
             config: Configuration du benchmark.
@@ -216,16 +211,10 @@ class MultiTenantBenchmark:
                 tenant_metrics[tenant.tenant_id] = {
                     "request_count": tenant.request_count,
                     "error_count": len(tenant.errors),
-                    "p95_latency": statistics.quantiles(latencies, n=20)[
-                        18
-                    ],  # 95th percentile
-                    "p99_latency": statistics.quantiles(latencies, n=100)[
-                        98
-                    ],  # 99th percentile
+                    "p95_latency": statistics.quantiles(latencies, n=20)[18],  # 95th percentile
+                    "p99_latency": statistics.quantiles(latencies, n=100)[98],  # 99th percentile
                     "mean_latency": statistics.mean(latencies),
-                    "std_latency": (
-                        statistics.stdev(latencies) if len(latencies) > 1 else 0.0
-                    ),
+                    "std_latency": (statistics.stdev(latencies) if len(latencies) > 1 else 0.0),
                     "is_noisy": tenant.is_noisy,
                 }
 
@@ -237,9 +226,7 @@ class MultiTenantBenchmark:
                 "p95_latency": statistics.quantiles(all_latencies, n=20)[18],
                 "p99_latency": statistics.quantiles(all_latencies, n=100)[98],
                 "mean_latency": statistics.mean(all_latencies),
-                "std_latency": (
-                    statistics.stdev(all_latencies) if len(all_latencies) > 1 else 0.0
-                ),
+                "std_latency": (statistics.stdev(all_latencies) if len(all_latencies) > 1 else 0.0),
             }
 
         return {
@@ -265,21 +252,13 @@ class MultiTenantBenchmark:
         p99_values = [m["p99_latency"] for m in tenant_metrics.values()]
 
         return {
-            "p95_variance": (
-                statistics.variance(p95_values) if len(p95_values) > 1 else 0.0
-            ),
-            "p99_variance": (
-                statistics.variance(p99_values) if len(p99_values) > 1 else 0.0
-            ),
+            "p95_variance": (statistics.variance(p95_values) if len(p95_values) > 1 else 0.0),
+            "p99_variance": (statistics.variance(p99_values) if len(p99_values) > 1 else 0.0),
             "p95_cv": (
-                statistics.stdev(p95_values) / statistics.mean(p95_values)
-                if p95_values
-                else 0.0
+                statistics.stdev(p95_values) / statistics.mean(p95_values) if p95_values else 0.0
             ),
             "p99_cv": (
-                statistics.stdev(p99_values) / statistics.mean(p99_values)
-                if p99_values
-                else 0.0
+                statistics.stdev(p99_values) / statistics.mean(p99_values) if p99_values else 0.0
             ),
         }
 
@@ -293,12 +272,8 @@ async def main() -> None:
     parser.add_argument("--topk", type=int, default=10, help="Top-k parameter")
     parser.add_argument("--chunk", type=int, default=512, help="Chunk size")
     parser.add_argument("--warm", action="store_true", help="Enable warm start")
-    parser.add_argument(
-        "--noisy-neighbor", action="store_true", help="Enable noisy neighbor"
-    )
-    parser.add_argument(
-        "--output", default="artifacts/bench_multitenant.json", help="Output file"
-    )
+    parser.add_argument("--noisy-neighbor", action="store_true", help="Enable noisy neighbor")
+    parser.add_argument("--output", default="artifacts/bench_multitenant.json", help="Output file")
     parser.add_argument("--base-url", default="http://localhost:8000", help="Base URL")
 
     args = parser.parse_args()

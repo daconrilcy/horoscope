@@ -1,5 +1,4 @@
-"""
-Tests pour l'audit de purge.
+"""Tests pour l'audit de purge.
 
 Ce module teste les fonctionnalités d'audit lors de la purge des données de tenants pour la
 conformité RGPD.

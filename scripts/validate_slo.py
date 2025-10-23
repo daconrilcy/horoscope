@@ -1,5 +1,4 @@
-"""
-Validate slo.yaml against a minimal JSON schema without extra deps.
+"""Validate slo.yaml against a minimal JSON schema without extra deps.
 
 Ce script valide slo.yaml contre un schéma JSON minimal sans dépendances
 externes, avec mode strict pour la validation des objectifs et alertes.
@@ -47,8 +46,7 @@ def _expr_has_known_metric(expr: str) -> bool:
 
 
 def _validate_root_structure(data: dict[str, Any]) -> None:
-    """
-    Vérifier la structure racine du fichier SLO.
+    """Vérifier la structure racine du fichier SLO.
 
     Args:
         data: Données JSON chargées.
@@ -62,8 +60,7 @@ def _validate_root_structure(data: dict[str, Any]) -> None:
 
 
 def _validate_target_ratio(slo: dict[str, Any], idx: int) -> None:
-    """
-    Vérifier la cible ratio.
+    """Vérifier la cible ratio.
 
     Args:
         slo: Configuration SLO.
@@ -80,8 +77,7 @@ def _validate_target_ratio(slo: dict[str, Any], idx: int) -> None:
 
 
 def _validate_target_seconds(slo: dict[str, Any], idx: int) -> None:
-    """
-    Vérifier la cible en secondes.
+    """Vérifier la cible en secondes.
 
     Args:
         slo: Configuration SLO.
@@ -98,8 +94,7 @@ def _validate_target_seconds(slo: dict[str, Any], idx: int) -> None:
 
 
 def _validate_target_usd(slo: dict[str, Any], idx: int) -> None:
-    """
-    Vérifier la cible en USD.
+    """Vérifier la cible en USD.
 
     Args:
         slo: Configuration SLO.
@@ -116,8 +111,7 @@ def _validate_target_usd(slo: dict[str, Any], idx: int) -> None:
 
 
 def _validate_target_values(slo: dict[str, Any], idx: int, strict: bool) -> None:
-    """
-    Vérifier les valeurs des cibles SLO.
+    """Vérifier les valeurs des cibles SLO.
 
     Args:
         slo: Configuration SLO.
@@ -135,8 +129,7 @@ def _validate_target_values(slo: dict[str, Any], idx: int, strict: bool) -> None
 def _validate_alerts(
     slo: dict[str, Any], idx: int, strict: bool, seen_alert_names: set[str]
 ) -> None:
-    """
-    Vérifier les alertes d'un SLO.
+    """Vérifier les alertes d'un SLO.
 
     Args:
         slo: Configuration SLO.
@@ -168,8 +161,7 @@ def _validate_alerts(
 
 
 def validate_file(path: Path, strict: bool = False) -> bool:
-    """
-    Validate an SLO file against JSON schema.
+    """Validate an SLO file against JSON schema.
 
     Args:
         path: Chemin vers le fichier SLO à valider.
@@ -200,16 +192,13 @@ def validate_file(path: Path, strict: bool = False) -> bool:
 
 
 def main() -> None:
-    """
-    Point d'entrée principal pour la validation des fichiers SLO.
+    """Point d'entrée principal pour la validation des fichiers SLO.
 
     Valide la structure et le contenu des fichiers de configuration SLO contre un schéma JSON
     minimal.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--strict", action="store_true", help="Enable strict validation"
-    )
+    parser.add_argument("--strict", action="store_true", help="Enable strict validation")
     args = parser.parse_args()
     path = Path("slo.yaml")
     ok = validate_file(path, strict=args.strict)
