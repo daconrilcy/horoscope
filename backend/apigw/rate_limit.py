@@ -358,9 +358,14 @@ class QuotaMiddleware(BaseHTTPMiddleware):
         APIGW_RATE_LIMIT_DECISIONS.labels(route=route, result="block").inc()
         APIGW_RATE_LIMIT_BLOCKS.labels(route=route, reason="quota_exceeded").inc()
 
-        return create_error_response(
+        response = create_error_response(
             status_code=429,
             code="QUOTA_EXCEEDED",
             message=f"Quota exceeded for {resource_type}",
             trace_id=getattr(request.state, "trace_id", None),
         )
+        
+        # Add Retry-After header (1 hour for quota exceeded)
+        response.headers["Retry-After"] = "3600"  # 1 hour
+        
+        return response

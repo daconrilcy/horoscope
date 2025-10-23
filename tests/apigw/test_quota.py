@@ -20,6 +20,7 @@ from backend.apigw.rate_limit import (
     SlidingWindowRateLimiter,
     TenantRateLimitMiddleware,
 )
+from backend.app.metrics import normalize_route
 
 
 class TestSlidingWindowRateLimiter:
@@ -419,8 +420,113 @@ class TestDefaultQuotas:
         assert test_manager.get_quota("default", "retrieval_requests_per_hour") == 500
 
 
+class TestRouteNormalization:
+    """Tests pour la normalisation des routes."""
+
+    def test_normalize_route_with_id(self) -> None:
+        """Test normalisation avec ID numérique."""
+        assert normalize_route("/v1/chat/123") == "/v1/chat/{id}"
+        assert normalize_route("/v1/chat/456") == "/v1/chat/{id}"
+
+    def test_normalize_route_with_uuid(self) -> None:
+        """Test normalisation avec UUID."""
+        uuid_path = "/v1/chat/550e8400-e29b-41d4-a716-446655440000"
+        assert normalize_route(uuid_path) == "/v1/chat/{id}"
+
+    def test_normalize_route_with_query_params(self) -> None:
+        """Test normalisation avec paramètres de requête."""
+        assert normalize_route("/v1/chat/123?foo=bar&baz=qux") == "/v1/chat/{id}"
+
+    def test_normalize_route_without_slash(self) -> None:
+        """Test normalisation sans slash initial."""
+        assert normalize_route("v1/chat/123") == "/v1/chat/{id}"
+
+    def test_normalize_route_no_params(self) -> None:
+        """Test normalisation sans paramètres."""
+        assert normalize_route("/v1/health") == "/v1/health"
+        assert normalize_route("/metrics") == "/metrics"
+
+    def test_normalize_route_multiple_ids(self) -> None:
+        """Test normalisation avec plusieurs IDs."""
+        assert normalize_route("/v1/chat/123/message/456") == "/v1/chat/{id}/message/{id}"
+
+
 class TestIntegration:
     """Tests d'intégration pour le rate limiting."""
+
+    @pytest.mark.asyncio
+    async def test_metrics_increment_correctly(self) -> None:
+        """Test que les métriques s'incrémentent correctement."""
+        with patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS") as mock_decisions, \
+             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_BLOCKS") as mock_blocks, \
+             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_EVALUATION_TIME") as mock_eval_time:
+            
+            config = RateLimitConfig(requests_per_minute=1)
+            middleware = TenantRateLimitMiddleware(Mock(), config=config)
+
+            # First request - should allow
+            request1 = self.create_mock_request("/v1/chat/123")
+            async def call_next1(req: Request) -> Response:
+                return Response("OK", status_code=200)
+
+            await middleware.dispatch(request1, call_next1)
+            
+            # Check decisions metric
+            mock_decisions.labels.assert_called_with(route="/v1/chat/{id}", result="allow")
+            mock_decisions.labels().inc.assert_called_once()
+            
+            # Check evaluation time metric
+            mock_eval_time.labels.assert_called_with(route="/v1/chat/{id}")
+            mock_eval_time.labels().observe.assert_called_once()
+
+            # Reset mocks
+            mock_decisions.reset_mock()
+            mock_blocks.reset_mock()
+            mock_eval_time.reset_mock()
+
+            # Second request - should block
+            request2 = self.create_mock_request("/v1/chat/456")
+            async def call_next2(req: Request) -> Response:
+                return Response("OK", status_code=200)
+
+            response = await middleware.dispatch(request2, call_next2)
+            
+            # Check block metrics
+            mock_decisions.labels.assert_called_with(route="/v1/chat/{id}", result="block")
+            mock_blocks.labels.assert_called_with(route="/v1/chat/{id}", reason="rate_exceeded")
+            
+            # Check response
+            assert response.status_code == 429
+            assert "Retry-After" in response.headers
+            retry_after = int(response.headers["Retry-After"])
+            assert retry_after >= 1  # At least 1 second
+
+    @pytest.mark.asyncio
+    async def test_quota_metrics_increment(self) -> None:
+        """Test que les métriques de quota s'incrémentent quand quota est dépassé."""
+        with patch("backend.apigw.rate_limit.quota_manager") as mock_quota_manager, \
+             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS") as mock_decisions, \
+             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_BLOCKS") as mock_blocks:
+            
+            # Mock quota exceeded for chat endpoint (non-zero means quota is set and exceeded)
+            # Based on current logic: if limit != 0, then block
+            mock_quota_manager.get_quota.return_value = 1  # Quota set but exceeded
+            
+            middleware = QuotaMiddleware(Mock())
+            request = self.create_mock_request("/v1/chat/123")  # Chat endpoint
+            
+            async def call_next(req: Request) -> Response:
+                return Response("OK", status_code=200)
+
+            response = await middleware.dispatch(request, call_next)
+            
+            # Check metrics
+            mock_decisions.labels.assert_called_with(route="/v1/chat/{id}", result="block")
+            mock_blocks.labels.assert_called_with(route="/v1/chat/{id}", reason="quota_exceeded")
+            
+            # Check response
+            assert response.status_code == 429
+            assert "Retry-After" in response.headers
 
     @pytest.mark.asyncio
     async def test_rate_limit_with_metrics(self) -> None:
