@@ -425,7 +425,9 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_rate_limit_with_metrics(self) -> None:
         """Test que les métriques sont émises lors des blocages."""
-        with patch("backend.apigw.rate_limit.RATE_LIMIT_BLOCKS") as mock_metrics:
+        with patch(
+            "backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS"
+        ) as mock_metrics:
             config = RateLimitConfig(requests_per_minute=1)
             middleware = TenantRateLimitMiddleware(Mock(), config=config)
 
@@ -436,16 +438,22 @@ class TestIntegration:
                 return Response("OK", status_code=200)
 
             await middleware.dispatch(request1, call_next1)
-            mock_metrics.labels.assert_not_called()
+            # First request should emit allow metric
+            mock_metrics.labels.assert_called_with(route="/v1/test", result="allow")
+            mock_metrics.labels().inc.assert_called_once()
 
-            # Second request should be blocked and emit metrics
+            # Reset mock for second request
+            mock_metrics.reset_mock()
+
+            # Second request should be blocked and emit block metrics
             request2 = self.create_mock_request()
 
             async def call_next2(req: Request) -> Response:
                 return Response("OK", status_code=200)
 
             await middleware.dispatch(request2, call_next2)
-            mock_metrics.labels.assert_called_once()
+            # Should emit block metric
+            mock_metrics.labels.assert_called_with(route="/v1/test", result="block")
 
     def create_mock_request(self, path: str = "/v1/test") -> Request:
         """Create a mock request for testing."""

@@ -18,10 +18,19 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
 from backend.apigw.errors import create_error_response
-from backend.app.metrics import RATE_LIMIT_BLOCKS
+from backend.app.metrics import (
+    APIGW_RATE_LIMIT_BLOCKS,
+    APIGW_RATE_LIMIT_DECISIONS,
+    APIGW_RATE_LIMIT_EVALUATION_TIME,
+    APIGW_RATE_LIMIT_NEAR_LIMIT,
+    normalize_route,
+)
 from backend.domain.tenancy import safe_tenant
 
 log = logging.getLogger(__name__)
+
+# Constants
+NEAR_LIMIT_THRESHOLD = 0.1  # Alert when remaining/limit < 10%
 
 
 @dataclass
@@ -125,52 +134,77 @@ class TenantRateLimitMiddleware(BaseHTTPMiddleware):
         if path.startswith(("/health", "/metrics", "/docs", "/openapi.json")):
             return await call_next(request)
 
-        # Extract tenant from request
-        tenant = self._extract_tenant(request)
+        # Normalize route for metrics
+        route = normalize_route(path)
 
-        # Check rate limit
-        result = self.rate_limiter.check_rate_limit(tenant)
+        # Measure evaluation time
+        start_time = time.perf_counter()
 
-        if not result.allowed:
-            # Log rate limit violation
-            log.warning(
-                "Rate limit exceeded",
-                extra={
-                    "tenant": tenant,
-                    "path": path,
-                    "method": request.method,
-                    "retry_after": result.retry_after,
-                    "trace_id": getattr(request.state, "trace_id", None),
-                },
-            )
+        try:
+            # Extract tenant from request
+            tenant = self._extract_tenant(request)
 
-            # Increment metrics
-            RATE_LIMIT_BLOCKS.labels(tenant=tenant, reason="quota_exceeded").inc()
+            # Check rate limit
+            result = self.rate_limiter.check_rate_limit(tenant)
 
-            # Return 429 with Retry-After header
-            response = create_error_response(
-                status_code=429,
-                code="RATE_LIMITED",
-                message=f"Rate limit exceeded for tenant {tenant}. Try again later.",
-                trace_id=getattr(request.state, "trace_id", None),
-                details={"retry_after": result.retry_after},
-            )
+            if not result.allowed:
+                # Log rate limit violation with tenant in logs (not metrics)
+                log.warning(
+                    "Rate limit exceeded",
+                    extra={
+                        "tenant": tenant,
+                        "path": path,
+                        "route": route,
+                        "method": request.method,
+                        "retry_after": result.retry_after,
+                        "trace_id": getattr(request.state, "trace_id", None),
+                    },
+                )
 
-            # Add Retry-After header
-            if result.retry_after:
-                response.headers["Retry-After"] = str(result.retry_after)
+                # Increment low-cardinality metrics
+                APIGW_RATE_LIMIT_DECISIONS.labels(route=route, result="block").inc()
+                APIGW_RATE_LIMIT_BLOCKS.labels(
+                    route=route, reason="rate_exceeded"
+                ).inc()
+
+                # Return 429 with Retry-After header
+                response = create_error_response(
+                    status_code=429,
+                    code="RATE_LIMITED",
+                    message="Rate limit exceeded. Try again later.",
+                    trace_id=getattr(request.state, "trace_id", None),
+                    details={"retry_after": result.retry_after},
+                )
+
+                # Add Retry-After header
+                if result.retry_after:
+                    response.headers["Retry-After"] = str(result.retry_after)
+
+                return response
+
+            # Check if near limit (for pre-alerting)
+            if result.remaining / self.config.requests_per_minute < NEAR_LIMIT_THRESHOLD:
+                APIGW_RATE_LIMIT_NEAR_LIMIT.labels(route=route).inc()
+
+            # Add rate limit headers to successful responses
+            response = await call_next(request)
+
+            # Add rate limit headers
+            response.headers["X-RateLimit-Limit"] = str(self.config.requests_per_minute)
+            response.headers["X-RateLimit-Remaining"] = str(result.remaining)
+            response.headers["X-RateLimit-Reset"] = str(int(result.reset_time))
+
+            # Increment allow metric
+            APIGW_RATE_LIMIT_DECISIONS.labels(route=route, result="allow").inc()
 
             return response
 
-        # Add rate limit headers to successful responses
-        response = await call_next(request)
-
-        # Add rate limit headers
-        response.headers["X-RateLimit-Limit"] = str(self.config.requests_per_minute)
-        response.headers["X-RateLimit-Remaining"] = str(result.remaining)
-        response.headers["X-RateLimit-Reset"] = str(int(result.reset_time))
-
-        return response
+        finally:
+            # Record evaluation time
+            evaluation_time = time.perf_counter() - start_time
+            APIGW_RATE_LIMIT_EVALUATION_TIME.labels(route=route).observe(
+                evaluation_time
+            )
 
     def _extract_tenant(self, request: Request) -> str:
         """Extract tenant identifier from request."""
@@ -320,7 +354,9 @@ class QuotaMiddleware(BaseHTTPMiddleware):
         )
 
         # Increment metrics
-        RATE_LIMIT_BLOCKS.labels(tenant=tenant, reason="quota_exceeded").inc()
+        route = normalize_route(request.url.path)
+        APIGW_RATE_LIMIT_DECISIONS.labels(route=route, result="block").inc()
+        APIGW_RATE_LIMIT_BLOCKS.labels(route=route, reason="quota_exceeded").inc()
 
         return create_error_response(
             status_code=429,
