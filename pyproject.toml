@@ -29,7 +29,7 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "D"]
+select = ["E", "F", "I", "UP", "B", "D", "PL"]
 # Eviter de casser le flux immédiatement: pas d'obligation de docstring partout,
 # et ignorer quelques règles de style trop strictes pour l'instant.
 extend-ignore = []
@@ -42,7 +42,9 @@ convention = "pep257"
 "**/__init__.py" = ["D"]
 "backend/api/routes_chat.py" = ["B008"]
 # Objectif du fichier: configuration de projet et outils (pytest, ruff, etc.).
-# TODO: compléter les métadonnées et les scripts si besoin.
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]
 
 [project.optional-dependencies]
 tokens = [

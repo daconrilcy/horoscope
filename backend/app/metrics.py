@@ -271,7 +271,7 @@ def metrics():
     Returns:
         Response: Réponse HTTP contenant les métriques au format Prometheus.
     """
-    from starlette.responses import Response  # noqa: PLC0415
+    from starlette.responses import Response  # noqa
 
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 

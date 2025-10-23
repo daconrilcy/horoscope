@@ -24,7 +24,7 @@ jobs:
           python -m pip install --upgrade pip
       - name: Canary rollout 10%
         env:
-          PROM_QUERY_URL: ${{ secrets.PROM_QUERY_URL }}
+          PROM_QUERY_URL: ${{ secrets.PROM_QUERY_URL || '' }}
           WINDOW: 900
           ABORT_THRESHOLD: ${{ github.event.inputs.abort-threshold || 2.0 }}
           TARGET_ERROR: 0.01
