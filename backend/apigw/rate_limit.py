@@ -17,6 +17,7 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
+from backend.apigw.auth_utils import extract_tenant_secure
 from backend.apigw.errors import create_error_response
 from backend.apigw.redis_store import redis_store
 from backend.app.metrics import (
@@ -135,8 +136,20 @@ class TenantRateLimitMiddleware(BaseHTTPMiddleware):
         start_time = time.perf_counter()
 
         try:
-            # Extract tenant from request
-            tenant = self._extract_tenant(request)
+            # Extract tenant from request using secure trust model
+            tenant, tenant_source, is_spoof = extract_tenant_secure(request)
+            
+            # Log tenant source information
+            log.debug(
+                "Tenant extracted",
+                extra={
+                    "tenant": tenant,
+                    "tenant_source": tenant_source,
+                    "spoof": is_spoof,
+                    "route": route,
+                    "trace_id": getattr(request.state, "trace_id", None),
+                },
+            )
 
             # Check rate limit using Redis store
             result = redis_store.check_rate_limit(route, tenant)
@@ -201,32 +214,11 @@ class TenantRateLimitMiddleware(BaseHTTPMiddleware):
             )
 
     def _extract_tenant(self, request: Request) -> str:
-        """Extract tenant identifier from request."""
-        # Try to get tenant from authenticated user context
-        if hasattr(request.state, "user") and request.state.user:
-            user_tenant = getattr(request.state.user, "tenant", None)
-            if user_tenant:
-                return safe_tenant(user_tenant)
-
-        # Try to get tenant from headers (for trusted proxy scenarios)
-        tenant_header = request.headers.get("X-Tenant-ID")
-        if tenant_header:
-            return safe_tenant(tenant_header)
-
-        # Try to get tenant from Authorization header (JWT)
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            # In a real implementation, you would decode the JWT here
-            # For now, we'll use a simple extraction
-            try:
-                # This is a placeholder - in production, decode JWT properly
-                # and extract tenant from claims
-                return safe_tenant("default")
-            except Exception:
-                pass
-
-        # Default tenant
-        return safe_tenant("default")
+        """Extract tenant identifier from request (legacy method - use extract_tenant_secure instead)."""
+        # This method is kept for backward compatibility but should not be used
+        # Use extract_tenant_secure from auth_utils instead
+        tenant, _, _ = extract_tenant_secure(request)
+        return tenant
 
 
 class QuotaManager:
@@ -291,8 +283,20 @@ class QuotaMiddleware(BaseHTTPMiddleware):
         if path.startswith(("/health", "/metrics", "/docs", "/openapi.json")):
             return await call_next(request)
 
-        # Extract tenant
-        tenant = self._extract_tenant(request)
+        # Extract tenant using secure trust model
+        tenant, tenant_source, is_spoof = extract_tenant_secure(request)
+        
+        # Log tenant source information
+        log.debug(
+            "Quota check - tenant extracted",
+            extra={
+                "tenant": tenant,
+                "tenant_source": tenant_source,
+                "spoof": is_spoof,
+                "route": normalize_route(request.url.path),
+                "trace_id": getattr(request.state, "trace_id", None),
+            },
+        )
 
         # Check specific quotas based on endpoint
         if path.startswith("/v1/chat/"):
@@ -312,18 +316,11 @@ class QuotaMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
     def _extract_tenant(self, request: Request) -> str:
-        """Extract tenant identifier from request."""
-        # Same logic as RateLimitMiddleware
-        if hasattr(request.state, "user") and request.state.user:
-            user_tenant = getattr(request.state.user, "tenant", None)
-            if user_tenant:
-                return safe_tenant(user_tenant)
-
-        tenant_header = request.headers.get("X-Tenant-ID")
-        if tenant_header:
-            return safe_tenant(tenant_header)
-
-        return safe_tenant("default")
+        """Extract tenant identifier from request (legacy method - use extract_tenant_secure instead)."""
+        # This method is kept for backward compatibility but should not be used
+        # Use extract_tenant_secure from auth_utils instead
+        tenant, _, _ = extract_tenant_secure(request)
+        return tenant
 
     def _check_endpoint_quota(self, tenant: str, resource: str) -> bool:
         """Check if tenant is within quota for specific resource."""

@@ -135,6 +135,17 @@ class TestSlidingWindowRateLimiter:
 class TestTenantRateLimitMiddleware:
     """Tests pour TenantRateLimitMiddleware."""
 
+    def setup_method(self) -> None:
+        """Setup test environment."""
+        # Mock extract_tenant_secure for all tests in this class
+        self.extract_patcher = patch("backend.apigw.rate_limit.extract_tenant_secure")
+        self.mock_extract = self.extract_patcher.start()
+        self.mock_extract.return_value = ("default", "default", False)
+
+    def teardown_method(self) -> None:
+        """Cleanup test environment."""
+        self.extract_patcher.stop()
+
     def create_mock_request(
         self, path: str = "/v1/test", method: str = "GET"
     ) -> Request:
@@ -230,6 +241,9 @@ class TestTenantRateLimitMiddleware:
 
     def test_tenant_extraction_from_header(self) -> None:
         """Test l'extraction du tenant depuis les headers."""
+        # Override mock for this specific test
+        self.mock_extract.return_value = ("test-tenant", "header", False)
+        
         middleware = TenantRateLimitMiddleware(Mock())
         request = self.create_mock_request()
         request.headers = {"X-Tenant-ID": "test-tenant"}
@@ -259,6 +273,9 @@ class TestTenantRateLimitMiddleware:
 
     def test_tenant_extraction_from_user_state(self) -> None:
         """Test extraction du tenant depuis l'état utilisateur."""
+        # Override mock for this specific test
+        self.mock_extract.return_value = ("user-tenant", "jwt", False)
+        
         middleware = TenantRateLimitMiddleware(Mock())
         request = self.create_mock_request()
         request.state.user = Mock()
@@ -297,6 +314,17 @@ class TestQuotaManager:
 
 class TestQuotaMiddleware:
     """Tests pour QuotaMiddleware."""
+
+    def setup_method(self) -> None:
+        """Setup test environment."""
+        # Mock extract_tenant_secure for all tests in this class
+        self.extract_patcher = patch("backend.apigw.rate_limit.extract_tenant_secure")
+        self.mock_extract = self.extract_patcher.start()
+        self.mock_extract.return_value = ("default", "default", False)
+
+    def teardown_method(self) -> None:
+        """Cleanup test environment."""
+        self.extract_patcher.stop()
 
     def create_mock_request(self, path: str = "/v1/test") -> Request:
         """Create a mock request for testing."""
@@ -468,6 +496,17 @@ class TestRouteNormalization:
 
 class TestIntegration:
     """Tests d'intégration pour le rate limiting."""
+
+    def setup_method(self) -> None:
+        """Setup test environment."""
+        # Mock extract_tenant_secure for all tests in this class
+        self.extract_patcher = patch("backend.apigw.rate_limit.extract_tenant_secure")
+        self.mock_extract = self.extract_patcher.start()
+        self.mock_extract.return_value = ("default", "default", False)
+
+    def teardown_method(self) -> None:
+        """Cleanup test environment."""
+        self.extract_patcher.stop()
 
     @pytest.mark.asyncio
     async def test_metrics_increment_correctly(self) -> None:
@@ -698,4 +737,5 @@ class TestIntegration:
         request.state = Mock()
         request.state.trace_id = "test-trace-id"
         request.state.user = None  # Ensure no user state by default
+        request.state.jwt_claims = None  # Ensure jwt_claims is None by default
         return request
