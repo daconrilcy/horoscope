@@ -25,6 +25,12 @@ repos:
     rev: v1.18.2
     hooks:
       - id: mypy
+        additional_dependencies:
+          - types-requests
+          - types-PyJWT
+          - types-redis
+          - types-PyYAML
+          - types-setuptools
 
 default_language_version:
   python: python3.13

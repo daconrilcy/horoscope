@@ -38,12 +38,13 @@ class HoroscopeService:
 
     def compute_natal(self, birth: BirthInput) -> dict[str, Any]:
         """
-        Calculer et stocker un thème natal à partir des données de naissance: date, heure, lieu.
+        Calculate and store a natal chart from birth data: date, time, location.
 
-        Paramètres:
-        birth: `BirthInput` avec les informations de naissance.
-        Retour: dict avec `id`, `owner` et `chart` (contenu calculé).
-        """  # noqa: D401
+        Parameters:
+        - birth: `BirthInput` with birth information.
+
+        Return: dict with `id`, `owner` and `chart` (computed content).
+        """
         chart = self.astro.compute_natal_chart(birth)
         chart_id = str(uuid.uuid4())
         chart_record = {"id": chart_id, "owner": birth.name, "chart": chart}

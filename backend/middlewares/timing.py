@@ -1,7 +1,7 @@
 """
 Middleware Starlette pour mesurer le temps de traitement des requêtes.
 
-Ce module implémente un middleware qui ajoute l'en-tête X-Process-Time-ms avec la durée de
+Ce module implémente un middleware qui ajoute l'en-tête X-Process-Time- ms avec la durée de
 traitement en millisecondes pour le monitoring des performances.
 """
 

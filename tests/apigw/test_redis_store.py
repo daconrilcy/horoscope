@@ -32,6 +32,8 @@ class TestRedisRateLimitStore:
         self.store = RedisRateLimitStore()
         self.store._redis = Mock(spec=redis.Redis)
         self.store._script_hash = "test_script_hash"
+        # Assertion pour aider mypy à comprendre que _redis n'est pas None
+        assert self.store._redis is not None
 
     def test_tenant_hashing(self) -> None:
         """Test que le hachage des tenants est cohérent."""
@@ -62,8 +64,9 @@ class TestRedisRateLimitStore:
 
     def test_rate_limit_allowed(self) -> None:
         """Test rate limit autorisé."""
+        assert self.store._redis is not None
         # Mock Redis response: [allowed=1, current=1, remaining=59, reset_time=1234567890]
-        self.store._redis.evalsha.return_value = [
+        self.store._redis.evalsha.return_value = [  # type: ignore[union-attr,attr-defined]
             1,
             1,
             TEST_REMAINING_REQUESTS,
@@ -80,7 +83,7 @@ class TestRedisRateLimitStore:
     def test_rate_limit_blocked(self) -> None:
         """Test rate limit bloqué."""
         # Mock Redis response: [allowed=0, current=60, remaining=0, reset_time=1234567890]
-        self.store._redis.evalsha.return_value = [0, 60, 0, TEST_RESET_TIME]
+        self.store._redis.evalsha.return_value = [0, 60, 0, TEST_RESET_TIME]  # type: ignore[union-attr]
 
         result = self.store.check_rate_limit("/v1/chat/123", "tenant1")
 
@@ -92,7 +95,7 @@ class TestRedisRateLimitStore:
 
     def test_redis_connection_error_fail_open(self) -> None:
         """Test fail-open en cas d'erreur de connexion Redis."""
-        self.store._redis.evalsha.side_effect = ConnectionError("Redis unavailable")
+        self.store._redis.evalsha.side_effect = ConnectionError("Redis unavailable")  # type: ignore[union-attr]
 
         with patch(
             "backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS"
@@ -111,7 +114,7 @@ class TestRedisRateLimitStore:
 
     def test_redis_timeout_error_fail_open(self) -> None:
         """Test fail-open en cas de timeout Redis."""
-        self.store._redis.evalsha.side_effect = TimeoutError("Redis timeout")
+        self.store._redis.evalsha.side_effect = TimeoutError("Redis timeout")  # type: ignore[union-attr]
 
         with patch(
             "backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS"
@@ -130,7 +133,7 @@ class TestRedisRateLimitStore:
 
     def test_unexpected_error_fail_open(self) -> None:
         """Test fail-open en cas d'erreur inattendue."""
-        self.store._redis.evalsha.side_effect = Exception("Unexpected error")
+        self.store._redis.evalsha.side_effect = Exception("Unexpected error")  # type: ignore[union-attr]
 
         with patch(
             "backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS"
@@ -149,7 +152,7 @@ class TestRedisRateLimitStore:
 
     def test_custom_window_and_limit(self) -> None:
         """Test avec fenêtre et limite personnalisées."""
-        self.store._redis.evalsha.return_value = [
+        self.store._redis.evalsha.return_value = [  # type: ignore[union-attr]
             1,
             1,
             TEST_WINDOW_SIZE - 1,
@@ -164,14 +167,14 @@ class TestRedisRateLimitStore:
         )
 
         # Vérifier que les paramètres ont été passés à Redis
-        call_args = self.store._redis.evalsha.call_args
+        call_args = self.store._redis.evalsha.call_args  # type: ignore[union-attr]
         assert call_args[0][3] == TEST_WINDOW_SIZE  # window_seconds (4ème argument)
         assert call_args[0][4] == TEST_MAX_REQUESTS  # max_requests (5ème argument)
 
     def test_script_hash_caching(self) -> None:
         """Test que le hash du script est mis en cache."""
         self.store._script_hash = None
-        self.store._redis.script_load.return_value = "cached_hash"
+        self.store._redis.script_load.return_value = "cached_hash"  # type: ignore[union-attr]
 
         # Premier appel
         hash1 = self.store._get_script_hash()
@@ -181,7 +184,7 @@ class TestRedisRateLimitStore:
 
         assert hash1 == hash2 == "cached_hash"
         # script_load ne doit être appelé qu'une fois
-        self.store._redis.script_load.assert_called_once()
+        self.store._redis.script_load.assert_called_once()  # type: ignore[union-attr]
 
 
 class TestRedisStoreIntegration:

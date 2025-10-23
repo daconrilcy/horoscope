@@ -74,7 +74,7 @@ def test_strategy_tiktoken_import_ok(monkeypatch: Any) -> None:
 
     class _FakeEnc:
         def encode(self, s: str) -> list[int]:  # pragma: no cover - trivial
-            return s.split()
+            return [len(word) for word in s.split()]
 
     class _FakeTik:
         def encoding_for_model(self, _m: str) -> _FakeEnc:  # type: ignore[override]
@@ -120,7 +120,7 @@ def test_strategy_auto_prefers_api_over_tiktoken(monkeypatch: Any) -> None:
     monkeypatch.setenv("TOKEN_COUNT_STRATEGY", "auto")
 
     # Even if tiktoken is present, usage should be taken
-    sys.modules["tiktoken"] = SimpleNamespace(
+    sys.modules["tiktoken"] = SimpleNamespace(  # type: ignore[assignment]
         encoding_for_model=lambda m: SimpleNamespace(encode=lambda s: [1, 2]),
         get_encoding=lambda n: SimpleNamespace(encode=lambda s: [1, 2]),
     )

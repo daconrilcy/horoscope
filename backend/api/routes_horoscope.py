@@ -14,7 +14,7 @@ from fastapi.responses import StreamingResponse
 from backend.api.routes_auth import get_current_user
 from backend.api.schemas import BirthRequest, NatalResponse, TodayResponse
 from backend.core.container import container
-from backend.domain.entities import BirthInput
+from backend.domain.entities import BirthInput, User
 from backend.domain.entitlements import require_entitlement
 from backend.domain.pdf_service import render_natal_pdf
 from backend.domain.services import HoroscopeService
@@ -100,7 +100,7 @@ def pdf_natal(chart_id: str):
 
 
 @router.get("/today/premium/{chart_id}")
-def get_today_premium(chart_id: str, user: dict = current_user_dep):
+def get_today_premium(chart_id: str, user: User = current_user_dep):
     """Endpoint premium: nécessite l'entitlement "plus".
 
     Retourne les mêmes données que `/today/{chart_id}` avec un indicateur `premium: true`.

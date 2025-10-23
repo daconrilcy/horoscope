@@ -116,7 +116,7 @@ def test_shadow_read_emits_metrics(monkeypatch: Any) -> None:
                 },
             ][:top_k]
 
-    proxy._adapter = _Primary()  # type: ignore[attr-defined]
+    proxy._adapter = _Primary()  # type: ignore[assignment]
     res = proxy.search(query="q", top_k=5, tenant="bench")
     assert isinstance(res, list)
     # Allow shadow worker to run (poll up to 1s).

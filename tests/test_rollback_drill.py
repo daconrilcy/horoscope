@@ -2,7 +2,7 @@
 Tests pour le script de drill de rollback.
 
 Ce module teste les fonctionnalités du script de rollback incluant la mise à jour des variables
-d'environnement et l'exécution en mode dry-run.
+d'environnement et l'exécution en mode dry- run.
 """
 
 from __future__ import annotations

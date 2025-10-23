@@ -192,7 +192,7 @@ class APIClient:
         self, method: str, endpoint: str, max_retries: int = 3, **kwargs
     ) -> dict[str, Any]:
         """Fait une requête avec retry automatique pour les rate limits."""
-        last_exception = None
+        last_exception: Exception | None = None
 
         for attempt in range(max_retries):
             try:

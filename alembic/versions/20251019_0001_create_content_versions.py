@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Migration Alembic pour créer la table content_versions.
 

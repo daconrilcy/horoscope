@@ -141,6 +141,8 @@ class BaseRetrievalAdapter(ABC):
 class FAISSAdapter(BaseRetrievalAdapter):
     """Adaptateur FAISS multi-tenant via FaissMultiTenantAdapter."""
 
+    _adapter: MemoryMultiTenantAdapter | FaissMultiTenantAdapter
+
     def __init__(self) -> None:
         """Initialize FAISS adapter with automatic backend selection."""
         backend = (
@@ -584,7 +586,8 @@ class RetrievalProxy:
             # Minimal validation: ignore invalid docs quietly
             return
         try:
-            FaissMultiTenantAdapter().index_for_tenant(t, [d])
+            if t and isinstance(t, str):
+                FaissMultiTenantAdapter().index_for_tenant(t, [d])
         except Exception:
             # Primary failure should be rare; surface via log but do not raise here
             structlog.get_logger(__name__).error(
@@ -841,9 +844,11 @@ def _shadow_submit(
     primary_results: list[dict],
 ) -> None:
     _ensure_shadow_workers()
+    if not _shadow_state.queue:
+        return
     try:
         # Pack minimal task
-        _shadow_state.queue.put_nowait(
+        _shadow_state.queue.put_nowait(  # type: ignore[union-attr,attr-defined]
             {
                 "query": query,
                 "top_k": top_k,
@@ -867,6 +872,6 @@ def _shutdown_shadow_executor() -> None:  # pragma: no cover - process shutdown
             return
         for _ in _shadow_threads:
             with contextlib.suppress(Exception):
-                _shadow_state.queue.put_nowait({"__stop__": True})  # type: ignore[union-attr]
+                _shadow_state.queue.put_nowait({"__stop__": True})  # type: ignore[union-attr,attr-defined]
     except Exception:
         pass

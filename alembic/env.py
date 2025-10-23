@@ -14,7 +14,7 @@ from pathlib import Path
 
 from sqlalchemy import create_engine, pool
 
-from alembic import context
+from alembic import context  # type: ignore[attr-defined]
 
 # Allow importing project modules when running via Alembic CLI
 _this = Path(__file__).resolve()

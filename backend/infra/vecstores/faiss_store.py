@@ -5,6 +5,8 @@ Requires `faiss-cpu` and `numpy` to be installed. Uses inner-product
 similarity (IndexFlatIP) for retrieval.
 """
 
+from __future__ import annotations
+
 import getpass
 import json
 import os
@@ -34,6 +36,8 @@ class FAISSVectorStore(VectorStore):
     Implémente un store vectoriel utilisant FAISS avec support pour différents embedders (OpenAI ou
     local).
     """
+
+    embedder: OpenAIEmbedder | LocalEmbedder
 
     def __init__(self) -> None:
         """
@@ -179,9 +183,12 @@ class FaissMultiTenantAdapter(VectorStoreProtocol):
         self._dir = data_dir or getattr(
             container.settings, "FAISS_DATA_DIR", "./var/faiss"
         )
-        os.makedirs(self._dir, exist_ok=True)
+        if isinstance(self._dir, str):
+            os.makedirs(self._dir, exist_ok=True)
 
     def _paths(self, tenant: str) -> tuple[str, str]:
+        if not isinstance(self._dir, str):
+            raise ValueError("FAISS_DATA_DIR must be a string")
         tdir = os.path.join(self._dir, tenant)
         os.makedirs(tdir, exist_ok=True)
         return os.path.join(tdir, "index.faiss"), os.path.join(tdir, "docs.json")
