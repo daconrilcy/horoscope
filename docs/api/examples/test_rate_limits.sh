@@ -95,7 +95,8 @@ curl -s "${COMMON_HEADERS[@]}" \
 
 # Test 7: Test avec JWT invalide
 echo "7. Test avec JWT invalide:"
-curl -s -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+echo "Remplacez 'REPLACE_WITH_YOUR_TOKEN' par votre vrai token JWT:"
+curl -s -H "Authorization: Bearer REPLACE_WITH_YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      "$API_BASE_URL/v1/chat/message" \
      -d '{"message": "Test with invalid JWT"}' \
