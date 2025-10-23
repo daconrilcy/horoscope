@@ -22,6 +22,20 @@ from backend.apigw.rate_limit import (
 )
 from backend.app.metrics import normalize_route
 
+# Constantes pour les tests
+HTTP_OK = 200
+HTTP_TOO_MANY_REQUESTS = 429
+DEFAULT_REQUESTS_PER_MINUTE = 60
+DEFAULT_REQUESTS_PER_HOUR = 1000
+DEFAULT_BURST_LIMIT = 10
+DEFAULT_WINDOW_SIZE = 60
+TEST_RESET_TIME = 1234567890.0
+TEST_RETRY_AFTER = 30
+TEST_REMAINING_REQUESTS = 59
+TEST_QUOTA_LIMIT = 100
+TEST_CHAT_QUOTA = 100
+TEST_RETRIEVAL_QUOTA = 500
+
 
 class TestSlidingWindowRateLimiter:
     """Tests pour SlidingWindowRateLimiter."""
@@ -33,7 +47,9 @@ class TestSlidingWindowRateLimiter:
 
         result = limiter.check_rate_limit("tenant1")
         assert result.allowed is True
-        assert result.remaining == 4  # requests_per_minute - 1
+        assert (
+            result.remaining == DEFAULT_REQUESTS_PER_MINUTE - 1
+        )  # requests_per_minute - 1
         assert result.retry_after is None
 
     def test_rate_limit_exceeded(self) -> None:
@@ -136,7 +152,7 @@ class TestTenantRateLimitMiddleware:
     """Tests pour TenantRateLimitMiddleware."""
 
     def setup_method(self) -> None:
-        """Setup test environment."""
+        """Configure l'environnement de test."""
         # Mock extract_tenant_secure for all tests in this class
         self.extract_patcher = patch("backend.apigw.rate_limit.extract_tenant_secure")
         self.mock_extract = self.extract_patcher.start()
@@ -169,7 +185,7 @@ class TestTenantRateLimitMiddleware:
             return Response("OK", status_code=200)
 
         response = await middleware.dispatch(request, call_next)
-        assert response.status_code == 200
+        assert response.status_code == HTTP_OK
 
     @pytest.mark.asyncio
     async def test_health_endpoints_skipped(self) -> None:
@@ -181,7 +197,7 @@ class TestTenantRateLimitMiddleware:
             return Response("OK", status_code=200)
 
         response = await middleware.dispatch(request, call_next)
-        assert response.status_code == 200
+        assert response.status_code == HTTP_OK
 
     @pytest.mark.asyncio
     async def test_rate_limit_headers_added(self) -> None:
@@ -193,7 +209,7 @@ class TestTenantRateLimitMiddleware:
             return Response("OK", status_code=200)
 
         response = await middleware.dispatch(request, call_next)
-        assert response.status_code == 200
+        assert response.status_code == HTTP_OK
         assert "X-RateLimit-Limit" in response.headers
         assert "X-RateLimit-Remaining" in response.headers
         assert "X-RateLimit-Reset" in response.headers
@@ -227,7 +243,7 @@ class TestTenantRateLimitMiddleware:
                 return Response("OK", status_code=200)
 
             response1 = await middleware.dispatch(request1, call_next1)
-            assert response1.status_code == 200
+            assert response1.status_code == HTTP_OK
 
             # Second request should be blocked
             request2 = self.create_mock_request()
@@ -236,7 +252,7 @@ class TestTenantRateLimitMiddleware:
                 return Response("OK", status_code=200)
 
             response2 = await middleware.dispatch(request2, call_next2)
-            assert response2.status_code == 429
+            assert response2.status_code == HTTP_TOO_MANY_REQUESTS
             assert "Retry-After" in response2.headers
 
     def test_tenant_extraction_from_header(self) -> None:
@@ -293,7 +309,7 @@ class TestQuotaManager:
         manager = QuotaManager()
         manager.set_quota("tenant1", "requests", 100)
 
-        assert manager.get_quota("tenant1", "requests") == 100
+        assert manager.get_quota("tenant1", "requests") == TEST_QUOTA_LIMIT
         assert manager.get_quota("tenant1", "unknown") == 0
 
     def test_check_quota(self) -> None:
@@ -316,7 +332,7 @@ class TestQuotaMiddleware:
     """Tests pour QuotaMiddleware."""
 
     def setup_method(self) -> None:
-        """Setup test environment."""
+        """Configure l'environnement de test."""
         # Mock extract_tenant_secure for all tests in this class
         self.extract_patcher = patch("backend.apigw.rate_limit.extract_tenant_secure")
         self.mock_extract = self.extract_patcher.start()
@@ -346,7 +362,7 @@ class TestQuotaMiddleware:
             return Response("OK", status_code=200)
 
         response = await middleware.dispatch(request, call_next)
-        assert response.status_code == 200
+        assert response.status_code == HTTP_OK
 
     @pytest.mark.asyncio
     async def test_health_endpoints_skipped(self) -> None:
@@ -358,7 +374,7 @@ class TestQuotaMiddleware:
             return Response("OK", status_code=200)
 
         response = await middleware.dispatch(request, call_next)
-        assert response.status_code == 200
+        assert response.status_code == HTTP_OK
 
     @patch("backend.apigw.rate_limit.quota_manager")
     @pytest.mark.asyncio
@@ -372,7 +388,7 @@ class TestQuotaMiddleware:
             return Response("OK", status_code=200)
 
         response = await middleware.dispatch(request, call_next)
-        assert response.status_code == 200
+        assert response.status_code == HTTP_OK
 
     @patch("backend.apigw.rate_limit.quota_manager")
     @pytest.mark.asyncio
@@ -386,7 +402,7 @@ class TestQuotaMiddleware:
             return Response("OK", status_code=200)
 
         response = await middleware.dispatch(request, call_next)
-        assert response.status_code == 200
+        assert response.status_code == HTTP_OK
 
 
 class TestRateLimitConfig:
@@ -395,10 +411,10 @@ class TestRateLimitConfig:
     def test_default_config(self) -> None:
         """Test la configuration par défaut."""
         config = RateLimitConfig()
-        assert config.requests_per_minute == 60
-        assert config.requests_per_hour == 1000
-        assert config.burst_limit == 10
-        assert config.window_size_seconds == 60
+        assert config.requests_per_minute == DEFAULT_REQUESTS_PER_MINUTE
+        assert config.requests_per_hour == DEFAULT_REQUESTS_PER_HOUR
+        assert config.burst_limit == DEFAULT_BURST_LIMIT
+        assert config.window_size_seconds == DEFAULT_WINDOW_SIZE
 
     def test_custom_config(self) -> None:
         """Test la configuration personnalisée."""
@@ -408,10 +424,10 @@ class TestRateLimitConfig:
             burst_limit=5,
             window_size_seconds=30,
         )
-        assert config.requests_per_minute == 30
-        assert config.requests_per_hour == 500
-        assert config.burst_limit == 5
-        assert config.window_size_seconds == 30
+        assert config.requests_per_minute == TEST_RETRY_AFTER
+        assert config.requests_per_hour == TEST_QUOTA_LIMIT
+        assert config.burst_limit == DEFAULT_BURST_LIMIT // 2
+        assert config.window_size_seconds == TEST_RETRY_AFTER
 
 
 class TestRateLimitResult:
@@ -425,8 +441,8 @@ class TestRateLimitResult:
             reset_time=1234567890.0,
         )
         assert result.allowed is True
-        assert result.remaining == 5
-        assert result.reset_time == 1234567890.0
+        assert result.remaining == DEFAULT_BURST_LIMIT // 2
+        assert result.reset_time == TEST_RESET_TIME
         assert result.retry_after is None
 
     def test_blocked_result(self) -> None:
@@ -439,8 +455,8 @@ class TestRateLimitResult:
         )
         assert result.allowed is False
         assert result.remaining == 0
-        assert result.reset_time == 1234567890.0
-        assert result.retry_after == 30
+        assert result.reset_time == TEST_RESET_TIME
+        assert result.retry_after == TEST_RETRY_AFTER
 
 
 class TestDefaultQuotas:
@@ -457,10 +473,22 @@ class TestDefaultQuotas:
         test_manager.set_quota("default", "chat_requests_per_hour", 100)
         test_manager.set_quota("default", "retrieval_requests_per_hour", 500)
 
-        assert test_manager.get_quota("default", "requests_per_minute") == 60
-        assert test_manager.get_quota("default", "requests_per_hour") == 1000
-        assert test_manager.get_quota("default", "chat_requests_per_hour") == 100
-        assert test_manager.get_quota("default", "retrieval_requests_per_hour") == 500
+        assert (
+            test_manager.get_quota("default", "requests_per_minute")
+            == DEFAULT_REQUESTS_PER_MINUTE
+        )
+        assert (
+            test_manager.get_quota("default", "requests_per_hour")
+            == DEFAULT_REQUESTS_PER_HOUR
+        )
+        assert (
+            test_manager.get_quota("default", "chat_requests_per_hour")
+            == TEST_CHAT_QUOTA
+        )
+        assert (
+            test_manager.get_quota("default", "retrieval_requests_per_hour")
+            == TEST_RETRIEVAL_QUOTA
+        )
 
 
 class TestRouteNormalization:
@@ -500,7 +528,7 @@ class TestIntegration:
     """Tests d'intégration pour le rate limiting."""
 
     def setup_method(self) -> None:
-        """Setup test environment."""
+        """Configure l'environnement de test."""
         # Mock extract_tenant_secure for all tests in this class
         self.extract_patcher = patch("backend.apigw.rate_limit.extract_tenant_secure")
         self.mock_extract = self.extract_patcher.start()
@@ -581,7 +609,7 @@ class TestIntegration:
             )
 
             # Check response
-            assert response.status_code == 429
+            assert response.status_code == HTTP_TOO_MANY_REQUESTS
             assert "Retry-After" in response.headers
             retry_after = int(response.headers["Retry-After"])
             assert retry_after >= 1  # At least 1 second
@@ -617,7 +645,7 @@ class TestIntegration:
             )
 
             # Check response
-            assert response.status_code == 429
+            assert response.status_code == HTTP_TOO_MANY_REQUESTS
             assert "Retry-After" in response.headers
 
     @pytest.mark.asyncio
@@ -648,7 +676,7 @@ class TestIntegration:
             )
 
             # Vérifier la réponse
-            assert response.status_code == 200
+            assert response.status_code == HTTP_OK
             assert "X-RateLimit-Limit" in response.headers
             assert "X-RateLimit-Remaining" in response.headers
             assert "X-RateLimit-Reset" in response.headers
@@ -675,7 +703,7 @@ class TestIntegration:
             response = await middleware.dispatch(request, call_next)
 
             # Vérifier que la requête a été bloquée
-            assert response.status_code == 429
+            assert response.status_code == HTTP_TOO_MANY_REQUESTS
             assert "Retry-After" in response.headers
             assert response.headers["Retry-After"] == "30"
 
@@ -702,7 +730,7 @@ class TestIntegration:
             response = await middleware.dispatch(request, call_next)
 
             # Vérifier que la requête a été autorisée (fail-open)
-            assert response.status_code == 200
+            assert response.status_code == HTTP_OK
 
     @pytest.mark.asyncio
     async def test_rate_limit_with_metrics(self) -> None:
