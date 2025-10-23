@@ -5,12 +5,12 @@ Ce script teste le flux complet de l'application : inscription, connexion, créa
 et conseil via chat.
 """
 
-from backend.tests.fakes import FakeLLM
 from fastapi.testclient import TestClient
 
 from backend.api import routes_chat
 from backend.app.main import app
 from backend.domain.chat_orchestrator import ChatOrchestrator
+from backend.tests.fakes import FakeLLM
 
 
 def run():
