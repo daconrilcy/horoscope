@@ -12,11 +12,11 @@ os.environ.setdefault("EMBEDDINGS_PROVIDER", "local")
 os.environ.setdefault("OPENAI_API_KEY", "test")
 
 import uvicorn
+from backend.tests.fakes import FakeLLM
 
 from backend.api import routes_chat
 from backend.app.main import app
 from backend.domain.chat_orchestrator import ChatOrchestrator
-from backend.tests.fakes import FakeLLM
 
 
 def main():
