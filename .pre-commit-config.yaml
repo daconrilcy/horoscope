@@ -1,10 +1,30 @@
-# Objectif du fichier: Décrire l'objectif de .pre-commit-config.yaml
-# TODO: compléter cette description.
-
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.14.1
     hooks:
-      - id: ruff-format
       - id: ruff
         args: ["--fix"]
+      - id: ruff-format
+
+  - repo: https://github.com/psf/black
+    rev: 25.9.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/PyCQA/docformatter
+    rev: v1.7.7
+    hooks:
+      - id: docformatter
+        args:
+          - --in-place
+          - --wrap-summaries=100
+          - --wrap-descriptions=100
+          - --pre-summary-newline
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.18.2
+    hooks:
+      - id: mypy
+
+default_language_version:
+  python: python3.13

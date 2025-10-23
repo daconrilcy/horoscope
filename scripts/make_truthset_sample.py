@@ -1,3 +1,10 @@
+"""
+Script de génération d'échantillon de jeu de données de vérité.
+
+Ce script génère un échantillon de jeu de données de vérité avec des requêtes astrologiques et des
+résultats simulés pour les tests de cutover.
+"""
+
 from __future__ import annotations
 
 import json
@@ -5,21 +12,28 @@ import random
 
 
 def faiss_topk(query: str, k: int) -> list[dict]:
-    """Return a simulated FAISS top-k for the demo.
+    """
+    Return a simulated FAISS top-k for the demo.
 
     Replace with the real adapter call in staging if desired.
     """
     random.seed(hash(query) % 10_000)
     res: list[dict] = []
     for i in range(k):
-        res.append({"id": f"doc_{random.randint(1, 6000):04d}", "score": 1.0 - i * 0.01})
+        res.append(
+            {"id": f"doc_{random.randint(1, 6000):04d}", "score": 1.0 - i * 0.01}
+        )
     return res
 
 
 def main() -> None:
     """Generate a demo truth-set with frozen baseline_topk."""
     queries: list[dict] = [
-        {"query_id": "q001", "query": "compatibilité signe solaire et ascendant", "k": 10},
+        {
+            "query_id": "q001",
+            "query": "compatibilité signe solaire et ascendant",
+            "k": 10,
+        },
         {"query_id": "q002", "query": "calcul de thème astral natal", "k": 10},
         {"query_id": "q003", "query": "synastrie compatibilités couple", "k": 10},
         {"query_id": "q004", "query": "transits planétaires du mois", "k": 10},
@@ -43,4 +57,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

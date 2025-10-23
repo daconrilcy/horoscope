@@ -1,5 +1,8 @@
 """
-Application FastAPI: assemblage des middlewares, routes et paramètres.
+Application principale FastAPI.
+
+Ce module assemble tous les composants de l'application : middlewares,
+routes, métriques et configuration de l'API astrologique.
 
 Responsabilités du module:
 - Initialiser le logging structuré
@@ -7,6 +10,8 @@ Responsabilités du module:
 - Ajouter les middlewares (request id, timing)
 - Monter les routers (santé et horoscope)
 """
+
+from __future__ import annotations
 
 from fastapi import FastAPI
 
@@ -24,7 +29,8 @@ from backend.middlewares.timing import TimingMiddleware
 
 
 def create_app() -> FastAPI:
-    """Construit et retourne l'application FastAPI prête à l'usage.
+    """
+    Construit et retourne l'application FastAPI prête à l'usage.
 
     Étapes:
     - Configure le logging structuré (structlog)

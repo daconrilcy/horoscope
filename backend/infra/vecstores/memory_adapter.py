@@ -1,8 +1,8 @@
-"""In-memory multi-tenant vector store adapter.
+"""
+In-memory multi-tenant vector store adapter.
 
-Implements VectorStoreProtocol for environments without FAISS or when a
-lightweight backend is required. Provides isolation per tenant and integrates
-with vecstore metrics.
+Implements VectorStoreProtocol for environments without FAISS or when a lightweight backend is
+required. Provides isolation per tenant and integrates with vecstore metrics.
 """
 
 from __future__ import annotations
@@ -24,9 +24,20 @@ class MemoryMultiTenantAdapter(VectorStoreProtocol):
     """In-memory adapter with per-tenant isolation and naïve search."""
 
     def __init__(self) -> None:
+        """Initialize in-memory multi-tenant vector adapter."""
         self._docs: dict[str, list[Document]] = {}
 
     def index_for_tenant(self, tenant: str, docs: list[Document]) -> int:
+        """
+        Indexe des documents pour un tenant spécifique en mémoire.
+
+        Args:
+            tenant: Identifiant du tenant.
+            docs: Liste des documents à indexer.
+
+        Returns:
+            int: Nombre de documents indexés.
+        """
         start = time.perf_counter()
         tenant = safe_tenant(tenant)
         self._docs.setdefault(tenant, []).extend(docs)
@@ -37,6 +48,16 @@ class MemoryMultiTenantAdapter(VectorStoreProtocol):
         return len(docs)
 
     def search_for_tenant(self, tenant: str, q: Query) -> list[ScoredDocument]:
+        """
+        Recherche des documents pour un tenant spécifique en mémoire.
+
+        Args:
+            tenant: Identifiant du tenant.
+            q: Requête de recherche.
+
+        Returns:
+            list[ScoredDocument]: Liste des documents trouvés avec scores.
+        """
         start = time.perf_counter()
         tenant = safe_tenant(tenant)
         docs = self._docs.get(tenant, [])
@@ -59,6 +80,12 @@ class MemoryMultiTenantAdapter(VectorStoreProtocol):
         return scored[: max(1, q.k)]
 
     def purge_tenant(self, tenant: str) -> None:
+        """
+        Supprime toutes les données d'un tenant en mémoire.
+
+        Args:
+            tenant: Identifiant du tenant à purger.
+        """
         tenant = safe_tenant(tenant)
         self._docs.pop(tenant, None)
         VECSTORE_PURGE.labels(tenant=tenant, backend="memory").inc()

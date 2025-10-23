@@ -1,3 +1,10 @@
+"""
+Service de génération de PDF pour les thèmes astrologiques.
+
+Ce module implémente la génération de PDF sommaire pour les thèmes natals avec mise en forme et
+informations essentielles.
+"""
+
 from __future__ import annotations
 
 from fpdf import FPDF
@@ -8,6 +15,15 @@ def _safe(s: str) -> str:
 
 
 def render_natal_pdf(chart: dict) -> bytes:
+    """
+    Génère un PDF sommaire pour un thème natal.
+
+    Args:
+        chart: Dictionnaire contenant les données du thème natal.
+
+    Returns:
+        bytes: Contenu du PDF généré.
+    """
     pdf = FPDF(unit="pt", format="A4")
     pdf.set_title("Horoscope Natal Chart")
     pdf.add_page()

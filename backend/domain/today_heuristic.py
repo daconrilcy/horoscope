@@ -14,8 +14,11 @@ def score_factor(f: dict[str, Any]) -> float:
     return f.get("weight", 1.0) * f.get("intensity", 1.0) - f.get("friction", 0.0)
 
 
-def pick_today(transits: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Classe/transits → leaders/influences selon `score_factor` (ordre décroissant).
+def pick_today(
+    transits: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """
+    Classe/transits → leaders/influences selon `score_factor` (ordre décroissant).
 
     - leaders: top 3
     - influences: 3 suivants (positions 4 à 6)
@@ -27,7 +30,8 @@ def pick_today(transits: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], li
 
 
 def energy_attention_opportunity(leaders: list[dict[str, Any]]) -> dict[str, int]:
-    """Calculer un score EAO basé sur l'axe de chaque leader.
+    """
+    Calculer un score EAO basé sur l'axe de chaque leader.
 
     Règles simples:
     - Énergie: compte axes SUN/MARS/ASC

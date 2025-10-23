@@ -1,3 +1,10 @@
+"""
+Container d'injection de dépendances.
+
+Ce module fournit un container centralisé pour la gestion des dépendances et l'injection de services
+dans l'application.
+"""
+
 import os
 
 from backend.core.settings import get_settings
@@ -13,7 +20,10 @@ from backend.infra.secrets.vault_client import VaultClient
 
 
 class Container:
+    """Container principal pour l'injection de dépendances."""
+
     def __init__(self):
+        """Initialise le container avec tous les services nécessaires."""
         self.settings = get_settings()
         base_dir = os.path.dirname(__file__)
         infra_dir = os.path.normpath(os.path.join(base_dir, "..", "infra"))
@@ -73,7 +83,8 @@ et expose un singleton `container` utilisé par le reste de l'application.
 
 
 def _env_or_settings(key: str, settings) -> str:
-    """Retourne d'abord l'env, sinon l'attribut dans settings, sinon chaîne vide.
+    """
+    Retourne d'abord l'env, sinon l'attribut dans settings, sinon chaîne vide.
 
     Ne loggue jamais la valeur du secret.
     """
@@ -92,15 +103,15 @@ def _try_vault(container: Container, key: str) -> str:
 
 
 def resolve_secret(key: str) -> str:
-    """Résout un secret via Vault avec fallback env/settings.
+    """
+    Résout un secret via Vault avec fallback env/settings.
 
     Ordre: Vault (si activé) → env → settings. Ne journalise jamais de valeurs.
     """
     # Try Vault first
-    from backend.core.container import container as _container  # local import to avoid cycles
 
-    val = _try_vault(_container, key)
+    val = _try_vault(container, key)
     if val:
         return val
     # Fallback
-    return _env_or_settings(key, _container.settings)
+    return _env_or_settings(key, container.settings)

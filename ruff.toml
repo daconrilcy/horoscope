@@ -1,0 +1,14 @@
+# ruff.toml
+target-version = "py313"
+line-length = 100
+
+[lint]
+select = ["E","F","W","I","B","UP","D","SIM","RUF","PL","C90"]
+ignore = []
+
+[lint.pydocstyle]
+convention = "pep257"  # D401: 1re ligne impérative
+
+[format]
+quote-style = "preserve"
+indent-style = "space"

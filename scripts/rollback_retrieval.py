@@ -1,3 +1,10 @@
+"""
+Script de drill de rollback vers FAISS uniquement.
+
+Ce script effectue un drill de rollback (dry-run ou application) et ajoute un journal NDJSON pour
+l'audit des opérations de rollback.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -44,7 +51,11 @@ def main() -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--dry-run", action="store_true")
     group.add_argument("--apply", action="store_true")
-    parser.add_argument("--operator", type=str, default=os.getenv("USER") or os.getenv("USERNAME") or "operator")
+    parser.add_argument(
+        "--operator",
+        type=str,
+        default=os.getenv("USER") or os.getenv("USERNAME") or "operator",
+    )
     parser.add_argument("--reason", type=str, default="drill")
     args = parser.parse_args()
 
@@ -87,4 +98,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

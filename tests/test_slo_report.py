@@ -1,12 +1,24 @@
+"""
+Tests pour la génération de rapports SLO.
+
+Ce module teste la génération de rapports SLO avec toutes les sections requises et les liens vers
+les dashboards Grafana.
+"""
+
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from scripts.slo_report import generate_report
 
 
 def test_slo_report_generation(tmp_path: Path, monkeypatch) -> None:
+    """
+    Teste la génération du rapport SLO.
+
+    Vérifie que le rapport SLO est correctement généré avec toutes les sections requises et les
+    liens vers les dashboards.
+    """
     monkeypatch.setenv("GRAFANA_DASHBOARD_URL", "https://grafana.example.com/d/astro")
     out = generate_report(tmp_path)
     assert out.exists()
@@ -18,4 +30,3 @@ def test_slo_report_generation(tmp_path: Path, monkeypatch) -> None:
     assert "Monthly LLM budget" in text
     # Dashboard link present
     assert "https://grafana.example.com" in text
-

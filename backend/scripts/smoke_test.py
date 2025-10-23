@@ -1,4 +1,5 @@
-"""Quick smoke test for API endpoints using TestClient.
+"""
+Quick smoke test for API endpoints using TestClient.
 
 Checks:
 - GET /health
@@ -15,6 +16,12 @@ from backend.infra.astro.fake_deterministic import FakeDeterministicAstro
 
 
 def main() -> None:
+    """
+    Point d'entrée principal pour les tests de fumée.
+
+    Exécute une série de tests de base pour vérifier que l'application fonctionne correctement avec
+    un moteur déterministe.
+    """
     # Use deterministic engine for repeatable output
     container.astro = FakeDeterministicAstro()
     client = TestClient(app)
@@ -53,7 +60,12 @@ def main() -> None:
 
     # PDF
     r = client.get(f"/horoscope/pdf/natal/{chart_id}")
-    print("/horoscope/pdf/natal:", r.status_code, r.headers.get("content-type"), len(r.content))
+    print(
+        "/horoscope/pdf/natal:",
+        r.status_code,
+        r.headers.get("content-type"),
+        len(r.content),
+    )
 
     print("Smoke test OK")
 

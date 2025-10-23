@@ -1,3 +1,10 @@
+"""
+Middlewares pour l'API Gateway avec support idempotence et tracing.
+
+Ce module implémente les middlewares essentiels pour l'API Gateway : idempotence des requêtes POST,
+génération de trace IDs, logging structuré et gestion des versions d'API.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -10,6 +17,12 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
+from backend.apigw.errors import create_error_response
+from backend.core.constants import (
+    HTTP_STATUS_SUCCESS_MAX,
+    HTTP_STATUS_SUCCESS_MIN,
+)
+
 log = logging.getLogger(__name__)
 
 
@@ -17,6 +30,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
     """Middleware for handling idempotency keys on POST requests."""
 
     def __init__(self, app: Any, store: IdempotencyStore | None = None) -> None:
+        """Initialize idempotency middleware."""
         super().__init__(app)
         self.store = store or InMemoryIdempotencyStore()
 
@@ -51,7 +65,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # Cache successful responses (2xx status codes)
-        if 200 <= response.status_code < 300:
+        if HTTP_STATUS_SUCCESS_MIN <= response.status_code < HTTP_STATUS_SUCCESS_MAX:
             await self.store.set(
                 idempotency_key,
                 request_hash,
@@ -81,15 +95,14 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         content = f"{request.method}:{request.url.path}:{request.url.query}"
 
         # Add body if present
-        if hasattr(request, "_body"):
-            body = request._body
-        else:
-            body = b""
+        body = request._body if hasattr(request, "_body") else b""
         content += f":{body.decode()}"
 
         return hashlib.sha256(content.encode()).hexdigest()
 
-    def _create_response_from_cache(self, cached_data: dict[str, Any]) -> StarletteResponse:
+    def _create_response_from_cache(
+        self, cached_data: dict[str, Any]
+    ) -> StarletteResponse:
         """Create a response from cached data."""
         response = StarletteResponse(
             content=cached_data.get("body", ""),
@@ -111,7 +124,9 @@ class IdempotencyStore:
         """Get cached response for idempotency key and request hash."""
         raise NotImplementedError
 
-    async def set(self, key: str, request_hash: str, response_data: dict[str, Any]) -> None:
+    async def set(
+        self, key: str, request_hash: str, response_data: dict[str, Any]
+    ) -> None:
         """Cache response data for idempotency key and request hash."""
         raise NotImplementedError
 
@@ -120,6 +135,7 @@ class InMemoryIdempotencyStore(IdempotencyStore):
     """In-memory implementation of idempotency store."""
 
     def __init__(self, ttl_seconds: int = 3600) -> None:
+        """Initialize in-memory idempotency store."""
         self._cache: dict[str, dict[str, Any]] = {}
         self._ttl_seconds = ttl_seconds
 
@@ -138,7 +154,9 @@ class InMemoryIdempotencyStore(IdempotencyStore):
 
         return cached_data
 
-    async def set(self, key: str, request_hash: str, response_data: dict[str, Any]) -> None:
+    async def set(
+        self, key: str, request_hash: str, response_data: dict[str, Any]
+    ) -> None:
         """Cache response data in memory."""
         cache_key = f"{key}:{request_hash}"
         self._cache[cache_key] = response_data
@@ -213,6 +231,7 @@ class APIVersionMiddleware(BaseHTTPMiddleware):
     """Middleware for API versioning enforcement."""
 
     def __init__(self, app: Any, required_version: str = "v1") -> None:
+        """Initialize API versioning middleware."""
         super().__init__(app)
         self.required_version = required_version
 
@@ -226,8 +245,6 @@ class APIVersionMiddleware(BaseHTTPMiddleware):
 
         # Check if path starts with version
         if not path.startswith(f"/{self.required_version}/"):
-            from backend.apigw.errors import create_error_response
-
             return create_error_response(
                 status_code=400,
                 code="INVALID_API_VERSION",

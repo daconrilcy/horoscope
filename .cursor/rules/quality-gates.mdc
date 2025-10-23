@@ -1,0 +1,28 @@
+---
+alwaysApply: true
+---
+name: Quality Gates – Python
+description: Règles strictes à respecter systématiquement pour tout code Python du repo.
+scopes:
+  - project
+languages:
+  - python
+priority: highest
+---
+
+# Directives générales
+- Corrige **toutes** les erreurs **Ruff** et **Lint** avant toute proposition de code. N’ignore pas les règles par défaut.
+- Vérifie ton code avant de répondre : relis et signale ce que tu as vérifié (imports, types, docstrings, tests).
+- Chaque **module/fichier** doit commencer par un **en-tête de commentaire** concis expliquant l’objectif du module.
+- Place **tous les imports en haut** du fichier (stdlib, externes, internes – dans cet ordre).
+- **Chaque fonction et classe** a une **docstring**. **Première ligne impérative** (style pydocstyle D401), suivie d’un résumé et, si utile, Args/Returns/Raises.
+- Les **tests** sont créés **dans `./tests/` à la racine**, en miroir de la structure des modules. Ajoute/maj les tests à chaque changement.
+
+# Conventions & vérifications attendues de l’IA
+- Propose des correctifs Ruff conformes au fichier `ruff.toml` du repo (sinon au profil par défaut).
+- Refuse d’ajouter des `# noqa` ou désactivations globales, sauf raison documentée.
+- Ajoute des docstrings manquantes et reformule celles non impératives.
+- Si un nouveau module est créé, inclure en tête :
+<Résumé en une phrase, objectif fonctionnel du module>
+Contexte/contrainte(s) clé(s) si pertinent
+- Pour chaque PR générée, inclure ou modifier les **tests** dans `tests/` (pytest), avec cas nominaux + bords + erreurs.

@@ -1,3 +1,10 @@
+"""
+Gestion standardisée des erreurs API avec enveloppes d'erreur.
+
+Ce module fournit une gestion centralisée des erreurs avec des enveloppes standardisées, des codes
+d'erreur cohérents et un support pour le tracing des requêtes.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -31,6 +38,7 @@ class APIError(HTTPException):
         trace_id: str | None = None,
         details: dict[str, Any] | None = None,
     ) -> None:
+        """Initialize an API error with standardized envelope."""
         super().__init__(status_code=status_code, detail=message)
         self.code = code
         self.message = message

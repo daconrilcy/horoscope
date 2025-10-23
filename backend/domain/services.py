@@ -1,3 +1,10 @@
+"""
+Service métier principal pour les calculs et contenus d'horoscopes.
+
+Ce module implémente le service HoroscopeService qui orchestre les calculs astrologiques, la
+persistance des thèmes et la récupération de contenus.
+"""
+
 import uuid
 from datetime import date as _date
 from typing import Any
@@ -7,7 +14,8 @@ from backend.domain.today_heuristic import energy_attention_opportunity, pick_to
 
 
 class HoroscopeService:
-    """Service métier pour calculs et contenus d'horoscopes.
+    """
+    Service métier pour calculs et contenus d'horoscopes.
 
     Responsabilités:
     - Orchestrer les calculs de thème natal et de transits via `astro_engine`.
@@ -16,7 +24,8 @@ class HoroscopeService:
     """
 
     def __init__(self, astro_engine, content_repo, chart_repo):
-        """Initialise le service avec ses dépendances.
+        """
+        Initialise le service avec ses dépendances.
 
         Paramètres:
         - astro_engine: composant réalisant les calculs astrologiques.
@@ -28,7 +37,8 @@ class HoroscopeService:
         self.charts = chart_repo
 
     def compute_natal(self, birth: BirthInput) -> dict[str, Any]:
-        """Calculer et stocker un thème natal à partir des données de naissance: date, heure, lieu.
+        """
+        Calculer et stocker un thème natal à partir des données de naissance: date, heure, lieu.
 
         Paramètres:
         birth: `BirthInput` avec les informations de naissance.
@@ -41,7 +51,8 @@ class HoroscopeService:
         return chart_record
 
     def get_today(self, chart_id: str, user: User | None = None) -> dict[str, Any]:
-        """Produit un “horoscope du jour” pour un thème existant.
+        """
+        Produit un “horoscope du jour” pour un thème existant.
 
         Démarche:
         - Charge le thème `chart_id` (erreur si absent).
@@ -62,7 +73,11 @@ class HoroscopeService:
         transits = self.astro.compute_daily_transits(chart["chart"], today)
         leaders, influences = pick_today(transits)
         eao = energy_attention_opportunity(leaders)
-        snippets = [self.content.get_snippet(f["snippet_id"]) for f in leaders if "snippet_id" in f]
+        snippets = [
+            self.content.get_snippet(f["snippet_id"])
+            for f in leaders
+            if "snippet_id" in f
+        ]
         return {
             "date": today,
             "leaders": leaders,

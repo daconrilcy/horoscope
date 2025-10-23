@@ -1,3 +1,10 @@
+"""
+Utilitaires pour les tâches asynchrones avec support idempotence.
+
+Ce module fournit des fonctions utilitaires pour la gestion des tâches asynchrones, notamment la
+génération de clés d'idempotence.
+"""
+
 # ============================================================
 # Module : backend/tasks/utils.py
 # Objet  : Utilitaires tasks (idempotence).
@@ -9,7 +16,8 @@ import hashlib
 
 
 def idempotency_key(payload: dict, fields: list[str]) -> str:
-    """Construit une clé d'idempotence à partir de champs du payload.
+    """
+    Construit une clé d'idempotence à partir de champs du payload.
 
     Args:
         payload: dictionnaire d'entrée.

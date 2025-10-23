@@ -3,6 +3,12 @@
 # Objet  : Accès SQL (CRUD) pour ContentVersion (squelette).
 # Notes  : à intégrer avec SQLAlchemy (non inclus ici).
 # ============================================================
+"""
+Repository pour la gestion des versions de contenu.
+
+Ce module fournit l'accès aux données pour les ContentVersion via SQLAlchemy, incluant les
+opérations CRUD de base et la gestion des versions.
+"""
 
 from __future__ import annotations
 
@@ -22,7 +28,8 @@ class ContentVersionRepo:
         self._session = session
 
     def create(self, cv: ContentVersion) -> None:
-        """Crée une ligne en base. Lève IntegrityError sur doublon unique.
+        """
+        Crée une ligne en base. Lève IntegrityError sur doublon unique.
 
         Contrainte d'unicité: (source, version, tenant).
         """

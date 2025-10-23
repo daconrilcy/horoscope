@@ -1,12 +1,16 @@
+"""
+Tests pour le monitoring Celery.
+
+Ce module teste les métriques Prometheus générées par le monitoring des tâches Celery.
+"""
+
 from __future__ import annotations
+
+import importlib
 
 from prometheus_client import generate_latest
 
 from backend.infra.monitoring.celery_exporter import (
-    TASK_FAILURE,
-    TASK_RETRY,
-    TASK_RUNTIME_SECONDS,
-    TASK_SUCCESS,
     bind_celery_signals,
     on_task_failure,
     on_task_postrun,
@@ -16,6 +20,7 @@ from backend.infra.monitoring.celery_exporter import (
 
 
 def test_celery_metrics_increment_and_runtime(monkeypatch) -> None:
+    """Teste que les métriques Celery sont incrémentées correctement."""
     # prerun -> postrun success
     on_task_prerun(task_id="t1", task_name="unit.task", task_obj=None)
     # simulate instant run
@@ -35,11 +40,10 @@ def test_celery_metrics_increment_and_runtime(monkeypatch) -> None:
 
 
 def test_bind_celery_signals_is_noop_without_celery(monkeypatch) -> None:
+    """Teste que la liaison des signaux Celery ne plante pas sans Celery."""
     # If celery not importable, bind should not raise
-    import importlib
 
     mod = importlib.import_module("backend.infra.monitoring.celery_exporter")
     bind_celery_signals(None)
     # Just ensure counters are still accessible
     assert hasattr(mod, "TASK_SUCCESS")
-

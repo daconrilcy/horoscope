@@ -1,3 +1,10 @@
+"""
+Configuration de l'environnement Alembic pour les migrations de base de données.
+
+Ce module configure Alembic pour gérer les migrations de la base de données, en supportant à la fois
+les modes offline et online avec une configuration flexible des chemins d'importation.
+"""
+
 from __future__ import annotations
 
 import os
@@ -36,6 +43,12 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
+    """
+    Exécute les migrations Alembic en mode offline.
+
+    Configure Alembic pour exécuter les migrations sans connexion à la base de données en utilisant
+    des bindings littéraux.
+    """
     url = os.getenv("DATABASE_URL", "sqlite:///./cv.db")
     context.configure(url=url, target_metadata=target_metadata, literal_binds=True)
     with context.begin_transaction():
@@ -43,6 +56,12 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    """
+    Exécute les migrations Alembic en mode online.
+
+    Configure Alembic pour exécuter les migrations avec une connexion active à la base de données
+    via SQLAlchemy.
+    """
     url = os.getenv("DATABASE_URL", "sqlite:///./cv.db")
     connectable = create_engine(url, poolclass=pool.NullPool)
     with connectable.connect() as connection:

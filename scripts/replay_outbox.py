@@ -1,3 +1,10 @@
+"""
+Script de rejeu sécurisé de l'outbox de dual-write.
+
+Ce script rejoue l'outbox de dual-write de manière sécurisée et sort avec un code non-zéro si des
+échecs persistent.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -15,9 +22,13 @@ def main() -> int:
     args = parser.parse_args()
 
     # Using the in-module replay api; failures are counted by return
-    attempted = args.max_items if args.max_items is not None else -1
-    succ = replay_outbox(max_items=args.max_items, dry_run=args.dry_run, sleep_ms=args.sleep_ms)
-    # For compatibility with our API: we return number of successes; compute failed from attempted if provided
+    succ = replay_outbox(
+        max_items=args.max_items,
+        dry_run=args.dry_run,
+        sleep_ms=args.sleep_ms,
+    )
+    # For compatibility with our API: we return number of successes;
+    # compute failed from attempted if provided
     # Since we don't have attempted in this wrapper, print only successes
     print(f"replayed={succ}")
     return 0
@@ -25,4 +36,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

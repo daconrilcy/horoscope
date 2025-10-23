@@ -27,7 +27,8 @@ def _parse_allowlist(allowlist: str) -> set[str]:
 
 
 def build_metrics_app(allowlist: str) -> callable:  # type: ignore[no-any-explicit]
-    """Construit une appli WSGI filtrant par IP avant d'exposer /metrics.
+    """
+    Construit une appli WSGI filtrant par IP avant d'exposer /metrics.
 
     - allowlist: liste d'IP séparées par des virgules (ex: "127.0.0.1,::1").
     """
@@ -48,7 +49,11 @@ def build_metrics_app(allowlist: str) -> callable:  # type: ignore[no-any-explic
 
 
 def main() -> None:
-    """Point d'entrée CLI. Démarre un serveur WSGI minimal pour exposer /metrics."""
+    """
+    Point d'entrée CLI.
+
+    Démarre un serveur WSGI minimal pour exposer /metrics.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="0.0.0.0", help="Adresse d'écoute")
     parser.add_argument("--port", default=9109, type=int, help="Port d'écoute")

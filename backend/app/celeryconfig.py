@@ -1,3 +1,10 @@
+"""
+Configuration centralisée Celery pour les tâches asynchrones.
+
+Ce module définit la configuration globale de Celery incluant les politiques de retry, timeouts et
+limites de connexion au broker.
+"""
+
 # ============================================================
 # Module : backend/app/celeryconfig.py
 # Objet  : Configuration centralisée Celery (retries, timeouts).

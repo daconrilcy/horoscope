@@ -1,4 +1,5 @@
-"""Task idempotency and failure tracking helpers (Redis or in-memory).
+"""
+Task idempotency and failure tracking helpers (Redis or in-memory).
 
 - IdempotencyStore: simple `acquire(key, ttl)` to deduplicate task execution.
 - FailureTracker: counts failures per task-id and emits to a poison queue
@@ -80,14 +81,18 @@ def _redis_client():  # pragma: no cover - smoke path
 
 @dataclass
 class IdempotencyStore:
+    """Store pour l'idempotence des tâches avec TTL."""
+
     ttl_seconds: int = 300
     client: object | None = field(default=None)
 
     def __post_init__(self) -> None:
+        """Initialise le client Redis ou fallback en mémoire."""
         if self.client is None:
             self.client = _redis_client() or _InMemoryKV()
 
     def acquire(self, key: str, ttl: int | None = None) -> bool:
+        """Acquiert une clé d'idempotence avec TTL."""
         ttl = int(ttl or self.ttl_seconds)
         if hasattr(self.client, "setnx"):
             return self.client.setnx(key, "1", ex=ttl)  # type: ignore[no-any-return]
@@ -101,20 +106,29 @@ class IdempotencyStore:
 
 @dataclass
 class FailureTracker:
+    """Tracker pour les échecs de tâches avec DLQ."""
+
     client: object | None = field(default=None)
     dlq_list: str = "celery:dlq"
 
     def __post_init__(self) -> None:
+        """Initialise le client Redis ou fallback en mémoire."""
         if self.client is None:
             self.client = _redis_client() or _InMemoryKV()
 
     def record_retry(self, task: str) -> None:
+        """Enregistre un retry de tâche."""
         TASK_RETRY.labels(task=task).inc()
 
     def on_failure(
-        self, task: str, task_id: str, max_failures: int | None = None, reason: str = "max_failures"
+        self,
+        task: str,
+        task_id: str,
+        max_failures: int | None = None,
+        reason: str = "max_failures",
     ) -> bool:
-        """Record a failure and push to DLQ if threshold exceeded.
+        """
+        Record a failure and push to DLQ if threshold exceeded.
 
         Threshold comes from `CELERY_MAX_FAILURES_BEFORE_DLQ` env when not provided.
         DLQ entry is a JSON with {task, task_id, reason, ts}.
@@ -122,7 +136,9 @@ class FailureTracker:
         TASK_FAILURE.labels(task=task).inc()
         if max_failures is None:
             try:
-                max_failures = int(os.getenv("CELERY_MAX_FAILURES_BEFORE_DLQ", "3") or 3)
+                max_failures = int(
+                    os.getenv("CELERY_MAX_FAILURES_BEFORE_DLQ", "3") or 3
+                )
             except Exception:
                 max_failures = 3
         key = f"celery:fail:{task}:{task_id}"

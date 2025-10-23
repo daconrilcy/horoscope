@@ -1,3 +1,10 @@
+"""
+Tests supplémentaires pour le repository de contenu.
+
+Ce module teste les fonctionnalités avancées du repository de contenu JSON, incluant les valeurs par
+défaut et la lecture.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,6 +13,7 @@ from backend.infra.content_repo import JSONContentRepository
 
 
 def test_json_content_repo_reads_and_defaults(tmp_path: Path) -> None:
+    """Teste que le repository JSON lit et utilise les valeurs par défaut."""
     path = tmp_path / "content.json"
     repo = JSONContentRepository(str(path))
     # default when missing key
@@ -16,4 +24,3 @@ def test_json_content_repo_reads_and_defaults(tmp_path: Path) -> None:
     path.write_text('{"hello": {"id": "hello", "text": "world"}}', encoding="utf-8")
     s = repo.get_snippet("hello")
     assert s["text"] == "world"
-

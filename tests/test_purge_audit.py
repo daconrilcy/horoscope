@@ -1,13 +1,19 @@
+"""
+Tests pour l'audit de purge.
+
+Ce module teste les fonctionnalités d'audit lors de la purge des données de tenants pour la
+conformité RGPD.
+"""
+
 from __future__ import annotations
 
 import json
-import os
-from pathlib import Path
 
 from backend.infra.vecstores.faiss_store import FaissMultiTenantAdapter
 
 
 def test_purge_audit_file(tmp_path, monkeypatch) -> None:
+    """Teste que la purge génère un fichier d'audit correct."""
     audit_dir = tmp_path / "artifacts" / "audit"
     audit_dir.mkdir(parents=True)
     monkeypatch.chdir(tmp_path)

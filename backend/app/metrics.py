@@ -1,14 +1,31 @@
+"""
+Métriques Prometheus pour l'application.
+
+Ce module définit toutes les métriques Prometheus utilisées pour le monitoring de l'application
+astrologique.
+"""
+
 import time
 
 from fastapi import APIRouter, Request
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 metrics_router = APIRouter()
 
-REQUEST_COUNT = Counter("http_requests_total", "Total HTTP requests", ["method", "route", "status"])
-REQUEST_LATENCY = Histogram("http_request_duration_seconds", "Latency of HTTP requests", ["route"])
+REQUEST_COUNT = Counter(
+    "http_requests_total", "Total HTTP requests", ["method", "route", "status"]
+)
+REQUEST_LATENCY = Histogram(
+    "http_request_duration_seconds", "Latency of HTTP requests", ["route"]
+)
 
 # Retrieval-specific metrics
 RETRIEVAL_REQUESTS = Counter(
@@ -197,7 +214,13 @@ VECSTORE_OP_LATENCY = Histogram(
 
 @metrics_router.get("/metrics")
 def metrics():
-    from starlette.responses import Response  # local import to avoid cycle
+    """
+    Expose les métriques Prometheus au format texte.
+
+    Returns:
+        Response: Réponse HTTP contenant les métriques au format Prometheus.
+    """
+    from starlette.responses import Response  # noqa: PLC0415
 
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
@@ -206,7 +229,24 @@ def metrics():
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware Prometheus pour mesurer les métriques HTTP.
+
+    Collecte les métriques de comptage des requêtes et de latence par route pour l'exposition
+    Prometheus.
+    """
+
     async def dispatch(self, request: Request, call_next):
+        """
+        Traite une requête HTTP et collecte les métriques.
+
+        Args:
+            request: Requête HTTP entrante.
+            call_next: Fonction pour appeler le middleware suivant.
+
+        Returns:
+            Response: Réponse HTTP avec métriques collectées.
+        """
         start = time.perf_counter()
         response: Response = await call_next(request)
         route = request.scope.get("path", "unknown")

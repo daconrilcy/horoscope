@@ -1,3 +1,10 @@
+"""
+Script de test de flux complet de chat.
+
+Ce script teste le flux complet de l'application : inscription, connexion, création de thème natal
+et conseil via chat.
+"""
+
 from backend.tests.fakes import FakeLLM
 from fastapi.testclient import TestClient
 
@@ -7,6 +14,12 @@ from backend.domain.chat_orchestrator import ChatOrchestrator
 
 
 def run():
+    """
+    Exécute un test de flux complet de chat.
+
+    Simule un flux utilisateur complet incluant l'inscription, la connexion, la création d'un thème
+    natal et une interaction de chat.
+    """
     routes_chat.orch = ChatOrchestrator(llm=FakeLLM())
 
     c = TestClient(app)

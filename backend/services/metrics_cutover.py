@@ -1,3 +1,10 @@
+"""
+Métriques de cutover pour l'évaluation des systèmes de récupération.
+
+Ce module implémente les métriques d'évaluation (agreement@k, nDCG@10) pour comparer les
+performances des systèmes de récupération lors des cutovers.
+"""
+
 from __future__ import annotations
 
 import json
@@ -19,10 +26,10 @@ def _uniq_ids(ids: list[str]) -> list[str]:
 
 
 def agreement_at_k(truth_ids: list[str], cand_ids: list[str], k: int = 5) -> float:
-    """Compute agreement@k between truth and candidate IDs.
+    """
+    Compute agreement@k between truth and candidate IDs.
 
-    Returns a value in [0, 1]. IDs are deduplicated and we use
-    min(k, len(truth_ids)).
+    Returns a value in [0, 1]. IDs are deduplicated and we use min(k, len(truth_ids)).
     """
     k = max(1, int(k))
     t = set(_uniq_ids(truth_ids)[:k])
@@ -39,7 +46,8 @@ def agreement_at_k(truth_ids: list[str], cand_ids: list[str], k: int = 5) -> flo
 
 
 def ndcg_at_10(truth_ids: list[str], cand_ids: list[str]) -> float:
-    """Compute nDCG@10 with binary relevance from truth IDs.
+    """
+    Compute nDCG@10 with binary relevance from truth IDs.
 
     DCG is computed on the top-10 candidate list with rel=1 if the candidate
     ID is present in `truth_ids`. IDCG is the DCG with all relevant items at
@@ -73,13 +81,23 @@ def ndcg_at_10(truth_ids: list[str], cand_ids: list[str]) -> float:
 
 @dataclass
 class CutoverScores:
+    """
+    Scores de métriques pour l'évaluation de cutover.
+
+    Contient les métriques d'agreement@5, nDCG@10 et le nombre total de requêtes évaluées pour
+    l'analyse de cutover.
+    """
+
     agreement_at_5: float
     ndcg_at_10: float
     total: int
 
 
-def evaluate_from_truth(truth_entries: list[dict], fetch_func: Any, k: int = 10) -> CutoverScores:
-    """Evaluate agreement@5 and nDCG@10 using a truth set plus a fetcher.
+def evaluate_from_truth(
+    truth_entries: list[dict], fetch_func: Any, k: int = 10
+) -> CutoverScores:
+    """
+    Evaluate agreement@5 and nDCG@10 using a truth set plus a fetcher.
 
     Each truth entry contains at least {"query": str, "truth_ids": list[str]}.
     It may also include {"tenant": str} passed to the fetch function.
@@ -104,10 +122,21 @@ def evaluate_from_truth(truth_entries: list[dict], fetch_func: Any, k: int = 10)
         total += 1
     if total <= 0:
         return CutoverScores(agreement_at_5=0.0, ndcg_at_10=0.0, total=0)
-    return CutoverScores(agreement_at_5=agg_a / total, ndcg_at_10=agg_n / total, total=total)
+    return CutoverScores(
+        agreement_at_5=agg_a / total, ndcg_at_10=agg_n / total, total=total
+    )
 
 
 def load_truth(path: str | Path) -> list[dict]:
+    """
+    Charge un jeu de données de vérité depuis un fichier.
+
+    Args:
+        path: Chemin vers le fichier de vérité.
+
+    Returns:
+        list[dict]: Liste des données de vérité chargées.
+    """
     p = Path(path)
     if not p.exists():
         return []
@@ -119,6 +148,13 @@ def load_truth(path: str | Path) -> list[dict]:
 
 
 def append_ndjson(path: str | Path, obj: dict) -> None:
+    """
+    Ajoute un objet au fichier NDJSON.
+
+    Args:
+        path: Chemin vers le fichier NDJSON.
+        obj: Objet à ajouter au fichier.
+    """
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     with open(p, "a", encoding="utf-8") as f:

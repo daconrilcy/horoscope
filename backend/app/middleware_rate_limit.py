@@ -1,4 +1,5 @@
-"""Per-tenant QPS rate limiting middleware.
+"""
+Per-tenant QPS rate limiting middleware.
 
 Reads tenant from `X-Tenant` header (provided by an auth proxy). Do not trust
 this header in production unless enforced via mTLS/auth proxy; otherwise derive
@@ -43,13 +44,36 @@ class _Limiter:
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware de limitation de débit par tenant.
+
+    Applique une limite de requêtes par seconde (QPS) basée sur l'en-tête X-Tenant pour contrôler le
+    trafic par tenant.
+    """
+
     def __init__(self, app) -> None:  # type: ignore[no-untyped-def]
+        """
+        Initialise le middleware avec la configuration de limitation.
+
+        Args:
+            app: Application ASGI à wrapper.
+        """
         super().__init__(app)
         settings = get_settings()
         qps = getattr(settings, "RATE_LIMIT_TENANT_QPS", 5) or 5
         self.limiter = _Limiter(qps=qps)
 
     async def dispatch(self, request: Request, call_next) -> Response:  # type: ignore[no-untyped-def]
+        """
+        Traite une requête avec limitation de débit par tenant.
+
+        Args:
+            request: Requête HTTP entrante.
+            call_next: Fonction pour appeler le middleware suivant.
+
+        Returns:
+            Response: Réponse HTTP ou erreur 429 si limite dépassée.
+        """
         # Enforce only when tenant header is explicitly provided
         tenant = request.headers.get("X-Tenant")
         if not tenant:
@@ -65,7 +89,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         request.state.tenant = tenant
         # pick up dynamic qps from env for tests
         qps_now = (
-            getattr(get_settings(), "RATE_LIMIT_TENANT_QPS", self.limiter.qps) or self.limiter.qps
+            getattr(get_settings(), "RATE_LIMIT_TENANT_QPS", self.limiter.qps)
+            or self.limiter.qps
         )
         self.limiter.qps = max(1, int(qps_now))
         if not self.limiter.allow(tenant):

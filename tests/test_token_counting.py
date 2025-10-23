@@ -1,7 +1,8 @@
-"""Tests for token counting strategies.
+"""
+Tests for token counting strategies.
 
-Covers API usage, tiktoken path (with fake module), fallback to words, and
-auto preference for API over tiktoken.
+Covers API usage, tiktoken path (with fake module), fallback to words, and auto preference for API
+over tiktoken.
 """
 
 from __future__ import annotations
@@ -13,9 +14,8 @@ from typing import Any
 from fastapi.testclient import TestClient
 from prometheus_client import generate_latest
 
-from backend.app.main import app
 from backend.api import routes_chat
-from backend.api.routes_auth import router as auth_router
+from backend.app.main import app
 
 
 def _token(client: TestClient) -> str:
@@ -55,7 +55,10 @@ def test_strategy_api_uses_usage_when_available(monkeypatch: Any) -> None:
     # Patch orchestrator to return usage
     routes_chat.orch.advise = lambda *a, **k: ("hello world", {"total_tokens": 123})  # type: ignore[assignment]
     r = c.post("/chat/advise", json={"chart_id": cid, "question": "x"}, headers=headers)
-    assert r.status_code in (200, 400)  # 400 possible if guard kicks in; metrics unaffected
+    assert r.status_code in (
+        200,
+        400,
+    )  # 400 possible if guard kicks in; metrics unaffected
     content = generate_latest()
     assert b"llm_tokens_total" in content
 
@@ -126,4 +129,3 @@ def test_strategy_auto_prefers_api_over_tiktoken(monkeypatch: Any) -> None:
     assert r.status_code in (200, 400)
     content = generate_latest()
     assert b"llm_tokens_total" in content
-

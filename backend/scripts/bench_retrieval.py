@@ -1,3 +1,10 @@
+"""
+Script de benchmark pour les performances de récupération.
+
+Ce script mesure les performances (P50/P95/QPS/RAM) et l'agreement@k entre différents backends de
+récupération pour évaluer les performances.
+"""
+
 # ============================================================
 # Script : backend/scripts/bench_retrieval.py
 # Objet  : Bench P50/P95/QPS/RAM et agreement@k entre backends.
@@ -10,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -55,7 +63,10 @@ def main() -> None:
     # Dataset synthétique 10k fiches courtes
     total_docs = int(args.docs)
     docs: list[Document] = [
-        Document(id=f"doc_{i}", text=f"Topic {i % 50}: sample note about stars and signs #{i}")
+        Document(
+            id=f"doc_{i}",
+            text=f"Topic {i % 50}: sample note about stars and signs #{i}",
+        )
         for i in range(total_docs)
     ]
 
@@ -97,8 +108,6 @@ def main() -> None:
     # Add git SHA if available
     sha = None
     try:
-        import subprocess
-
         sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     except Exception:  # pragma: no cover - CI safety
         sha = None

@@ -1,4 +1,5 @@
-"""DB utilities for SQLAlchemy sessions/engine.
+"""
+DB utilities for SQLAlchemy sessions/engine.
 
 Uses `DATABASE_URL` env var or falls back to `sqlite+pysqlite:///:memory:` for tests.
 """
@@ -15,6 +16,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 
 def get_engine(url: str | None = None) -> Engine:
+    """Crée un moteur SQLAlchemy à partir de l'URL de base de données."""
     db_url = url or os.getenv("DATABASE_URL") or "sqlite+pysqlite:///:memory:"
     connect_args = {}
     if db_url.startswith("sqlite"):
@@ -23,11 +25,13 @@ def get_engine(url: str | None = None) -> Engine:
 
 
 def get_session_factory(engine: Engine) -> sessionmaker:
+    """Crée une factory de sessions SQLAlchemy."""
     return sessionmaker(bind=engine, class_=Session, expire_on_commit=False)
 
 
 @contextmanager
 def session_scope(engine: Engine) -> Iterator[Session]:
+    """Fournit un contexte de session SQLAlchemy avec gestion automatique des transactions."""
     SessionLocal = get_session_factory(engine)
     session = SessionLocal()
     try:

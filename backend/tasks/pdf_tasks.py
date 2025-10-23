@@ -15,6 +15,15 @@ from backend.infra.ops.idempotency import idempotency_store, make_idem_key
 
 @celery_app.task(name="backend.tasks.render_pdf")
 def render_pdf_task(chart_id: str) -> str:
+    """
+    Tâche Celery pour générer un PDF de thème natal.
+
+    Args:
+        chart_id: Identifiant du thème natal à convertir en PDF.
+
+    Returns:
+        str: Statut de la tâche ('duplicate', 'not_found', 'ok').
+    """
     # Idempotency: avoid duplicate work within TTL window
     idem_key = make_idem_key("render_pdf", chart_id)
     if not idempotency_store.acquire(idem_key, ttl=300):

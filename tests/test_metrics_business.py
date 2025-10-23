@@ -1,4 +1,13 @@
+"""
+Tests pour les métriques business.
+
+Ce module teste les métriques business importantes pour le monitoring de l'application astrologique.
+"""
+
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from prometheus_client import generate_latest
@@ -8,6 +17,7 @@ from backend.app.metrics import LLM_TOKENS_TOTAL
 
 
 def test_chat_and_retrieval_business_metrics() -> None:
+    """Teste que les métriques business de chat et récupération sont générées."""
     c = TestClient(app)
     # Create a chart
     r = c.post(
@@ -24,7 +34,9 @@ def test_chat_and_retrieval_business_metrics() -> None:
     )
     chart_id = r.json()["id"]
     # Call chat advise without auth; may be 401/403 but metrics should be present
-    c.post("/chat/advise", json={"chart_id": chart_id, "question": "Hello?"}, headers={})
+    c.post(
+        "/chat/advise", json={"chart_id": chart_id, "question": "Hello?"}, headers={}
+    )
     # Trigger retrieval search to update hit ratio
     c.post("/internal/retrieval/search", json={"query": "x", "top_k": 2})
 
@@ -40,11 +52,8 @@ def test_chat_and_retrieval_business_metrics() -> None:
 
 
 def test_grafana_dashboard_json_is_valid() -> None:
-    import json
-    from pathlib import Path
-
+    """Teste que le fichier JSON du dashboard Grafana est valide."""
     path = Path("backend/docs/grafana_dashboard.json")
     data = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(data, dict)
     assert "title" in data and "panels" in data
-

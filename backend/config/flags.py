@@ -1,4 +1,10 @@
-"""Feature flags for retrieval migration (dual-write, shadow-read).
+"""
+Gestion des feature flags pour la migration de récupération.
+
+Ce module gère les flags de fonctionnalités pour contrôler le comportement
+de la migration de récupération avec support pour le dual-write et shadow-read.
+
+Feature flags for retrieval migration (dual-write, shadow-read).
 
 Defaults: OFF. Values can be toggled via environment variables or settings.
 
@@ -16,8 +22,11 @@ from backend.core.container import container
 _TRUE = {"1", "true", "yes", "on"}
 
 
-def _get_bool(*env_keys: str, fallback_setting: str | None = None, default: bool = False) -> bool:
-    """Read a boolean from env or settings.
+def _get_bool(
+    *env_keys: str, fallback_setting: str | None = None, default: bool = False
+) -> bool:
+    """
+    Read a boolean from env or settings.
 
     Args:
         env_keys: Environment variable names to try in order.

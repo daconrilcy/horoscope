@@ -1,4 +1,5 @@
-"""Configuration de logging basée sur structlog.
+"""
+Configuration de logging basée sur structlog.
 
 Objectif du module
 ------------------
@@ -13,7 +14,8 @@ import structlog
 
 
 def setup_logging():
-    """Configure structlog pour produire des logs détaillés et filtrables.
+    """
+    Configure structlog pour produire des logs détaillés et filtrables.
 
     Processors principaux: timestamp ISO, niveau, stackinfo, exceptions formattées,
     rendu console convivial pour le développement.

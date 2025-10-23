@@ -1,4 +1,5 @@
-"""Build embeddings for content/** changes and record ContentVersion.
+"""
+Build embeddings for content/** changes and record ContentVersion.
 
 This script scans the `content/` directory for text files, computes a stable
 hash of the inputs, generates embeddings with the configured embedder, writes
@@ -15,6 +16,7 @@ Outputs:
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -22,6 +24,8 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from backend.infra.repo.models import Base
 
 # Bootstrap path when run as a script
 ROOT = Path(__file__).resolve().parents[2]
@@ -40,7 +44,9 @@ def _iter_texts(content_dir: Path) -> list[tuple[str, str]]:
         return pairs
     for p in sorted(content_dir.rglob("*.txt")):
         try:
-            pairs.append((str(p.relative_to(content_dir)), p.read_text(encoding="utf-8")))
+            pairs.append(
+                (str(p.relative_to(content_dir)), p.read_text(encoding="utf-8"))
+            )
         except Exception:
             continue
     return pairs
@@ -57,6 +63,12 @@ def _hash_inputs(pairs: list[tuple[str, str]]) -> str:
 
 
 def main() -> None:
+    """
+    Point d'entrée principal pour la construction des embeddings.
+
+    Construit les embeddings pour tous les fichiers de contenu et les sauvegarde dans le répertoire
+    approprié.
+    """
     content_dir = ROOT / "content"
     pairs = _iter_texts(content_dir)
     if not pairs:
@@ -82,7 +94,9 @@ def main() -> None:
         "content_hash": content_hash,
         "timestamp": ts,
     }
-    outfile.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    outfile.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     # Insert ContentVersion
     db_url = os.getenv("DATABASE_URL", "sqlite:///./embeddings.db")
@@ -99,16 +113,13 @@ def main() -> None:
         created_at=now_iso,
     )
     # Ensure table exists (idempotent for sqlite CI)
-    from backend.infra.repo.models import Base  # noqa: E402
 
     Base.metadata.create_all(engine)
     with session_scope(engine) as session:
         repo = ContentVersionRepo(session)
-        try:
-            repo.create(cv)
-        except Exception:
+        with contextlib.suppress(Exception):
             # Unique conflict or other — do not fail the pipeline
-            pass
+            repo.create(cv)
 
     print(f"Embeddings artifact -> {outfile}")
 

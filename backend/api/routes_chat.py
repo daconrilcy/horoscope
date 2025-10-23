@@ -1,8 +1,16 @@
+"""
+Routes de chat et conseils astrologiques.
+
+Ce module fournit les endpoints pour les fonctionnalités de chat, incluant les conseils
+astrologiques et la gestion des tokens.
+"""
+
 from __future__ import annotations
 
 import os
 import time
 
+import tiktoken
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
@@ -45,8 +53,6 @@ def estimate_tokens(text: str, model: str | None, usage: dict | None) -> int:
 
     def _from_tiktoken() -> int | None:
         try:
-            import tiktoken  # type: ignore
-
             enc = (
                 tiktoken.encoding_for_model(model)
                 if model
@@ -71,25 +77,33 @@ def estimate_tokens(text: str, model: str | None, usage: dict | None) -> int:
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 orch = ChatOrchestrator()
+_current_user_dep = Depends(get_current_user)
 
 
 class ChatPayload(BaseModel):
+    """Payload pour les requêtes de chat astrologique."""
+
     chart_id: str
     question: str
 
 
 @router.post("/advise")
-def advise(payload: ChatPayload, request: Request, user=Depends(get_current_user)):
+def advise(payload: ChatPayload, request: Request, user=_current_user_dep):
+    """Fournit des conseils astrologiques basés sur un thème natal et une question."""
     require_entitlement(user, "plus")
     chart = container.chart_repo.get(payload.chart_id)
     if not chart:
         raise HTTPException(status_code=404, detail="chart_not_found")
-    service = HoroscopeService(container.astro, container.content_repo, container.chart_repo)
+    service = HoroscopeService(
+        container.astro, container.content_repo, container.chart_repo
+    )
     today = service.get_today(payload.chart_id)
     # LLM Guard + business metrics
     # Prefer tenant from authenticated user (JWT/claims) over header/state
     tenant = (
-        user.get("tenant") or getattr(getattr(request, "state", None), "tenant", None) or "default"
+        user.get("tenant")
+        or getattr(getattr(request, "state", None), "tenant", None)
+        or "default"
     )
     model = getattr(orch.llm, "model", "unknown")
     start_t = time.perf_counter()
@@ -111,7 +125,9 @@ def advise(payload: ChatPayload, request: Request, user=Depends(get_current_user
         LLM_GUARD_WARN.labels(rule=rule).inc()
         q = (payload.question or "").strip()
         try:
-            max_len = int(getattr(container.settings, "LLM_GUARD_MAX_INPUT_LEN", 1000) or 1000)
+            max_len = int(
+                getattr(container.settings, "LLM_GUARD_MAX_INPUT_LEN", 1000) or 1000
+            )
         except Exception:
             max_len = 1000
         if rule == "question_too_long" and len(q) > max_len:
@@ -121,5 +137,7 @@ def advise(payload: ChatPayload, request: Request, user=Depends(get_current_user
     tokens = estimate_tokens(text, model, usage)
     LLM_TOKENS_TOTAL.labels(tenant=tenant_lbl, model=model_lbl).inc(tokens)
     safe = validate_output(text, tenant=tenant)
-    CHAT_LATENCY.labels(tenant=tenant_lbl, model=model_lbl).observe(time.perf_counter() - start_t)
+    CHAT_LATENCY.labels(tenant=tenant_lbl, model=model_lbl).observe(
+        time.perf_counter() - start_t
+    )
     return {"answer": safe, "date": today.get("date")}

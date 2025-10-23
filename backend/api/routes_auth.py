@@ -1,3 +1,10 @@
+"""
+Routes d'authentification pour l'API.
+
+Ce module fournit les endpoints d'inscription, de connexion et de gestion des tokens
+d'authentification pour l'application.
+"""
+
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, EmailStr
 
@@ -13,18 +20,23 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 class SignupPayload(BaseModel):
+    """Payload pour l'inscription d'un nouvel utilisateur."""
+
     email: EmailStr
     password: str
     entitlements: list[str] = []  # e.g., ["plus"]
 
 
 class LoginPayload(BaseModel):
+    """Payload pour la connexion d'un utilisateur."""
+
     email: EmailStr
     password: str
 
 
 @router.post("/signup")
 def signup(p: SignupPayload):
+    """Inscrit un nouvel utilisateur dans le système."""
     existing = container.user_repo.get_by_email(str(p.email))
     if existing:
         raise HTTPException(status_code=409, detail="email_exists")
@@ -35,11 +47,16 @@ def signup(p: SignupPayload):
         "entitlements": p.entitlements or [],
     }
     container.user_repo.save(user)
-    return {"id": user["id"], "email": user["email"], "entitlements": user["entitlements"]}
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "entitlements": user["entitlements"],
+    }
 
 
 @router.post("/login")
 def login(p: LoginPayload):
+    """Authentifie un utilisateur et retourne un token d'accès."""
     user = container.user_repo.get_by_email(str(p.email))
     if not user or not verify_password(p.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="invalid_credentials")
@@ -57,10 +74,13 @@ def login(p: LoginPayload):
 
 
 def get_current_user(authorization: str = Header(None)):
+    """Extrait et valide l'utilisateur courant à partir du token d'autorisation."""
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="missing_token")
     token = authorization.split(" ", 1)[1]
-    data = decode_token(token, container.settings.JWT_SECRET, container.settings.JWT_ALG)
+    data = decode_token(
+        token, container.settings.JWT_SECRET, container.settings.JWT_ALG
+    )
     if not data:
         raise HTTPException(status_code=401, detail="invalid_token")
     user = container.user_repo.get_by_email(str(data.email))
