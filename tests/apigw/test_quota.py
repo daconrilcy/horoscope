@@ -208,16 +208,16 @@ class TestTenantRateLimitMiddleware:
             mock_result1.remaining = 59
             mock_result1.reset_time = 1234567890.0
             mock_result1.retry_after = None
-            
+
             mock_result2 = Mock()
             mock_result2.allowed = False
             mock_result2.remaining = 0
             mock_result2.reset_time = 1234567890.0
             mock_result2.retry_after = 30
-            
+
             mock_redis_store.check_rate_limit.side_effect = [mock_result1, mock_result2]
             mock_redis_store.settings.RL_MAX_REQ_PER_WINDOW = 60
-            
+
             middleware = TenantRateLimitMiddleware(Mock())
 
             # First request should succeed
@@ -243,7 +243,7 @@ class TestTenantRateLimitMiddleware:
         """Test l'extraction du tenant depuis les headers."""
         # Override mock for this specific test
         self.mock_extract.return_value = ("test-tenant", "header", False)
-        
+
         middleware = TenantRateLimitMiddleware(Mock())
         request = self.create_mock_request()
         request.headers = {"X-Tenant-ID": "test-tenant"}
@@ -275,7 +275,7 @@ class TestTenantRateLimitMiddleware:
         """Test extraction du tenant depuis l'état utilisateur."""
         # Override mock for this specific test
         self.mock_extract.return_value = ("user-tenant", "jwt", False)
-        
+
         middleware = TenantRateLimitMiddleware(Mock())
         request = self.create_mock_request()
         request.state.user = Mock()
@@ -491,7 +491,9 @@ class TestRouteNormalization:
 
     def test_normalize_route_multiple_ids(self) -> None:
         """Test normalisation avec plusieurs IDs."""
-        assert normalize_route("/v1/chat/123/message/456") == "/v1/chat/{id}/message/{id}"
+        assert (
+            normalize_route("/v1/chat/123/message/456") == "/v1/chat/{id}/message/{id}"
+        )
 
 
 class TestIntegration:
@@ -511,40 +513,48 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_metrics_increment_correctly(self) -> None:
         """Test que les métriques s'incrémentent correctement."""
-        with patch("backend.apigw.rate_limit.redis_store") as mock_redis_store, \
-             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS") as mock_decisions, \
-             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_BLOCKS") as mock_blocks, \
-             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_EVALUATION_TIME") as mock_eval_time:
-            
+        with (
+            patch("backend.apigw.rate_limit.redis_store") as mock_redis_store,
+            patch(
+                "backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS"
+            ) as mock_decisions,
+            patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_BLOCKS") as mock_blocks,
+            patch(
+                "backend.apigw.rate_limit.APIGW_RATE_LIMIT_EVALUATION_TIME"
+            ) as mock_eval_time,
+        ):
             # Mock Redis store responses
             mock_result1 = Mock()
             mock_result1.allowed = True
             mock_result1.remaining = 59
             mock_result1.reset_time = 1234567890.0
             mock_result1.retry_after = None
-            
+
             mock_result2 = Mock()
             mock_result2.allowed = False
             mock_result2.remaining = 0
             mock_result2.reset_time = 1234567890.0
             mock_result2.retry_after = 30
-            
+
             mock_redis_store.check_rate_limit.side_effect = [mock_result1, mock_result2]
             mock_redis_store.settings.RL_MAX_REQ_PER_WINDOW = 60
-            
+
             middleware = TenantRateLimitMiddleware(Mock())
 
             # First request - should allow
             request1 = self.create_mock_request("/v1/chat/123")
+
             async def call_next1(req: Request) -> Response:
                 return Response("OK", status_code=200)
 
             await middleware.dispatch(request1, call_next1)
-            
+
             # Check decisions metric
-            mock_decisions.labels.assert_called_with(route="/v1/chat/{id}", result="allow")
+            mock_decisions.labels.assert_called_with(
+                route="/v1/chat/{id}", result="allow"
+            )
             mock_decisions.labels().inc.assert_called_once()
-            
+
             # Check evaluation time metric
             mock_eval_time.labels.assert_called_with(route="/v1/chat/{id}")
             mock_eval_time.labels().observe.assert_called_once()
@@ -556,15 +566,20 @@ class TestIntegration:
 
             # Second request - should block
             request2 = self.create_mock_request("/v1/chat/456")
+
             async def call_next2(req: Request) -> Response:
                 return Response("OK", status_code=200)
 
             response = await middleware.dispatch(request2, call_next2)
-            
+
             # Check block metrics
-            mock_decisions.labels.assert_called_with(route="/v1/chat/{id}", result="block")
-            mock_blocks.labels.assert_called_with(route="/v1/chat/{id}", reason="rate_exceeded")
-            
+            mock_decisions.labels.assert_called_with(
+                route="/v1/chat/{id}", result="block"
+            )
+            mock_blocks.labels.assert_called_with(
+                route="/v1/chat/{id}", reason="rate_exceeded"
+            )
+
             # Check response
             assert response.status_code == 429
             assert "Retry-After" in response.headers
@@ -574,26 +589,33 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_quota_metrics_increment(self) -> None:
         """Test que les métriques de quota s'incrémentent quand quota est dépassé."""
-        with patch("backend.apigw.rate_limit.quota_manager") as mock_quota_manager, \
-             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS") as mock_decisions, \
-             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_BLOCKS") as mock_blocks:
-            
+        with (
+            patch("backend.apigw.rate_limit.quota_manager") as mock_quota_manager,
+            patch(
+                "backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS"
+            ) as mock_decisions,
+            patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_BLOCKS") as mock_blocks,
+        ):
             # Mock quota exceeded for chat endpoint (non-zero means quota is set and exceeded)
             # Based on current logic: if limit != 0, then block
             mock_quota_manager.get_quota.return_value = 1  # Quota set but exceeded
-            
+
             middleware = QuotaMiddleware(Mock())
             request = self.create_mock_request("/v1/chat/123")  # Chat endpoint
-            
+
             async def call_next(req: Request) -> Response:
                 return Response("OK", status_code=200)
 
             response = await middleware.dispatch(request, call_next)
-            
+
             # Check metrics
-            mock_decisions.labels.assert_called_with(route="/v1/chat/{id}", result="block")
-            mock_blocks.labels.assert_called_with(route="/v1/chat/{id}", reason="quota_exceeded")
-            
+            mock_decisions.labels.assert_called_with(
+                route="/v1/chat/{id}", result="block"
+            )
+            mock_blocks.labels.assert_called_with(
+                route="/v1/chat/{id}", reason="quota_exceeded"
+            )
+
             # Check response
             assert response.status_code == 429
             assert "Retry-After" in response.headers
@@ -608,21 +630,23 @@ class TestIntegration:
             mock_result.remaining = 59
             mock_result.reset_time = 1234567890.0
             mock_result.retry_after = None
-            
+
             mock_redis_store.check_rate_limit.return_value = mock_result
             mock_redis_store.settings.RL_MAX_REQ_PER_WINDOW = 60
-            
+
             middleware = TenantRateLimitMiddleware(Mock())
             request = self.create_mock_request("/v1/chat/123")
-            
+
             async def call_next(req: Request) -> Response:
                 return Response("OK", status_code=200)
 
             response = await middleware.dispatch(request, call_next)
-            
+
             # Vérifier que Redis store a été appelé
-            mock_redis_store.check_rate_limit.assert_called_once_with("/v1/chat/{id}", "default")
-            
+            mock_redis_store.check_rate_limit.assert_called_once_with(
+                "/v1/chat/{id}", "default"
+            )
+
             # Vérifier la réponse
             assert response.status_code == 200
             assert "X-RateLimit-Limit" in response.headers
@@ -639,17 +663,17 @@ class TestIntegration:
             mock_result.remaining = 0
             mock_result.reset_time = 1234567890.0
             mock_result.retry_after = 30
-            
+
             mock_redis_store.check_rate_limit.return_value = mock_result
-            
+
             middleware = TenantRateLimitMiddleware(Mock())
             request = self.create_mock_request("/v1/chat/123")
-            
+
             async def call_next(req: Request) -> Response:
                 return Response("OK", status_code=200)
 
             response = await middleware.dispatch(request, call_next)
-            
+
             # Vérifier que la requête a été bloquée
             assert response.status_code == 429
             assert "Retry-After" in response.headers
@@ -665,43 +689,46 @@ class TestIntegration:
             mock_result.remaining = 59
             mock_result.reset_time = 1234567890.0
             mock_result.retry_after = None
-            
+
             mock_redis_store.check_rate_limit.return_value = mock_result
             mock_redis_store.settings.RL_MAX_REQ_PER_WINDOW = 60
-            
+
             middleware = TenantRateLimitMiddleware(Mock())
             request = self.create_mock_request("/v1/chat/123")
-            
+
             async def call_next(req: Request) -> Response:
                 return Response("OK", status_code=200)
 
             response = await middleware.dispatch(request, call_next)
-            
+
             # Vérifier que la requête a été autorisée (fail-open)
             assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_rate_limit_with_metrics(self) -> None:
         """Test que les métriques sont émises lors des blocages."""
-        with patch("backend.apigw.rate_limit.redis_store") as mock_redis_store, \
-             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS") as mock_metrics:
-            
+        with (
+            patch("backend.apigw.rate_limit.redis_store") as mock_redis_store,
+            patch(
+                "backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS"
+            ) as mock_metrics,
+        ):
             # Mock Redis store responses
             mock_result1 = Mock()
             mock_result1.allowed = True
             mock_result1.remaining = 59
             mock_result1.reset_time = 1234567890.0
             mock_result1.retry_after = None
-            
+
             mock_result2 = Mock()
             mock_result2.allowed = False
             mock_result2.remaining = 0
             mock_result2.reset_time = 1234567890.0
             mock_result2.retry_after = 30
-            
+
             mock_redis_store.check_rate_limit.side_effect = [mock_result1, mock_result2]
             mock_redis_store.settings.RL_MAX_REQ_PER_WINDOW = 60
-            
+
             middleware = TenantRateLimitMiddleware(Mock())
 
             # First request should succeed

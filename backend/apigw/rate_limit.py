@@ -27,7 +27,6 @@ from backend.app.metrics import (
     APIGW_RATE_LIMIT_NEAR_LIMIT,
     normalize_route,
 )
-from backend.domain.tenancy import safe_tenant
 
 log = logging.getLogger(__name__)
 
@@ -138,7 +137,7 @@ class TenantRateLimitMiddleware(BaseHTTPMiddleware):
         try:
             # Extract tenant from request using secure trust model
             tenant, tenant_source, is_spoof = extract_tenant_secure(request)
-            
+
             # Log tenant source information
             log.debug(
                 "Tenant extracted",
@@ -190,14 +189,19 @@ class TenantRateLimitMiddleware(BaseHTTPMiddleware):
                 return response
 
             # Check if near limit (for pre-alerting)
-            if result.remaining / redis_store.settings.RL_MAX_REQ_PER_WINDOW < NEAR_LIMIT_THRESHOLD:
+            if (
+                result.remaining / redis_store.settings.RL_MAX_REQ_PER_WINDOW
+                < NEAR_LIMIT_THRESHOLD
+            ):
                 APIGW_RATE_LIMIT_NEAR_LIMIT.labels(route=route).inc()
 
             # Add rate limit headers to successful responses
             response = await call_next(request)
 
             # Add rate limit headers
-            response.headers["X-RateLimit-Limit"] = str(redis_store.settings.RL_MAX_REQ_PER_WINDOW)
+            response.headers["X-RateLimit-Limit"] = str(
+                redis_store.settings.RL_MAX_REQ_PER_WINDOW
+            )
             response.headers["X-RateLimit-Remaining"] = str(result.remaining)
             response.headers["X-RateLimit-Reset"] = str(int(result.reset_time))
 
@@ -214,7 +218,7 @@ class TenantRateLimitMiddleware(BaseHTTPMiddleware):
             )
 
     def _extract_tenant(self, request: Request) -> str:
-        """Extract tenant identifier from request (legacy method - use extract_tenant_secure instead)."""
+        """Extract tenant identifier from request (legacy method)."""
         # This method is kept for backward compatibility but should not be used
         # Use extract_tenant_secure from auth_utils instead
         tenant, _, _ = extract_tenant_secure(request)
@@ -285,7 +289,7 @@ class QuotaMiddleware(BaseHTTPMiddleware):
 
         # Extract tenant using secure trust model
         tenant, tenant_source, is_spoof = extract_tenant_secure(request)
-        
+
         # Log tenant source information
         log.debug(
             "Quota check - tenant extracted",
@@ -316,7 +320,7 @@ class QuotaMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
     def _extract_tenant(self, request: Request) -> str:
-        """Extract tenant identifier from request (legacy method - use extract_tenant_secure instead)."""
+        """Extract tenant identifier from request (legacy method)."""
         # This method is kept for backward compatibility but should not be used
         # Use extract_tenant_secure from auth_utils instead
         tenant, _, _ = extract_tenant_secure(request)
@@ -355,8 +359,8 @@ class QuotaMiddleware(BaseHTTPMiddleware):
             message=f"Quota exceeded for {resource_type}",
             trace_id=getattr(request.state, "trace_id", None),
         )
-        
+
         # Add Retry-After header (1 hour for quota exceeded)
         response.headers["Retry-After"] = "3600"  # 1 hour
-        
+
         return response

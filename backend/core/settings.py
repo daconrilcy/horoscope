@@ -50,8 +50,12 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: list[AnyHttpUrl] | list[str] = []
     DATABASE_URL: str | None = None
-    REDIS_URL: str | None = None
+    REDIS_URL: str = "redis://localhost:6379/0"
     REQUIRE_REDIS: bool = False
+    RL_WINDOW_SECONDS: int = 60
+    RL_MAX_REQ_PER_WINDOW: int = 60
+    RL_CONNECT_TIMEOUT_MS: int = 100
+    RL_READ_TIMEOUT_MS: int = 100
     ASTRO_SEED: int | None = None
     # JWT/Auth
     JWT_SECRET: str = "dev-secret-change-me"
@@ -91,13 +95,10 @@ class Settings(BaseSettings):
     DEFAULT_TENANT: str = "default"
     FAISS_DATA_DIR: str = "./var/faiss"
     STORAGE_REGION: str = "eu"
-    
-    # Redis configuration for distributed rate limiting
-    REDIS_URL: str = "redis://localhost:6379/0"
-    RL_WINDOW_SECONDS: int = 60
-    RL_MAX_REQ_PER_WINDOW: int = 60
-    RL_CONNECT_TIMEOUT_MS: int = 100
-    RL_READ_TIMEOUT_MS: int = 100
+
+    # Internal authentication keys for HMAC verification
+    INTERNAL_AUTH_KEY: str = "default-internal-key-change-in-production"
+    INTERNAL_AUTH_KEY_V2: str | None = None
 
 
 def get_settings() -> Settings:

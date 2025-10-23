@@ -12,6 +12,7 @@ from typing import Any
 
 from fastapi import Request
 
+from backend.apigw.internal_auth import verify_internal_traffic
 from backend.app.metrics import APIGW_TENANT_SPOOF_ATTEMPTS, normalize_route
 from backend.domain.tenancy import safe_tenant
 
@@ -21,16 +22,16 @@ log = logging.getLogger(__name__)
 def extract_tenant_secure(request: Request) -> tuple[str, str, bool]:
     """
     Extract tenant identifier with secure trust model.
-    
+
     Trust model:
     1. JWT claims (tenant_id) = source of truth
     2. X-Tenant-ID header only accepted if internal traffic
     3. Otherwise → default tenant
     4. If header contradicts JWT non-internal → spoof detected
-    
+
     Args:
         request: FastAPI request object
-        
+
     Returns:
         Tuple of (tenant_id, source, is_spoof)
         - tenant_id: extracted tenant identifier
@@ -39,11 +40,11 @@ def extract_tenant_secure(request: Request) -> tuple[str, str, bool]:
     """
     route = normalize_route(request.url.path)
     tenant_header = request.headers.get("X-Tenant-ID")
-    is_internal = _is_internal_traffic(request)
-    
+    is_internal = verify_internal_traffic(request)
+
     # Try to get tenant from JWT/authenticated user context
     jwt_tenant = _extract_tenant_from_jwt(request)
-    
+
     if jwt_tenant:
         # JWT is source of truth
         if tenant_header and tenant_header != jwt_tenant and not is_internal:
@@ -57,19 +58,19 @@ def extract_tenant_secure(request: Request) -> tuple[str, str, bool]:
                     "trace_id": getattr(request.state, "trace_id", None),
                 },
             )
-            
+
             # Increment spoof counter
             APIGW_TENANT_SPOOF_ATTEMPTS.labels(route=route).inc()
-            
+
             return jwt_tenant, "jwt", True
-        
+
         return jwt_tenant, "jwt", False
-    
+
     # No JWT tenant, check header
     if tenant_header and is_internal:
         # Internal traffic can use header
         return safe_tenant(tenant_header), "header", False
-    
+
     # Fallback to default tenant
     return safe_tenant("public"), "default", False
 
@@ -81,57 +82,36 @@ def _extract_tenant_from_jwt(request: Request) -> str | None:
         tenant_id = request.state.jwt_claims.get("tenant_id")
         if tenant_id:
             return safe_tenant(tenant_id)
-    
+
     # Try to get tenant from authenticated user context
     if hasattr(request.state, "user") and request.state.user:
         user_tenant = getattr(request.state.user, "tenant", None)
         if user_tenant:
             return safe_tenant(user_tenant)
-    
+
     return None
 
 
 def _is_internal_traffic(request: Request) -> bool:
     """
-    Check if request is from internal/trusted source.
-    
-    This can be extended based on your infrastructure:
-    - Check X-Internal-Auth header
-    - Check source IP ranges
-    - Check service mesh headers
+    Check if request is from internal/trusted source (legacy function).
+
+    This function is kept for backward compatibility but should not be used. Use
+    verify_internal_traffic from internal_auth module instead.
     """
-    # Check for internal auth header
-    internal_auth = request.headers.get("X-Internal-Auth")
-    if internal_auth:
-        # In a real implementation, you would verify the signature
-        # For now, we'll trust any X-Internal-Auth header
-        return True
-    
-    # Check for service mesh headers (example)
-    service_mesh_header = request.headers.get("X-Service-Mesh")
-    if service_mesh_header == "internal":
-        return True
-    
-    # Check source IP (example - would need actual IP checking)
     # This is a placeholder - implement based on your infrastructure
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        # Example: check if IP is in internal range
-        # This would need actual IP parsing and range checking
-        pass
-    
     return False
 
 
 def get_tenant_source_info(request: Request) -> dict[str, Any]:
     """
     Get detailed tenant source information for logging.
-    
+
     Returns:
         Dictionary with tenant source information
     """
     tenant, source, is_spoof = extract_tenant_secure(request)
-    
+
     return {
         "tenant": tenant,
         "tenant_source": source,
