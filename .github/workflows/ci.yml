@@ -19,7 +19,7 @@ jobs:
           pip install -r requirements.txt
           # Optional extras for token counting (non-fatal if missing)
           pip install -r requirements.tokens.txt || true
-          pip install ruff pytest pytest-cov
+          pip install ruff==0.14.1 pytest pytest-cov
       - name: Validate SLO file (strict)
         run: |
           python -m scripts.validate_slo --strict
