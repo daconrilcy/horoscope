@@ -17,11 +17,18 @@ from backend.app.metrics import (
     RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE,
     RETRIEVAL_DUAL_WRITE_SKIPPED,
 )
-from backend.services.retrieval_proxy import (
-    ElasticVectorAdapter,
-    PineconeAdapter,
-    WeaviateAdapter,
-)
+
+
+# Import circulaire évité - import local dans les fonctions
+def _get_retrieval_proxy():
+    """Import local pour éviter les imports circulaires."""
+    from backend.services.retrieval_proxy import (  # noqa: PLC0415
+        ElasticVectorAdapter,
+        PineconeAdapter,
+        WeaviateAdapter,
+    )
+
+    return ElasticVectorAdapter, PineconeAdapter, WeaviateAdapter
 
 
 def get_target_backend_name() -> str:
@@ -41,6 +48,8 @@ def get_target_adapter():
     """
     name = get_target_backend_name()
     # Import adapters lazily to avoid circular import during module load
+
+    ElasticVectorAdapter, PineconeAdapter, WeaviateAdapter = _get_retrieval_proxy()
 
     if name == "pinecone":
         return PineconeAdapter()
