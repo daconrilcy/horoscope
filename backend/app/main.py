@@ -19,6 +19,7 @@ from backend.api.routes_chat import router as chat_router
 from backend.api.routes_health import router as health_router
 from backend.api.routes_horoscope import router as horoscope_router
 from backend.apigw.rate_limit import QuotaMiddleware, TenantRateLimitMiddleware
+from backend.apigw.versioning import add_versioning_middleware
 from backend.app.metrics import PrometheusMiddleware, metrics_router
 from backend.app.tracing import setup_tracing
 from backend.core.container import container
@@ -34,22 +35,34 @@ def create_app() -> FastAPI:
     - Configure le logging structuré (structlog)
     - Lit les paramètres d'exécution
     - Ajoute les middlewares utiles au debug/traçabilité
-    - Publie les routes de santé et d'horoscope
+    - Publie les routes de santé et d'horoscope avec versioning /v1
+    - Ajoute les routes legacy avec warnings de dépréciation
     """
     setup_logging()
     setup_tracing()
     settings = container.settings
     app = FastAPI(title=settings.APP_NAME, debug=settings.APP_DEBUG)
+
+    # Middlewares (ordre inverse d'exécution)
+    # Le middleware de versioning doit être exécuté en premier (ajouté en dernier)
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(TenantRateLimitMiddleware)
     app.add_middleware(QuotaMiddleware)
     app.add_middleware(PrometheusMiddleware)
     app.add_middleware(TimingMiddleware)
+
+    # Ajouter le système de versioning (middleware legacy) EN DERNIER pour être exécuté en premier
+    add_versioning_middleware(app)
+
+    # Routes système (sans versioning)
     app.include_router(health_router)
+    app.include_router(metrics_router)
+
+    # Routes versionnées /v1
     app.include_router(auth_router)
     app.include_router(horoscope_router)
     app.include_router(chat_router)
-    app.include_router(metrics_router)
+
     return app
 
 

@@ -1,0 +1,168 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "API Versioning - Legacy Traffic Decay",
+    "tags": ["api", "versioning", "legacy", "deprecation"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Legacy Route Hits (Rate)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(apigw_legacy_hits_total[1h])) by (route)",
+            "legendFormat": "{{route}}",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Requests/hour",
+            "min": 0
+          }
+        ],
+        "xAxes": [
+          {
+            "type": "time"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Redirect Status Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum(rate(apigw_redirects_total[1h])) by (status)",
+            "legendFormat": "{{status}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Legacy Traffic by Method",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(apigw_legacy_hits_total[1h])) by (method)",
+            "legendFormat": "{{method}}",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Requests/hour",
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 4,
+        "title": "Redirect Ratio by Route",
+        "type": "singlestat",
+        "targets": [
+          {
+            "expr": "sum(rate(apigw_redirects_total[1h])) by (route) / sum(rate(http_responses_total[1h])) by (route)",
+            "legendFormat": "{{route}}",
+            "refId": "A"
+          }
+        ],
+        "valueName": "current",
+        "format": "percentunit",
+        "thresholds": "0.2,0.5",
+        "colorBackground": true,
+        "colorValue": false,
+        "gridPos": {
+          "h": 4,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        }
+      },
+      {
+        "id": 5,
+        "title": "Legacy Decay Trend (7 days)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(apigw_legacy_hits_total[1h])) by (route)",
+            "legendFormat": "{{route}}",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Requests/hour",
+            "min": 0,
+            "logBase": 1
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 20
+        }
+      }
+    ],
+    "time": {
+      "from": "now-7d",
+      "to": "now"
+    },
+    "refresh": "5m",
+    "schemaVersion": 16,
+    "version": 1,
+    "links": [
+      {
+        "title": "Deprecation Policy",
+        "url": "https://docs.astro.com/api/versioning",
+        "type": "link"
+      },
+      {
+        "title": "API Documentation",
+        "url": "/docs",
+        "type": "link"
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "Deprecation Start",
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "expr": "2025-10-24T00:00:00Z",
+          "iconColor": "orange",
+          "tags": ["deprecation", "start"]
+        },
+        {
+          "name": "Sunset Date",
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "expr": "2025-12-31T23:59:59Z",
+          "iconColor": "red",
+          "tags": ["sunset", "end"]
+        }
+      ]
+    }
+  }
+}

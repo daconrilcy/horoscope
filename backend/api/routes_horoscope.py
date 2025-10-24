@@ -18,7 +18,7 @@ from backend.domain.entitlements import require_entitlement
 from backend.domain.pdf_service import render_natal_pdf
 from backend.domain.services import HoroscopeService
 
-router = APIRouter(prefix="/horoscope", tags=["horoscope"])
+router = APIRouter(prefix="/v1/horoscope", tags=["horoscope"])
 service = HoroscopeService(container.astro, container.content_repo, container.chart_repo)
 current_user_dep = Depends(get_current_user)
 

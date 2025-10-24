@@ -15,7 +15,7 @@ from backend.domain.auth import (
     verify_password,
 )
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 
 class SignupPayload(BaseModel):

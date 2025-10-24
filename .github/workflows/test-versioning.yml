@@ -1,0 +1,96 @@
+# Configuration CI pour tests de versioning isolés de Redis
+# Utilise RL_BACKEND=memory pour éviter les dépendances Redis
+
+name: API Versioning Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: [ 'backend/apigw/versioning.py', 'tests/test_api_versioning.py' ]
+  pull_request:
+    branches: [ main ]
+    paths: [ 'backend/apigw/versioning.py', 'tests/test_api_versioning.py' ]
+
+jobs:
+  test-versioning:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements.ci.txt
+    
+    - name: Configure test environment
+      run: |
+        # Configuration pour tests isolés de Redis
+        export RL_BACKEND=memory
+        export REDIS_URL=redis://localhost:6379/0
+        export TESTING=true
+        
+        # Variables d'environnement pour tests de versioning
+        export DEPRECATION_DATE="2025-10-24"
+        export SUNSET_DATE="2025-12-31"
+    
+    - name: Run versioning tests
+      run: |
+        python -m pytest tests/test_api_versioning.py \
+          --cov=backend.apigw.versioning \
+          --cov-report=xml \
+          --cov-report=html \
+          -v \
+          --tb=short
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: versioning
+        name: versioning-coverage
+
+  test-integration-redis:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    services:
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements.ci.txt
+    
+    - name: Wait for Redis
+      run: |
+        timeout 30 bash -c 'until redis-cli ping; do sleep 1; done'
+    
+    - name: Run integration tests with Redis
+      run: |
+        python -m pytest tests/test_api_versioning.py::TestAPIVersioning \
+          -v \
+          --tb=short

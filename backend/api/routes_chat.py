@@ -74,7 +74,7 @@ def estimate_tokens(text: str, model: str | None, usage: dict | None) -> int:
     return _from_api() or _from_tiktoken() or _from_words()
 
 
-router = APIRouter(prefix="/chat", tags=["chat"])
+router = APIRouter(prefix="/v1/chat", tags=["chat"])
 orch = ChatOrchestrator()
 _current_user_dep = Depends(get_current_user)
 
