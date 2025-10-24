@@ -117,7 +117,7 @@ class BudgetManager:
         LLM_COST_USD.labels(tenant=tenant, model=model).inc(float(usd))
         status = self.get_status(tenant)
         if status == "block":
-            RATE_LIMIT_BLOCKS.labels(tenant=tenant, reason="budget").inc()
+            RATE_LIMIT_BLOCKS.labels(route="/budget", reason="budget").inc()
         return status
 
 

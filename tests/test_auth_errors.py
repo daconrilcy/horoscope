@@ -6,6 +6,8 @@ tokens invalides.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
@@ -16,8 +18,45 @@ from backend.core.constants import (
 )
 
 
-def test_duplicate_signup_409() -> None:
+@patch("backend.api.routes_auth.container")
+@patch("backend.api.routes_auth.verify_password")
+def test_duplicate_signup_409(mock_verify_password, mock_container) -> None:
     """Teste que l'inscription en double retourne une erreur 409."""
+    # Mock password verification
+    mock_verify_password.return_value = True
+
+    # Mock container components
+    mock_user_repo = mock_container.user_repo
+
+    # Mock user data
+    user_data = {
+        "id": "test_user_id",
+        "email": "dup@test.io",
+        "password_hash": "$2b$12$test_hash",
+        "entitlements": [],
+    }
+
+    # Track signup calls to simulate user creation
+    user_created = False
+
+    # Configure mock behavior
+    def mock_get_by_email(email):
+        if email == "dup@test.io" and user_created:
+            return user_data
+        return None
+
+    def mock_save(user):
+        nonlocal user_created
+        user_created = True
+
+    mock_user_repo.get_by_email.side_effect = mock_get_by_email
+    mock_user_repo.save.side_effect = mock_save
+
+    mock_settings = mock_container.settings
+    mock_settings.JWT_SECRET = "test_secret"
+    mock_settings.JWT_ALG = "HS256"
+    mock_settings.JWT_EXPIRES_MIN = 30
+
     c = TestClient(app)
     payload = {"email": "dup@test.io", "password": "p", "entitlements": []}
     r1 = c.post("/auth/signup", json=payload)
@@ -26,8 +65,50 @@ def test_duplicate_signup_409() -> None:
     assert r2.status_code == TEST_HTTP_STATUS_CONFLICT
 
 
-def test_invalid_login_401() -> None:
+@patch("backend.api.routes_auth.container")
+@patch("backend.api.routes_auth.verify_password")
+def test_invalid_login_401(mock_verify_password, mock_container) -> None:
     """Teste que la connexion avec un mauvais mot de passe retourne 401."""
+
+    # Mock password verification - return True for signup, False for login
+    def mock_verify_password_func(password, hashed):
+        # Return True for signup (password "p"), False for login (password "wrong")
+        return password == "p"
+
+    mock_verify_password.side_effect = mock_verify_password_func
+
+    # Mock container components
+    mock_user_repo = mock_container.user_repo
+
+    # Mock user data
+    user_data = {
+        "id": "test_user_id",
+        "email": "bad@test.io",
+        "password_hash": "$2b$12$test_hash",
+        "entitlements": [],
+    }
+
+    # Track signup calls to simulate user creation
+    user_created = False
+
+    # Configure mock behavior
+    def mock_get_by_email(email):
+        if email == "bad@test.io" and user_created:
+            return user_data
+        return None
+
+    def mock_save(user):
+        nonlocal user_created
+        user_created = True
+
+    mock_user_repo.get_by_email.side_effect = mock_get_by_email
+    mock_user_repo.save.side_effect = mock_save
+
+    mock_settings = mock_container.settings
+    mock_settings.JWT_SECRET = "test_secret"
+    mock_settings.JWT_ALG = "HS256"
+    mock_settings.JWT_EXPIRES_MIN = 30
+
     c = TestClient(app)
     c.post(
         "/auth/signup",

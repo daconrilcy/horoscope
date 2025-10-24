@@ -6,8 +6,9 @@ l'expiration et les opérations de cache.
 
 from __future__ import annotations
 
+import os
 import time
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from backend.infra.ops.idempotency import (
     FailureTracker,
@@ -198,3 +199,142 @@ def test_failure_tracker_different_tasks() -> None:
     # Défaillance pour task_2 (compteur séparé)
     result = tracker.on_failure("task_2", "task_id_2", max_failures=1, reason="error_2")
     assert result is False
+
+
+def test_failure_tracker_exceed_threshold() -> None:
+    """Teste le dépassement du seuil de défaillances."""
+    tracker = FailureTracker()
+
+    # Enregistrer des défaillances jusqu'au seuil
+    result = tracker.on_failure("task_1", "task_id_1", max_failures=2, reason="error")
+    assert result is False  # 1ère défaillance
+
+    result = tracker.on_failure("task_1", "task_id_1", max_failures=2, reason="error")
+    assert result is False  # 2ème défaillance
+
+    result = tracker.on_failure("task_1", "task_id_1", max_failures=2, reason="error")
+    assert result is True  # 3ème défaillance - seuil dépassé
+
+
+def test_failure_tracker_record_retry() -> None:
+    """Teste l'enregistrement d'un retry."""
+    tracker = FailureTracker()
+
+    # Test que record_retry ne lève pas d'exception
+    tracker.record_retry("test_task")
+
+
+def test_failure_tracker_env_max_failures() -> None:
+    """Teste l'utilisation de la variable d'environnement pour max_failures."""
+    with patch.dict(os.environ, {"CELERY_MAX_FAILURES_BEFORE_DLQ": "1"}):
+        tracker = FailureTracker()
+
+        # Première défaillance
+        result = tracker.on_failure("task_1", "task_id_1")
+        assert result is False
+
+        # Deuxième défaillance - seuil dépassé
+        result = tracker.on_failure("task_1", "task_id_1")
+        assert result is True
+
+
+def test_failure_tracker_invalid_env_max_failures() -> None:
+    """Teste la gestion d'une variable d'environnement invalide pour max_failures."""
+    with patch.dict(os.environ, {"CELERY_MAX_FAILURES_BEFORE_DLQ": "invalid"}):
+        tracker = FailureTracker()
+
+        # Devrait utiliser la valeur par défaut (3)
+        result = tracker.on_failure("task_1", "task_id_1")
+        assert result is False
+
+
+def test_failure_tracker_empty_env_max_failures() -> None:
+    """Teste la gestion d'une variable d'environnement vide pour max_failures."""
+    with patch.dict(os.environ, {"CELERY_MAX_FAILURES_BEFORE_DLQ": ""}):
+        tracker = FailureTracker()
+
+        # Devrait utiliser la valeur par défaut (3)
+        result = tracker.on_failure("task_1", "task_id_1")
+        assert result is False
+
+
+def test_idempotency_store_redis_client_exception() -> None:
+    """Teste la gestion d'exception dans le client Redis."""
+    store = IdempotencyStore()
+
+    # Mock un client Redis qui n'a pas setnx (donc utilise la branche Redis)
+    mock_client = Mock()
+    mock_client.set.side_effect = Exception("Redis error")
+    # Ne pas définir setnx pour utiliser la branche Redis
+    del mock_client.setnx
+    store.client = mock_client
+
+    # Devrait retourner True en cas d'exception
+    result = store.acquire("test_key", 60)
+    assert result is True
+
+
+def test_failure_tracker_redis_client_exception() -> None:
+    """Teste la gestion d'exception dans le client Redis pour FailureTracker."""
+    tracker = FailureTracker()
+
+    # Mock un client Redis qui lève une exception
+    mock_client = Mock()
+    mock_client.incr.side_effect = Exception("Redis error")
+    tracker.client = mock_client
+
+    # Devrait utiliser max_failures comme count en cas d'exception
+    # count = max_failures, donc count > max_failures est False
+    result = tracker.on_failure("task_1", "task_id_1", max_failures=2)
+    assert result is False  # count = 2, donc count > 2 est False
+
+
+def test_failure_tracker_dlq_push_exception() -> None:
+    """Teste la gestion d'exception lors du push vers DLQ."""
+    tracker = FailureTracker()
+
+    # Mock un client Redis qui lève une exception lors du push
+    mock_client = Mock()
+    mock_client.incr.return_value = 4  # Au-dessus du seuil
+    mock_client.rpush.side_effect = Exception("DLQ push error")
+    tracker.client = mock_client
+
+    # Devrait toujours retourner True même si le push échoue
+    result = tracker.on_failure("task_1", "task_id_1", max_failures=2)
+    assert result is True
+
+
+def test_idempotency_store_with_custom_client() -> None:
+    """Teste IdempotencyStore avec un client personnalisé."""
+    custom_client = _InMemoryKV()
+    store = IdempotencyStore(client=custom_client)
+
+    assert store.client is custom_client
+
+    # Test des opérations
+    result = store.acquire("test_key", 60)
+    assert result is True
+
+
+def test_failure_tracker_with_custom_client() -> None:
+    """Teste FailureTracker avec un client personnalisé."""
+    custom_client = _InMemoryKV()
+    tracker = FailureTracker(client=custom_client)
+
+    assert tracker.client is custom_client
+
+    # Test des opérations
+    result = tracker.on_failure("task_1", "task_id_1", max_failures=1)
+    assert result is False
+
+
+def test_make_idem_key_with_carriage_return() -> None:
+    """Teste la composition des clés avec des retours chariot."""
+    key = make_idem_key("test_task", "param\rwith\rreturns", "param2")
+    assert key == "task:test_task:param with returns:param2"
+
+
+def test_make_idem_key_with_mixed_newlines() -> None:
+    """Teste la composition des clés avec des retours à la ligne mixtes."""
+    key = make_idem_key("test_task", "param\nwith\r\nmixed", "param2")
+    assert key == "task:test_task:param with  mixed:param2"

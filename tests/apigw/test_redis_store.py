@@ -7,7 +7,6 @@ import time
 from unittest.mock import Mock, patch
 
 import pytest
-import redis
 from redis.exceptions import ConnectionError, TimeoutError
 
 from backend.apigw.redis_store import RateLimitResult, RedisRateLimitStore
@@ -29,7 +28,8 @@ class TestRedisRateLimitStore:
     def setup_method(self) -> None:
         """Configure l'environnement de test."""
         self.store = RedisRateLimitStore()
-        self.store._redis = Mock(spec=redis.Redis)
+        # Use a simple Mock instead of spec=redis.Redis to avoid conflicts with global mocks
+        self.store._redis = Mock()
         self.store._script_hash = "test_script_hash"
         # Assertion pour aider mypy à comprendre que _redis n'est pas None
         assert self.store._redis is not None

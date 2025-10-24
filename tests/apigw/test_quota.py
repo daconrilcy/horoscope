@@ -46,7 +46,7 @@ class TestSlidingWindowRateLimiter:
 
         result = limiter.check_rate_limit("tenant1")
         assert result.allowed is True
-        assert result.remaining == DEFAULT_REQUESTS_PER_MINUTE - 1  # requests_per_minute - 1
+        assert result.remaining == config.requests_per_minute - 1  # requests_per_minute - 1
         assert result.retry_after is None
 
     def test_rate_limit_exceeded(self) -> None:
@@ -419,10 +419,10 @@ class TestRateLimitConfig:
             burst_limit=5,
             window_size_seconds=30,
         )
-        assert config.requests_per_minute == TEST_RETRY_AFTER
-        assert config.requests_per_hour == TEST_QUOTA_LIMIT
-        assert config.burst_limit == DEFAULT_BURST_LIMIT // 2
-        assert config.window_size_seconds == TEST_RETRY_AFTER
+        assert config.requests_per_minute == 30
+        assert config.requests_per_hour == 500
+        assert config.burst_limit == 5
+        assert config.window_size_seconds == 30
 
 
 class TestRateLimitResult:
@@ -436,7 +436,7 @@ class TestRateLimitResult:
             reset_time=1234567890.0,
         )
         assert result.allowed is True
-        assert result.remaining == DEFAULT_BURST_LIMIT // 2
+        assert result.remaining == 5
         assert result.reset_time == TEST_RESET_TIME
         assert result.retry_after is None
 

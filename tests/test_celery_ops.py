@@ -7,8 +7,8 @@ l'application.
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import patch
 
-from backend.core.container import container
 from backend.infra.ops.idempotency import FailureTracker, IdempotencyStore
 from backend.tasks.pdf_tasks import render_pdf_task
 
@@ -33,12 +33,21 @@ def test_failure_tracker_dlq(monkeypatch: Any) -> None:
     assert dlq is True
 
 
-def test_render_pdf_task_idempotent(monkeypatch: Any) -> None:
+@patch("backend.tasks.pdf_tasks.container")
+def test_render_pdf_task_idempotent(mock_container, monkeypatch: Any) -> None:
     """Teste que la tâche de rendu PDF est idempotente."""
-    # Ensure chart exists
+    # Mock chart_repo and user_repo
+    mock_container.chart_repo.save.return_value = None
+    mock_container.chart_repo.get.return_value = {
+        "id": "c123",
+        "owner": "t",
+        "chart": {"precision_score": 1},
+    }
+    mock_container.user_repo.client.setex.return_value = None
+    mock_container.settings.REDIS_URL = "redis://localhost:6379"
 
     chart_id = "c123"
-    container.chart_repo.save({"id": chart_id, "owner": "t", "chart": {"precision_score": 1}})
+    mock_container.chart_repo.save({"id": chart_id, "owner": "t", "chart": {"precision_score": 1}})
     r1 = render_pdf_task(chart_id)
     r2 = render_pdf_task(chart_id)
     assert r1 in {"ok", "not_found"}

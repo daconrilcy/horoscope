@@ -38,7 +38,7 @@ def create_access_token(secret: str, alg: str, expires_min: int, payload: dict[s
     to_encode = payload.copy()
     expire = datetime.now(UTC) + timedelta(minutes=expires_min)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, secret, algorithm=alg).decode("utf-8")
+    return jwt.encode(to_encode, secret, algorithm=alg)
 
 
 def decode_token(token: str, secret: str, alg: str) -> TokenData | None:
