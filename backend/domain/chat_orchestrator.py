@@ -1,5 +1,4 @@
-"""
-Orchestrateur de chat astrologique.
+"""Orchestrateur de chat astrologique.
 
 Ce module coordonne la récupération de documents, la génération de réponses et la gestion des
 conversations astrologiques.
@@ -33,9 +32,7 @@ class ChatOrchestrator:
         self.retriever = retriever or Retriever()
         self.llm = llm or OpenAILLM()
 
-    def advise(
-        self, chart: dict, today: dict, question: str
-    ) -> tuple[str, dict | None]:
+    def advise(self, chart: dict, today: dict, question: str) -> tuple[str, dict | None]:
         """Génère des conseils astrologiques basés sur un thème et une question."""
         base = f"precision={chart['chart'].get('precision_score', 1)}; eao={today.get('eao')}"
         r = self.retriever.query(Query(text=question, k=6))

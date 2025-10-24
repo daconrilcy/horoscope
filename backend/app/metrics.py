@@ -1,10 +1,10 @@
-"""
-Métriques Prometheus pour l'application.
+"""Métriques Prometheus pour l'application.
 
 Ce module définit toutes les métriques Prometheus utilisées pour le monitoring de l'application
 astrologique.
 """
 
+import re
 import time
 
 from fastapi import APIRouter, Request
@@ -20,12 +20,8 @@ from starlette.responses import Response
 
 metrics_router = APIRouter()
 
-REQUEST_COUNT = Counter(
-    "http_requests_total", "Total HTTP requests", ["method", "route", "status"]
-)
-REQUEST_LATENCY = Histogram(
-    "http_request_duration_seconds", "Latency of HTTP requests", ["route"]
-)
+REQUEST_COUNT = Counter("http_requests_total", "Total HTTP requests", ["method", "route", "status"])
+REQUEST_LATENCY = Histogram("http_request_duration_seconds", "Latency of HTTP requests", ["route"])
 
 # Retrieval-specific metrics
 RETRIEVAL_REQUESTS = Counter(
@@ -176,12 +172,62 @@ def labelize_model(model: str | None, allowed: list[str] | str | None) -> str:
     return (model or "").strip() if (model or "").strip() in vals else "unknown"
 
 
-# Security/quotas metrics
-RATE_LIMIT_BLOCKS = Counter(
-    "rate_limit_blocks_total",
-    "Total requests blocked by rate limiting",
-    ["tenant", "reason"],
+def normalize_route(path: str) -> str:
+    """Normalize route path for metrics labels."""
+    # Remove path parameters (e.g., /v1/chat/123 -> /v1/chat/{id})
+    normalized = re.sub(r"/[0-9a-f-]{8,}", "/{id}", path)  # UUIDs
+    normalized = re.sub(r"/[0-9]+", "/{id}", normalized)  # Numeric IDs
+
+    # Remove query parameters
+    normalized = normalized.split("?")[0]
+
+    # Ensure it starts with /
+    if not normalized.startswith("/"):
+        normalized = "/" + normalized
+
+    return normalized
+
+
+# Security/quotas metrics - Low cardinality for production
+APIGW_RATE_LIMIT_DECISIONS = Counter(
+    "apigw_rate_limit_decisions_total",
+    "Total rate limiting decisions",
+    ["route", "result"],  # result: "allow" or "block"
 )
+
+APIGW_RATE_LIMIT_BLOCKS = Counter(
+    "apigw_rate_limit_blocks_total",
+    "Total requests blocked by rate limiting",
+    ["route", "reason"],  # reason: "quota_exceeded", "rate_exceeded", etc.
+)
+
+APIGW_RATE_LIMIT_NEAR_LIMIT = Counter(
+    "apigw_rate_limit_near_limit_total",
+    "Total requests near rate limit (remaining/limit < 0.1)",
+    ["route"],
+)
+
+APIGW_RATE_LIMIT_EVALUATION_TIME = Histogram(
+    "apigw_rate_limit_evaluation_seconds",
+    "Time spent evaluating rate limits",
+    ["route"],
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
+)
+
+APIGW_TENANT_SPOOF_ATTEMPTS = Counter(
+    "apigw_tenant_spoof_attempts_total",
+    "Total attempts to spoof tenant via headers",
+    ["route"],
+)
+
+APIGW_RATE_LIMIT_STORE_ERRORS = Counter(
+    "apigw_rate_limit_store_errors_total",
+    "Total rate limit store errors (Redis unavailable, etc.)",
+    ["route", "error_type"],
+)
+
+# Legacy metric for backward compatibility (deprecated)
+RATE_LIMIT_BLOCKS = APIGW_RATE_LIMIT_BLOCKS
 
 LLM_COST_USD = Counter(
     "llm_cost_usd_total",
@@ -214,13 +260,12 @@ VECSTORE_OP_LATENCY = Histogram(
 
 @metrics_router.get("/metrics")
 def metrics():
-    """
-    Expose les métriques Prometheus au format texte.
+    """Expose les métriques Prometheus au format texte.
 
     Returns:
         Response: Réponse HTTP contenant les métriques au format Prometheus.
     """
-    from starlette.responses import Response  # noqa: PLC0415
+    from starlette.responses import Response  # noqa
 
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
@@ -229,16 +274,14 @@ def metrics():
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware Prometheus pour mesurer les métriques HTTP.
+    """Middleware Prometheus pour mesurer les métriques HTTP.
 
     Collecte les métriques de comptage des requêtes et de latence par route pour l'exposition
     Prometheus.
     """
 
     async def dispatch(self, request: Request, call_next):
-        """
-        Traite une requête HTTP et collecte les métriques.
+        """Traite une requête HTTP et collecte les métriques.
 
         Args:
             request: Requête HTTP entrante.

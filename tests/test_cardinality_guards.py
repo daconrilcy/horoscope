@@ -1,5 +1,4 @@
-"""
-Tests pour les gardes de cardinalité des labels.
+"""Tests pour les gardes de cardinalité des labels.
 
 Ce module teste que les labels de tenants et modèles sont projetés vers 'unknown' quand ils sont
 hors de la whitelist.

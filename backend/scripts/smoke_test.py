@@ -1,5 +1,4 @@
-"""
-Quick smoke test for API endpoints using TestClient.
+"""Quick smoke test for API endpoints using TestClient.
 
 Checks:
 - GET /health
@@ -16,8 +15,7 @@ from backend.infra.astro.fake_deterministic import FakeDeterministicAstro
 
 
 def main() -> None:
-    """
-    Point d'entrée principal pour les tests de fumée.
+    """Point d'entrée principal pour les tests de fumée.
 
     Exécute une série de tests de base pour vérifier que l'application fonctionne correctement avec
     un moteur déterministe.

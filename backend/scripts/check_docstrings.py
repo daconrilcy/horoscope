@@ -1,5 +1,4 @@
-"""
-Script de vérification des docstrings manquantes.
+"""Script de vérification des docstrings manquantes.
 
 Ce script analyse le code source pour identifier les modules et fonctions sans docstrings et génère
 un rapport de conformité.
@@ -14,8 +13,7 @@ from backend.core.constants import SCRIPT_PREVIEW_LIMIT
 
 
 def main() -> None:
-    """
-    Point d'entrée principal pour la vérification des docstrings.
+    """Point d'entrée principal pour la vérification des docstrings.
 
     Parcourt tous les fichiers Python du projet et identifie les modules et fonctions sans
     docstring.

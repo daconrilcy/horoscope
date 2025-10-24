@@ -2,8 +2,7 @@
 # Module : backend/infra/monitoring/celery_exporter.py
 # Objet  : Exporter Prometheus pour métriques Celery (squelette).
 # ============================================================
-"""
-Exporter Prometheus pour métriques Celery.
+"""Exporter Prometheus pour métriques Celery.
 
 Ce module fournit des métriques Prometheus pour le monitoring des tâches Celery, incluant les
 compteurs de succès/échec, les durées d'exécution et la profondeur des files.
@@ -84,9 +83,7 @@ def on_task_postrun(task_id: str, task_name: str, state: str) -> None:
     """Gère la fin d'une tâche Celery."""
     start = _starts.pop(task_id, None)
     if start is not None:
-        TASK_RUNTIME_SECONDS.labels(task=task_name).observe(
-            max(0.0, time.time() - start)
-        )
+        TASK_RUNTIME_SECONDS.labels(task=task_name).observe(max(0.0, time.time() - start))
     if state.upper() == "SUCCESS":
         TASK_SUCCESS.inc()
     _maybe_end_span(task_id)
@@ -104,8 +101,7 @@ def on_task_retry(task_name: str) -> None:
 
 
 def bind_celery_signals(celery_app) -> None:  # type: ignore[no-untyped-def]
-    """
-    Attach Celery signal handlers to populate Prometheus metrics.
+    """Attach Celery signal handlers to populate Prometheus metrics.
 
     Safe to call multiple times; signals register idempotently.
     """
@@ -113,11 +109,7 @@ def bind_celery_signals(celery_app) -> None:  # type: ignore[no-untyped-def]
 
         @signals.task_prerun.connect  # type: ignore[misc]
         def _pre(sender=None, task_id: str = "", task=None, args=None, kwargs=None, **kw):  # type: ignore[no-untyped-def]
-            name = (
-                getattr(sender, "name", None)
-                or getattr(task, "name", None)
-                or "unknown"
-            )
+            name = getattr(sender, "name", None) or getattr(task, "name", None) or "unknown"
             on_task_prerun(task_id=task_id, task_name=name, task_obj=task)
 
         @signals.task_postrun.connect  # type: ignore[misc]

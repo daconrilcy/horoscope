@@ -1,5 +1,4 @@
-"""
-Tests pour les fonctionnalités de shadow-read et dual-write.
+"""Tests pour les fonctionnalités de shadow-read et dual-write.
 
 Ce module teste les métriques et comportements des fonctionnalités de shadow-read et dual-write pour
 la migration des systèmes de récupération.
@@ -23,8 +22,7 @@ from backend.services.retrieval_proxy import (
 
 
 def test_dual_write_errors_metric_on_failure(monkeypatch: Any) -> None:
-    """
-    Teste que les erreurs de dual-write sont correctement métriquées.
+    """Teste que les erreurs de dual-write sont correctement métriquées.
 
     Vérifie que lorsqu'un écriture dual-write échoue, le métrique d'erreur est incrémenté avec les
     bons labels.
@@ -52,8 +50,7 @@ def test_dual_write_errors_metric_on_failure(monkeypatch: Any) -> None:
 
 
 def test_shadow_read_emits_metrics(monkeypatch: Any) -> None:
-    """
-    Teste que les métriques de shadow-read sont émises correctement.
+    """Teste que les métriques de shadow-read sont émises correctement.
 
     Vérifie que les métriques d'accord et de NDCG sont générées lors des lectures shadow avec les
     bons labels.
@@ -67,14 +64,10 @@ def test_shadow_read_emits_metrics(monkeypatch: Any) -> None:
         monkeypatch.setattr(container.settings, "ALLOWED_TENANTS", [], raising=False)
 
     class _FakeAdapter:
-        def embed_texts(
-            self, texts: list[str]
-        ) -> list[list[float]]:  # pragma: no cover - unused
+        def embed_texts(self, texts: list[str]) -> list[list[float]]:  # pragma: no cover - unused
             return [[0.0] * 3 for _ in texts]
 
-        def search(
-            self, query: str, top_k: int = 5, tenant: str | None = None
-        ) -> list[dict]:
+        def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
             # Return overlapping ids to get non-zero agreement and ndcg
             return [
                 {
@@ -95,14 +88,10 @@ def test_shadow_read_emits_metrics(monkeypatch: Any) -> None:
 
     # Force primary adapter to return stable ids
     class _Primary:
-        def embed_texts(
-            self, texts: list[str]
-        ) -> list[list[float]]:  # pragma: no cover - unused
+        def embed_texts(self, texts: list[str]) -> list[list[float]]:  # pragma: no cover - unused
             return [[0.0] * 3 for _ in texts]
 
-        def search(
-            self, query: str, top_k: int = 5, tenant: str | None = None
-        ) -> list[dict]:
+        def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
             return [
                 {
                     "id": "doc_1",
@@ -116,7 +105,7 @@ def test_shadow_read_emits_metrics(monkeypatch: Any) -> None:
                 },
             ][:top_k]
 
-    proxy._adapter = _Primary()  # type: ignore[attr-defined]
+    proxy._adapter = _Primary()  # type: ignore[assignment]
     res = proxy.search(query="q", top_k=5, tenant="bench")
     assert isinstance(res, list)
     # Allow shadow worker to run (poll up to 1s).
@@ -139,8 +128,7 @@ def test_shadow_read_emits_metrics(monkeypatch: Any) -> None:
 
 
 def test_shadow_sample_rate_and_queue_drop(monkeypatch: Any) -> None:
-    """
-    Teste le taux d'échantillonnage et les drops de queue shadow.
+    """Teste le taux d'échantillonnage et les drops de queue shadow.
 
     Vérifie que les requêtes sont correctement droppées quand la queue est pleine et que les
     métriques de drop sont émises.
@@ -177,14 +165,12 @@ def test_shadow_sample_rate_and_queue_drop(monkeypatch: Any) -> None:
     after_scrape = generate_latest().decode("utf-8")
     assert (
         after_scrape.count('retrieval_shadow_dropped_total{reason="queue_full"}')
-        >= before_scrape.count('retrieval_shadow_dropped_total{reason="queue_full"}')
-        + 1
+        >= before_scrape.count('retrieval_shadow_dropped_total{reason="queue_full"}') + 1
     )
 
 
 def test_shadow_timeout_drops(monkeypatch: Any) -> None:
-    """
-    Teste les drops de shadow-read dus aux timeouts.
+    """Teste les drops de shadow-read dus aux timeouts.
 
     Vérifie que les requêtes shadow sont droppées quand elles dépassent le timeout configuré et que
     les métriques sont émises.
@@ -196,9 +182,7 @@ def test_shadow_timeout_drops(monkeypatch: Any) -> None:
     monkeypatch.setenv("RETRIEVAL_SHADOW_TIMEOUT_MS", "1")
 
     class _SlowAdapter:
-        def search(
-            self, query: str, top_k: int = 5, tenant: str | None = None
-        ) -> list[dict]:
+        def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
             time.sleep(0.02)
             return [{"id": "doc_slow"}]
 

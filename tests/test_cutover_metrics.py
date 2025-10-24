@@ -1,5 +1,4 @@
-"""
-Tests pour les métriques de migration.
+"""Tests pour les métriques de migration.
 
 Ce module teste les métriques utilisées pour évaluer la qualité de la migration de récupération.
 """
@@ -79,9 +78,7 @@ def test_edge_empty_and_parent_dir_creation(tmp_path: Path) -> None:
 
     # evaluate_from_truth empty
     scores = evaluate_from_truth([], lambda q, k, t: [])
-    assert (
-        scores.total == 0 and scores.agreement_at_5 == 0.0 and scores.ndcg_at_10 == 0.0
-    )
+    assert scores.total == 0 and scores.agreement_at_5 == 0.0 and scores.ndcg_at_10 == 0.0
 
 
 def test_agreement_and_ndcg_bounds() -> None:

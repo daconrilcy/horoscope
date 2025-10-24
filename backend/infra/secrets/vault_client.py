@@ -1,5 +1,4 @@
-"""
-Client Vault pour la gestion des secrets avec fallback mock.
+"""Client Vault pour la gestion des secrets avec fallback mock.
 
 Ce module implémente un client Vault minimal avec support pour les mocks et l'audit des rotations de
 clés pour les environnements de test.
@@ -17,8 +16,7 @@ from datetime import datetime
 
 
 class VaultClient:
-    """
-    Client Vault minimal avec fallback mock.
+    """Client Vault minimal avec fallback mock.
 
     - Ne journalise jamais de valeurs de secrets.
     - Peut utiliser des variables `VAULT_MOCK_<KEY>` pour simuler Vault en tests.
@@ -36,8 +34,7 @@ class VaultClient:
 
     @property
     def enabled(self) -> bool:  # pragma: no cover - trivial
-        """
-        Indique si le client Vault est activé.
+        """Indique si le client Vault est activé.
 
         Returns:
             bool: True si Vault est activé, False sinon.
@@ -45,8 +42,7 @@ class VaultClient:
         return self._enabled
 
     def get_secret(self, key: str) -> str:
-        """
-        Récupère un secret par clé.
+        """Récupère un secret par clé.
 
         Ordre:
         1) si Vault désactivé → "".
@@ -65,8 +61,7 @@ class VaultClient:
         return ""
 
     def rotate_openai_key(self, new_key_id: str) -> None:
-        """
-        Rotation de clé OpenAI (audit only, sans divulguer la valeur).
+        """Rotation de clé OpenAI (audit only, sans divulguer la valeur).
 
         Écrit une trace d'audit (timestamp, key id) dans `artifacts/secrets/rotation_*.log`. La
         valeur n'est jamais logguée.

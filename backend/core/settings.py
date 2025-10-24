@@ -1,5 +1,4 @@
-"""
-Définition et chargement des paramètres de configuration applicative.
+"""Définition et chargement des paramètres de configuration applicative.
 
 Objectif du module
 ------------------
@@ -20,17 +19,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _cwd = Path.cwd()
 _env_file_from_env = os.getenv("ENV_FILE")
 if _env_file_from_env:
-    _ENV_FILE_PATH = _env_file_from_env
+    _ENV_FILE_PATH = str(_env_file_from_env).strip()
 else:
     _app_env = os.getenv("APP_ENV", "dev")
     _candidate_specific = _cwd / f".env.{_app_env}"
     _candidate_default = _cwd / ".env"
     if _candidate_specific.exists():
-        _ENV_FILE_PATH = _candidate_specific
+        _ENV_FILE_PATH = str(_candidate_specific).strip()
     elif _candidate_default.exists():
-        _ENV_FILE_PATH = _candidate_default
+        _ENV_FILE_PATH = str(_candidate_default).strip()
     else:
-        _ENV_FILE_PATH = _candidate_default
+        _ENV_FILE_PATH = str(_candidate_default).strip()
 
 
 class Settings(BaseSettings):
@@ -50,8 +49,12 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: list[AnyHttpUrl] | list[str] = []
     DATABASE_URL: str | None = None
-    REDIS_URL: str | None = None
+    REDIS_URL: str = "redis://localhost:6379/0"
     REQUIRE_REDIS: bool = False
+    RL_WINDOW_SECONDS: int = 60
+    RL_MAX_REQ_PER_WINDOW: int = 60
+    RL_CONNECT_TIMEOUT_MS: int = 100
+    RL_READ_TIMEOUT_MS: int = 100
     ASTRO_SEED: int | None = None
     # JWT/Auth
     JWT_SECRET: str = "dev-secret-change-me"
@@ -91,6 +94,10 @@ class Settings(BaseSettings):
     DEFAULT_TENANT: str = "default"
     FAISS_DATA_DIR: str = "./var/faiss"
     STORAGE_REGION: str = "eu"
+
+    # Internal authentication keys for HMAC verification
+    INTERNAL_AUTH_KEY: str = "default-internal-key-change-in-production"
+    INTERNAL_AUTH_KEY_V2: str | None = None
 
 
 def get_settings() -> Settings:

@@ -1,5 +1,4 @@
-"""
-Tests pour la génération de rapports SLO.
+"""Tests pour la génération de rapports SLO.
 
 Ce module teste la génération de rapports SLO avec toutes les sections requises et les liens vers
 les dashboards Grafana.
@@ -13,8 +12,7 @@ from scripts.slo_report import generate_report
 
 
 def test_slo_report_generation(tmp_path: Path, monkeypatch) -> None:
-    """
-    Teste la génération du rapport SLO.
+    """Teste la génération du rapport SLO.
 
     Vérifie que le rapport SLO est correctement généré avec toutes les sections requises et les
     liens vers les dashboards.

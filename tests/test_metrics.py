@@ -1,5 +1,4 @@
-"""
-Tests pour les métriques Prometheus.
+"""Tests pour les métriques Prometheus.
 
 Ce module teste que les métriques Prometheus sont correctement exposées via l'endpoint /metrics.
 """

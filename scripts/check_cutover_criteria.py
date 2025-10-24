@@ -1,5 +1,4 @@
-"""
-Vérifier les critères de cutover à partir d'artefacts locaux.
+"""Vérifier les critères de cutover à partir d'artefacts locaux.
 
 Script: scripts/check_cutover_criteria.py
 
@@ -25,8 +24,7 @@ from pathlib import Path
 
 
 def main() -> None:
-    """
-    Point d'entrée principal pour la vérification des critères de cutover.
+    """Point d'entrée principal pour la vérification des critères de cutover.
 
     Vérifie si les métriques de performance et d'accord respectent les critères définis pour le
     cutover.

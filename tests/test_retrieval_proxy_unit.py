@@ -2,8 +2,7 @@
 # Tests : tests/test_retrieval_proxy_unit.py
 # Objet  : Couvrir des chemins de base de RetrievalProxy/Adapters.
 # ============================================================
-"""
-Tests unitaires pour le proxy de récupération.
+"""Tests unitaires pour le proxy de récupération.
 
 Ce module teste les adaptateurs et le proxy de récupération avec différents backends et
 configurations.

@@ -29,16 +29,10 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "D"]
+select = ["E", "F", "I", "UP", "B", "D", "PL"]
 # Eviter de casser le flux immédiatement: pas d'obligation de docstring partout,
 # et ignorer quelques règles de style trop strictes pour l'instant.
-extend-ignore = [
-  # Missing docstrings (on activera progressivement si souhaité)
-  "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107",
-  # Conflits de style communs
-  "D203", # one-blank-line-before-class (souvent incompatible avec D211)
-  "D213", # multi-line-summary-second-line
-]
+extend-ignore = []
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
@@ -48,9 +42,11 @@ convention = "pep257"
 "**/__init__.py" = ["D"]
 "backend/api/routes_chat.py" = ["B008"]
 # Objectif du fichier: configuration de projet et outils (pytest, ruff, etc.).
-# TODO: compléter les métadonnées et les scripts si besoin.
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]
 
 [project.optional-dependencies]
 tokens = [
-    "tiktoken==0.7.0",
+    "tiktoken==0.12.0",
 ]

@@ -2,8 +2,7 @@
 # Tests : tests/test_retrieval_proxy.py
 # Objet  : Vérifier endpoints /internal/retrieval/* (squelette).
 # ============================================================
-"""
-Tests pour le proxy de récupération.
+"""Tests pour le proxy de récupération.
 
 Ce module teste les endpoints internes de récupération et d'embeddings via le proxy.
 """

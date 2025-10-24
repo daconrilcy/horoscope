@@ -1,5 +1,4 @@
-"""
-Tests pour la validation des tenants.
+"""Tests pour la validation des tenants.
 
 Ce module teste les fonctions de validation et de normalisation des identifiants de tenants dans
 l'application.

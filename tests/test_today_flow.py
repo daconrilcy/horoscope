@@ -1,9 +1,10 @@
-"""
-Tests pour le flux de génération d'horoscopes.
+"""Tests pour le flux de génération d'horoscopes.
 
 Ce module teste le flux complet de génération d'horoscopes du thème natal aux transits du jour et au
 PDF.
 """
+
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -16,8 +17,33 @@ from backend.core.container import container
 from backend.infra.astro.fake_deterministic import FakeDeterministicAstro
 
 
-def test_natal_to_today_and_pdf():
+@patch("backend.api.routes_horoscope.service")
+@patch("backend.api.routes_horoscope.container")
+def test_natal_to_today_and_pdf(mock_container, mock_service):
     """Teste le flux complet natal -> today -> PDF."""
+    # Mock container and service
+    mock_container.chart_repo.get.return_value = {
+        "id": "test_chart_id",
+        "owner": "Test User",
+        "chart": {"precision_score": 1},
+    }
+    mock_service.compute_natal.return_value = {
+        "id": "test_chart_id",
+        "owner": "Test User",
+        "chart": {"planets": [], "houses": [], "aspects": []},
+    }
+    mock_service.get_today.return_value = {
+        "date": "2024-01-01",
+        "leaders": [{"name": "Sun", "sign": "Leo"}, {"name": "Moon", "sign": "Cancer"}],
+        "influences": [
+            {"type": "positive", "strength": "strong"},
+            {"type": "creative", "strength": "medium"},
+        ],
+        "eao": {"element": "fire", "aspect": "trine", "orb": "tight"},
+        "snippets": [{"text": "Today is a great day for creativity", "source": "astrology"}],
+        "precision_score": 1,
+    }
+
     container.astro = FakeDeterministicAstro()  # override déterministe pour le test
     client = TestClient(app)
     birth = {

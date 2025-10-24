@@ -1,5 +1,4 @@
-"""
-Container d'injection de dépendances.
+"""Container d'injection de dépendances.
 
 Ce module fournit un container centralisé pour la gestion des dépendances et l'injection de services
 dans l'application.
@@ -74,8 +73,7 @@ class Container:
 
 
 container = Container()
-"""
-Conteneur d'injection de dépendances et configuration application.
+"""Conteneur d'injection de dépendances et configuration application.
 
 Instancie les composants centraux (settings, dépôts, moteur astro, etc.)
 et expose un singleton `container` utilisé par le reste de l'application.
@@ -83,8 +81,7 @@ et expose un singleton `container` utilisé par le reste de l'application.
 
 
 def _env_or_settings(key: str, settings) -> str:
-    """
-    Retourne d'abord l'env, sinon l'attribut dans settings, sinon chaîne vide.
+    """Retourne d'abord l'env, sinon l'attribut dans settings, sinon chaîne vide.
 
     Ne loggue jamais la valeur du secret.
     """
@@ -103,8 +100,7 @@ def _try_vault(container: Container, key: str) -> str:
 
 
 def resolve_secret(key: str) -> str:
-    """
-    Résout un secret via Vault avec fallback env/settings.
+    """Résout un secret via Vault avec fallback env/settings.
 
     Ordre: Vault (si activé) → env → settings. Ne journalise jamais de valeurs.
     """

@@ -1,5 +1,4 @@
-"""
-Types de données pour le système de récupération de documents.
+"""Types de données pour le système de récupération de documents.
 
 Ce module définit les modèles Pydantic pour les documents, requêtes et résultats de recherche avec
 scores de similarité.
@@ -13,8 +12,7 @@ from pydantic import BaseModel, Field
 
 
 class Document(BaseModel):
-    """
-    Modèle de document avec métadonnées.
+    """Modèle de document avec métadonnées.
 
     Représente un document avec son identifiant, contenu textuel et métadonnées optionnelles.
     """
@@ -25,8 +23,7 @@ class Document(BaseModel):
 
 
 class Query(BaseModel):
-    """
-    Modèle de requête de recherche.
+    """Modèle de requête de recherche.
 
     Représente une requête de recherche avec le texte à rechercher et le nombre de résultats
     souhaités.
@@ -37,8 +34,7 @@ class Query(BaseModel):
 
 
 class ScoredDocument(BaseModel):
-    """
-    Modèle de document avec score de similarité.
+    """Modèle de document avec score de similarité.
 
     Représente un document de résultat avec son score de similarité par rapport à la requête de
     recherche.

@@ -1,5 +1,4 @@
-"""
-Constantes HTTP pour éviter les valeurs magiques dans le code.
+"""Constantes HTTP pour éviter les valeurs magiques dans le code.
 
 Ce module définit les codes de statut HTTP les plus couramment utilisés dans l'application pour
 améliorer la lisibilité et éviter les valeurs magiques.

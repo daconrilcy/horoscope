@@ -1,7 +1,6 @@
-"""
-Script de rejeu sécurisé de l'outbox de dual-write.
+"""Script de rejeu sécurisé de l'outbox de dual-write.
 
-Ce script rejoue l'outbox de dual-write de manière sécurisée et sort avec un code non-zéro si des
+Ce script rejoue l'outbox de dual-write de manière sécurisée et sort avec un code non- zéro si des
 échecs persistent.
 """
 
@@ -22,11 +21,7 @@ def main() -> int:
     args = parser.parse_args()
 
     # Using the in-module replay api; failures are counted by return
-    succ = replay_outbox(
-        max_items=args.max_items,
-        dry_run=args.dry_run,
-        sleep_ms=args.sleep_ms,
-    )
+    succ = replay_outbox(limit=args.max_items)
     # For compatibility with our API: we return number of successes;
     # compute failed from attempted if provided
     # Since we don't have attempted in this wrapper, print only successes

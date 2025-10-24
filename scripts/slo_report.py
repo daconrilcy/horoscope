@@ -1,5 +1,4 @@
-"""
-Generate SLO report (Markdown/JSON) from slo.yaml and optional metrics.
+"""Generate SLO report (Markdown/JSON) from slo.yaml and optional metrics.
 
 Ce script génère un rapport SLO à partir de slo.yaml et de métriques optionnelles,
 avec évaluation des violations et export en formats Markdown et JSON.
@@ -99,8 +98,7 @@ def _status_icon(ok: bool | None) -> str:
 
 
 def _load_metrics(path: Path | None) -> dict:
-    """
-    Load optional synthetic metrics for breach evaluation.
+    """Load optional synthetic metrics for breach evaluation.
 
     Expected format:
     {
@@ -127,9 +125,7 @@ def _endpoint_key(slo: dict[str, Any]) -> str:
     return f"{method} {route}".strip()
 
 
-def _min_requests_window_for(
-    slo: dict[str, Any], cfg: dict[str, Any]
-) -> tuple[str, int]:
+def _min_requests_window_for(slo: dict[str, Any], cfg: dict[str, Any]) -> tuple[str, int]:
     """Return (window, min_requests) for gating low-traffic evaluations."""
     default_mrw = cfg.get("defaults", {}).get("min_requests_window") or {}
     mrw = (slo.get("min_requests_window") or default_mrw) if slo else default_mrw
@@ -144,8 +140,7 @@ def _min_requests_window_for(
 def _check_traffic_gating(
     slo: dict[str, Any], cfg: dict[str, Any], stats: dict[str, float]
 ) -> bool:
-    """
-    Vérifie si le trafic est suffisant pour l'évaluation.
+    """Vérifie si le trafic est suffisant pour l'évaluation.
 
     Args:
         slo: Configuration SLO.
@@ -170,8 +165,7 @@ def _check_traffic_gating(
 def _check_latency_breach(
     slo: dict[str, Any], stats: dict[str, float], breaches: list[dict[str, Any]]
 ) -> None:
-    """
-    Vérifie les violations de latence.
+    """Vérifie les violations de latence.
 
     Args:
         slo: Configuration SLO.
@@ -207,8 +201,7 @@ def _check_latency_breach(
 def _check_error_rate_breach(
     slo: dict[str, Any], stats: dict[str, float], breaches: list[dict[str, Any]]
 ) -> None:
-    """
-    Vérifie les violations de taux d'erreur.
+    """Vérifie les violations de taux d'erreur.
 
     Args:
         slo: Configuration SLO.
@@ -235,8 +228,7 @@ def _check_error_rate_breach(
 def _check_freeze_policy(
     slo: dict[str, Any], stats: dict[str, float], breaches: list[dict[str, Any]]
 ) -> None:
-    """
-    Vérifie la politique de gel.
+    """Vérifie la politique de gel.
 
     Args:
         slo: Configuration SLO.
@@ -267,8 +259,7 @@ def _check_freeze_policy(
 
 
 def _check_budget_breach(slo: dict[str, Any], breaches: list[dict[str, Any]]) -> None:
-    """
-    Vérifie les violations de budget.
+    """Vérifie les violations de budget.
 
     Args:
         slo: Configuration SLO.
@@ -296,8 +287,7 @@ def _check_budget_breach(slo: dict[str, Any], breaches: list[dict[str, Any]]) ->
 
 
 def evaluate_breaches(cfg: dict, metrics: dict) -> list[dict[str, Any]]:
-    """
-    Evaluate SLO breaches using optional synthetic metrics.
+    """Evaluate SLO breaches using optional synthetic metrics.
 
     Rules:
     - For endpoint latency SLOs: compare metrics[endpoint].p95/p99 to targets.
@@ -325,8 +315,7 @@ def evaluate_breaches(cfg: dict, metrics: dict) -> list[dict[str, Any]]:
 
 
 def _add_slo_header(lines: list[str], cfg: dict, label: str) -> None:
-    """
-    Ajoute l'en-tête du rapport SLO.
+    """Ajoute l'en-tête du rapport SLO.
 
     Args:
         lines: Lignes du rapport à modifier.
@@ -340,8 +329,7 @@ def _add_slo_header(lines: list[str], cfg: dict, label: str) -> None:
 
 
 def _add_slo_targets(lines: list[str], slo: dict[str, Any]) -> None:
-    """
-    Ajoute les cibles d'un SLO.
+    """Ajoute les cibles d'un SLO.
 
     Args:
         lines: Lignes du rapport à modifier.
@@ -358,8 +346,7 @@ def _add_slo_targets(lines: list[str], slo: dict[str, Any]) -> None:
 
 
 def _add_slo_budget(lines: list[str], slo: dict[str, Any]) -> None:
-    """
-    Ajoute les informations de budget d'un SLO.
+    """Ajoute les informations de budget d'un SLO.
 
     Args:
         lines: Lignes du rapport à modifier.
@@ -379,8 +366,7 @@ def _add_slo_budget(lines: list[str], slo: dict[str, Any]) -> None:
 
 
 def _add_slo_status(lines: list[str], slo: dict[str, Any]) -> None:
-    """
-    Ajoute le statut d'un SLO.
+    """Ajoute le statut d'un SLO.
 
     Args:
         lines: Lignes du rapport à modifier.
@@ -399,8 +385,7 @@ def _add_slo_status(lines: list[str], slo: dict[str, Any]) -> None:
 
 
 def _add_slo_alerts(lines: list[str], slo: dict[str, Any]) -> None:
-    """
-    Ajoute les alertes d'un SLO.
+    """Ajoute les alertes d'un SLO.
 
     Args:
         lines: Lignes du rapport à modifier.
@@ -410,14 +395,11 @@ def _add_slo_alerts(lines: list[str], slo: dict[str, Any]) -> None:
     if alerts:
         lines.append("- Alerts:\n")
         for a in alerts:
-            lines.append(
-                f"  - {a.get('name')}: {a.get('expr')} (sev={a.get('severity')})\n"
-            )
+            lines.append(f"  - {a.get('name')}: {a.get('expr')} (sev={a.get('severity')})\n")
 
 
 def _add_slo_objectives(lines: list[str], cfg: dict, dash_base: str | None) -> None:
-    """
-    Ajoute la section des objectifs SLO.
+    """Ajoute la section des objectifs SLO.
 
     Args:
         lines: Lignes du rapport à modifier.
@@ -442,8 +424,7 @@ def _add_slo_objectives(lines: list[str], cfg: dict, dash_base: str | None) -> N
 
 
 def _add_top_routes_section(lines: list[str]) -> None:
-    """
-    Ajoute la section des routes avec le plus d'erreurs 5xx.
+    """Ajoute la section des routes avec le plus d'erreurs 5xx.
 
     Args:
         lines: Lignes du rapport à modifier.
@@ -499,8 +480,7 @@ def export_json(
 
 
 def main() -> None:
-    """
-    Point d'entrée principal pour la génération de rapport SLO.
+    """Point d'entrée principal pour la génération de rapport SLO.
 
     Génère un rapport Markdown sur les Service Level Objectives à partir du fichier de configuration
     slo.yaml.

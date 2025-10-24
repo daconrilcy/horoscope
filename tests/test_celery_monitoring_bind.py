@@ -1,5 +1,4 @@
-"""
-Tests pour la liaison des signaux Celery.
+"""Tests pour la liaison des signaux Celery.
 
 Ce module teste que la liaison des signaux Celery ne casse pas
 le bootstrap de l'application et fonctionne correctement.

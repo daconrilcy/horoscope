@@ -1,5 +1,4 @@
-"""
-Schémas Pydantic exposés par l'API (requêtes et réponses).
+"""Schémas Pydantic exposés par l'API (requêtes et réponses).
 
 Ce module définit les modèles de données utilisés pour les échanges avec l'API, incluant les
 requêtes de création de thème natal et les réponses contenant les données astrologiques calculées.
@@ -11,8 +10,7 @@ from pydantic import BaseModel
 
 
 class BirthRequest(BaseModel):
-    """
-    Modèle de requête pour créer un thème natal.
+    """Modèle de requête pour créer un thème natal.
 
     Champs:
     - name: str
@@ -30,14 +28,11 @@ class BirthRequest(BaseModel):
     tz: str
     lat: float
     lon: float
-    time_certainty: Literal["exact", "morning", "afternoon", "evening", "unknown"] = (
-        "exact"
-    )
+    time_certainty: Literal["exact", "morning", "afternoon", "evening", "unknown"] = "exact"
 
 
 class NatalResponse(BaseModel):
-    """
-    Réponse renvoyée après création d'un thème natal.
+    """Réponse renvoyée après création d'un thème natal.
 
     Champs:
     - id: str (identifiant unique du thème)
@@ -51,8 +46,7 @@ class NatalResponse(BaseModel):
 
 
 class TodayResponse(BaseModel):
-    """
-    Réponse “horoscope du jour” pour un thème existant.
+    """Réponse “horoscope du jour” pour un thème existant.
 
     Champs:
     - date: str (YYYY-MM-DD)

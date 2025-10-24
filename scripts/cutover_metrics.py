@@ -1,5 +1,4 @@
-"""
-Script d'évaluation des métriques de cutover.
+"""Script d'évaluation des métriques de cutover.
 
 Ce script évalue les métriques de cutover (agreement@5 et nDCG@10) en utilisant un jeu de données de
 vérité et génère des rapports JSON et NDJSON.
@@ -28,27 +27,20 @@ from backend.services.metrics_cutover import (  # noqa: E402
 from backend.services.retrieval_proxy import RetrievalProxy  # noqa: E402
 
 
-def _fetch(
-    proxy: RetrievalProxy, query: str, top_k: int, tenant: str | None
-) -> list[dict]:
+def _fetch(proxy: RetrievalProxy, query: str, top_k: int, tenant: str | None) -> list[dict]:
     return proxy.search(query=query, top_k=top_k, tenant=tenant)
 
 
 def main() -> int:
-    """
-    Run cutover evaluation and emit a JSON + NDJSON log.
+    """Run cutover evaluation and emit a JSON + NDJSON log.
 
     Exits 0 if thresholds are met, 1 otherwise.
     """
-    parser = argparse.ArgumentParser(
-        description="Cutover gates: agreement@5 & nDCG@10 evaluator"
-    )
+    parser = argparse.ArgumentParser(description="Cutover gates: agreement@5 & nDCG@10 evaluator")
     parser.add_argument(
         "--truth-set", type=str, required=True, help="Path to frozen truth set JSON"
     )
-    parser.add_argument(
-        "--k", type=int, default=10, help="Top-k to request from retrieval"
-    )
+    parser.add_argument("--k", type=int, default=10, help="Top-k to request from retrieval")
     parser.add_argument(
         "--out",
         type=str,
@@ -98,9 +90,7 @@ def main() -> int:
 
     append_ndjson(args.log, result)
 
-    ok = (scores.agreement_at_5 >= args.min_agreement) and (
-        scores.ndcg_at_10 >= args.min_ndcg
-    )
+    ok = (scores.agreement_at_5 >= args.min_agreement) and (scores.ndcg_at_10 >= args.min_ndcg)
     return 0 if ok else 1
 
 

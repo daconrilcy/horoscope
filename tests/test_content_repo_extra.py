@@ -1,5 +1,4 @@
-"""
-Tests supplémentaires pour le repository de contenu.
+"""Tests supplémentaires pour le repository de contenu.
 
 Ce module teste les fonctionnalités avancées du repository de contenu JSON, incluant les valeurs par
 défaut et la lecture.

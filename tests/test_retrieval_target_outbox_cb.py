@@ -1,5 +1,4 @@
-"""
-Tests pour le circuit breaker et l'outbox de dual-write.
+"""Tests pour le circuit breaker et l'outbox de dual-write.
 
 Ce module teste le comportement du circuit breaker et de l'outbox pour la gestion des erreurs et la
 récupération en cas de panne du système cible.
@@ -21,8 +20,7 @@ def _metric_value_contains(fragment: str) -> bool:
 
 
 def test_circuit_breaker_opens_and_skips(monkeypatch: Any) -> None:
-    """
-    Teste l'ouverture du circuit breaker et le skip des requêtes.
+    """Teste l'ouverture du circuit breaker et le skip des requêtes.
 
     Vérifie que le circuit breaker s'ouvre après un seuil d'erreurs et que les requêtes suivantes
     sont skippées avec les bonnes métriques.
@@ -68,8 +66,7 @@ def test_circuit_breaker_opens_and_skips(monkeypatch: Any) -> None:
 
 
 def test_outbox_ttl_and_dropped_counter(monkeypatch: Any) -> None:
-    """
-    Teste le TTL de l'outbox et le compteur de drops.
+    """Teste le TTL de l'outbox et le compteur de drops.
 
     Vérifie que les éléments de l'outbox expirent selon le TTL configuré et que les métriques de
     drop sont correctement incrémentées.

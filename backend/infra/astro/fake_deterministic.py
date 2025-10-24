@@ -1,5 +1,4 @@
-"""
-Moteur astrologique déterministe pour les tests et développement.
+"""Moteur astrologique déterministe pour les tests et développement.
 
 Ce module implémente un moteur astrologique factice qui produit des résultats déterministes pour les
 tests et le développement sans dépendances externes.
@@ -9,16 +8,14 @@ from typing import Any
 
 
 class FakeDeterministicAstro:
-    """
-    Moteur astrologique factice déterministe pour les tests.
+    """Moteur astrologique factice déterministe pour les tests.
 
     Produit des résultats astrologiques prévisibles et cohérents pour les tests et le développement
     sans calculs réels.
     """
 
     def compute_natal_chart(self, birth) -> dict[str, Any]:
-        """
-        Calculate a fake deterministic natal chart.
+        """Calculate a fake deterministic natal chart.
 
         Args:
             birth: Données de naissance (objet avec attributs name, time).
@@ -33,11 +30,8 @@ class FakeDeterministicAstro:
             "factors": [{"axis": "SUN"}, {"axis": "ASC"}, {"axis": "MC"}],
         }
 
-    def compute_daily_transits(
-        self, natal: dict[str, Any], day_iso: str
-    ) -> list[dict[str, Any]]:
-        """
-        Calculate fake deterministic daily transits.
+    def compute_daily_transits(self, natal: dict[str, Any], day_iso: str) -> list[dict[str, Any]]:
+        """Calculate fake deterministic daily transits.
 
         Args:
             natal: Thème natal (non utilisé dans cette implémentation factice).

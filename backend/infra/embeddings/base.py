@@ -1,5 +1,4 @@
-"""
-Interface de base pour les générateurs d'embeddings.
+"""Interface de base pour les générateurs d'embeddings.
 
 Ce module définit l'interface abstraite que doivent implémenter tous les générateurs d'embeddings
 vectoriels.

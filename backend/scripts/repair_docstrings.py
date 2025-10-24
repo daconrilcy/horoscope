@@ -1,5 +1,4 @@
-"""
-Répare les docstrings mal insérées par l'auto-génération.
+"""Répare les docstrings mal insérées par l'auto-génération.
 
 Supprime:
 - L'en-tête de module auto-généré (bloc triple quotes "Module ... Objectif du module ...").
@@ -33,8 +32,7 @@ INTERNAL_TOKENS = (
 
 
 def is_marker_line(line: str) -> bool:
-    """
-    Vérifie si une ligne contient un marqueur de docstring.
+    """Vérifie si une ligne contient un marqueur de docstring.
 
     Args:
         line: Ligne à vérifier.
@@ -47,8 +45,7 @@ def is_marker_line(line: str) -> bool:
 
 
 def should_keep(after_sig_open: bool, at_top: bool) -> bool:
-    """
-    Détermine si une ligne doit être conservée.
+    """Détermine si une ligne doit être conservée.
 
     Args:
         after_sig_open: Si on est après l'ouverture d'une signature.
@@ -63,8 +60,7 @@ def should_keep(after_sig_open: bool, at_top: bool) -> bool:
 
 
 def _is_header_block(lines: list[str], i: int) -> bool:
-    """
-    Vérifie si on est dans un bloc d'en-tête auto-généré.
+    """Vérifie si on est dans un bloc d'en-tête auto-généré.
 
     Args:
         lines: Lignes du fichier.
@@ -83,8 +79,7 @@ def _is_header_block(lines: list[str], i: int) -> bool:
 
 
 def _is_generated_block(line: str) -> bool:
-    """
-    Vérifie si une ligne commence un bloc auto-généré.
+    """Vérifie si une ligne commence un bloc auto-généré.
 
     Args:
         line: Ligne à vérifier.
@@ -99,8 +94,7 @@ def _is_generated_block(line: str) -> bool:
 
 
 def _skip_triple_quoted_block(lines: list[str], i: int) -> int:
-    """
-    Saute un bloc triple-quoté complet.
+    """Saute un bloc triple-quoté complet.
 
     Args:
         lines: Lignes du fichier.
@@ -120,8 +114,7 @@ def _skip_triple_quoted_block(lines: list[str], i: int) -> int:
 
 
 def _should_remove_marker_line(line: str, after_sig_open: bool) -> bool:
-    """
-    Détermine si une ligne marqueur doit être supprimée.
+    """Détermine si une ligne marqueur doit être supprimée.
 
     Args:
         line: Ligne à vérifier.
@@ -134,8 +127,7 @@ def _should_remove_marker_line(line: str, after_sig_open: bool) -> bool:
 
 
 def _skip_misplaced_docstring(lines: list[str], i: int) -> int:
-    """
-    Saute une docstring mal placée.
+    """Saute une docstring mal placée.
 
     Args:
         lines: Lignes du fichier.
@@ -156,8 +148,7 @@ def _skip_misplaced_docstring(lines: list[str], i: int) -> int:
 def _process_triple_quoted_context(
     lines: list[str], i: int, triple_open: str | None
 ) -> tuple[int, str | None, bool]:
-    """
-    Traite le contexte triple-quoté.
+    """Traite le contexte triple-quoté.
 
     Args:
         lines: Lignes du fichier.
@@ -170,9 +161,7 @@ def _process_triple_quoted_context(
     line = lines[i]
     stripped = line.strip()
 
-    if triple_open is None and (
-        stripped.startswith('"""') or stripped.startswith("'''")
-    ):
+    if triple_open is None and (stripped.startswith('"""') or stripped.startswith("'''")):
         if _is_generated_block(line):
             return _skip_triple_quoted_block(lines, i), None, True
         else:
@@ -189,8 +178,7 @@ def _process_triple_quoted_context(
 def _process_line_content(
     line: str, stripped: str, after_sig_open: bool, seen_code: bool
 ) -> tuple[bool, bool, bool]:
-    """
-    Traite le contenu d'une ligne.
+    """Traite le contenu d'une ligne.
 
     Args:
         line: Ligne complète.
@@ -228,8 +216,7 @@ def _process_line_content(
 
 
 def repair_file(path: Path) -> bool:
-    """
-    Répare les docstrings dans un fichier.
+    """Répare les docstrings dans un fichier.
 
     Args:
         path: Chemin vers le fichier à réparer.
@@ -251,9 +238,7 @@ def repair_file(path: Path) -> bool:
         stripped = line.strip()
 
         # Gérer le contexte triple-quoté et les blocs auto-générés
-        new_i, new_triple_open, was_changed = _process_triple_quoted_context(
-            lines, i, triple_open
-        )
+        new_i, new_triple_open, was_changed = _process_triple_quoted_context(lines, i, triple_open)
         if was_changed:
             changed = True
             i = new_i
@@ -290,8 +275,7 @@ def repair_file(path: Path) -> bool:
 
 
 def main() -> None:
-    """
-    Point d'entrée principal pour la réparation des docstrings.
+    """Point d'entrée principal pour la réparation des docstrings.
 
     Parcourt tous les fichiers Python et répare les docstrings en supprimant les marqueurs
     temporaires.
