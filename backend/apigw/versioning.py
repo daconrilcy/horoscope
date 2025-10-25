@@ -13,9 +13,9 @@ Ce module fournit les fonctionnalités pour:
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 
-import json
 import structlog
 from fastapi import APIRouter, Request, Response
 from prometheus_client import Counter
@@ -150,7 +150,10 @@ class LegacyDeprecationMiddleware(BaseHTTPMiddleware):
             "Location": new_path,
             "Deprecation": DEPRECATION_UNIX_TIME,  # RFC 9745 : Unix time avec @
             "Sunset": SUNSET_HTTP_DATE,  # RFC 8594 : HTTP-date format
-            "Link": f'<{new_path}>; rel="successor-version", <https://docs.astro.com/api/versioning>; rel="deprecation"',
+            "Link": (
+                f'<{new_path}>; rel="successor-version", '
+                f'<https://docs.astro.com/api/versioning>; rel="deprecation"'
+            ),
             "Warning": f'299 - "Deprecated API. Use {new_path}"',
             "Content-Type": "application/json",
             "Cache-Control": "public, max-age=86400",  # Cache 24h pour réduire la charge
