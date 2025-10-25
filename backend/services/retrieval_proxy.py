@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import atexit
 import contextlib
+import importlib
 import math
 import os
 import queue as _queue
@@ -30,7 +31,7 @@ import httpx
 import structlog
 
 if TYPE_CHECKING:
-    from backend.services import retrieval_target as rtarget
+    pass
 
 from backend.app.metrics import (
     RETRIEVAL_DUAL_WRITE_ERRORS,
@@ -543,7 +544,7 @@ class RetrievalProxy:
                 if (
                     not allow or ten in allow
                 ) and _rand.random() <= shadow_sample_rate():
-                    import backend.services.retrieval_target as rtarget
+                    rtarget = importlib.import_module("backend.services.retrieval_target")
                     target_name = rtarget.get_target_backend_name()
                     _shadow_submit(
                         target_name=target_name,
@@ -592,7 +593,7 @@ class RetrievalProxy:
 
         # Dual-write to target if flag enabled
         if ff_retrieval_dual_write():
-            import backend.services.retrieval_target as rtarget
+            rtarget = importlib.import_module("backend.services.retrieval_target")
             target_name = rtarget.get_target_backend_name()
             lbl_tenant = labelize_tenant(
                 t, getattr(container.settings, "ALLOWED_TENANTS", [])
@@ -774,7 +775,7 @@ def _process_shadow_task(task: dict) -> None:
 
     start = _t.perf_counter()
     try:
-        import backend.services.retrieval_target as rtarget
+        rtarget = importlib.import_module("backend.services.retrieval_target")
         shadow = rtarget.get_target_adapter().search(
             query=query, top_k=top_k, tenant=tenant
         )
