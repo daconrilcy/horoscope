@@ -98,6 +98,10 @@ class Settings(BaseSettings):
     # API Gateway - confiance dans le X-Trace-ID client (OFF par défaut)
     APIGW_TRACE_ID_TRUST_CLIENT: bool = False
 
+    # APIGW timeouts clamps (s)
+    APIGW_READ_TIMEOUT_MAX_S: float = 15.0
+    APIGW_TOTAL_TIMEOUT_MAX_S: float = 30.0
+
     # Internal authentication keys for HMAC verification
     INTERNAL_AUTH_KEY: str = "default-internal-key-change-in-production"
     INTERNAL_AUTH_KEY_V2: str | None = None

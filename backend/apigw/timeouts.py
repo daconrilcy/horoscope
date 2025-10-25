@@ -1,7 +1,7 @@
-"""Configuration des timeouts et stratégies de backoff pour l'API Gateway.
+"""Configurer les timeouts et le backoff au gateway.
 
-Ce module définit les timeouts cohérents et les stratégies de retry avec backoff pour tous les
-endpoints de l'API Gateway selon les spécifications PH4.1-10.
+Ce module définit des timeouts cohérents et des stratégies de retry avec backoff ainsi qu'un
+retry-budget par endpoint pour l'API Gateway, selon les spécifications PH4.1-12.
 """
 
 from __future__ import annotations
@@ -21,12 +21,80 @@ from starlette.responses import Response as StarletteResponse
 from backend.apigw.errors import create_error_response
 from backend.app.metrics import (
     APIGW_RETRY_ATTEMPTS_TOTAL,
+    APIGW_RETRY_BLOCKS_TOTAL,
     APIGW_RETRY_BUDGET_EXHAUSTED_TOTAL,
     normalize_route,
 )
 from backend.core.constants import HTTP_STATUS_SERVER_ERROR_MIN
+from backend.core.container import container
 
 log = logging.getLogger(__name__)
+
+
+def _clamp_timeouts_from_settings(config: TimeoutConfig) -> None:
+    """Clamp endpoint timeouts using max values from settings."""
+    max_read = float(getattr(container.settings, "APIGW_READ_TIMEOUT_MAX_S", 15.0))
+    max_total = float(getattr(container.settings, "APIGW_TOTAL_TIMEOUT_MAX_S", 30.0))
+    config.read_timeout = min(config.read_timeout, max_read)
+    config.total_timeout = min(config.total_timeout, max_total)
+
+
+def _init_deadline_if_missing(request: Request, total_timeout: float) -> None:
+    """Initialize a per-request deadline if not already present."""
+    if not hasattr(request.state, "deadline_epoch"):
+        request.state.deadline_epoch = time.perf_counter() + total_timeout
+
+
+def _get_remaining_deadline(request: Request) -> float:
+    """Compute remaining time until the request deadline."""
+    now = time.perf_counter()
+    return float(getattr(request.state, "deadline_epoch", now) - now)
+
+
+def _should_retry_status(status_code: int) -> bool:
+    """Return whether the HTTP status is retryable (strict whitelist)."""
+    return status_code in (502, 503)
+
+
+def _record_retry_block(route_label: str, reason: str) -> None:
+    """Record a retry block reason in metrics with low cardinality labels."""
+    APIGW_RETRY_BLOCKS_TOTAL.labels(route=route_label, reason=reason).inc()
+
+
+async def _apply_backoff_or_block(ctx: AttemptCtx) -> bool:
+    """Apply backoff if budget allows; record block if budget exhausted.
+
+    Returns True if blocked (budget exhausted), False otherwise.
+    """
+    estimated_delay = calculate_retry_delay(ctx.attempt - 1, ctx.config)
+    if not ctx.budget.can_retry(estimated_delay):
+        APIGW_RETRY_BUDGET_EXHAUSTED_TOTAL.labels(route=ctx.route_label).inc()
+        APIGW_RETRY_ATTEMPTS_TOTAL.labels(route=ctx.route_label, result="blocked").inc()
+        _record_retry_block(ctx.route_label, "budget_exhausted")
+        return True
+    await asyncio.sleep(estimated_delay)
+    ctx.budget.consume_budget(estimated_delay)
+    return False
+
+
+def _process_response(
+    ctx: AttemptCtx, resp: StarletteResponse
+) -> tuple[bool, Exception | None, StarletteResponse | None]:
+    """Process response and update metrics (finished, last_exception, response)."""
+    if resp.status_code < HTTP_STATUS_SERVER_ERROR_MIN:
+        resp.headers["X-Retry-Count"] = str(ctx.attempts_done)
+        return True, None, resp
+
+    last_exc: Exception | None = Exception(f"Server error: {resp.status_code}")
+    if not _should_retry_status(resp.status_code):
+        APIGW_RETRY_ATTEMPTS_TOTAL.labels(route=ctx.route_label, result="blocked").inc()
+        _record_retry_block(ctx.route_label, "non_retryable")
+        return True, last_exc, None
+
+    if ctx.attempt < ctx.config.max_retries:
+        APIGW_RETRY_ATTEMPTS_TOTAL.labels(route=ctx.route_label, result="allowed").inc()
+    ctx.attempts_done = ctx.attempt
+    return False, last_exc, None
 
 
 class RetryStrategy(Enum):
@@ -56,6 +124,18 @@ class TimeoutConfig:
 
     # Budget de retry (pourcentage du timeout total)
     retry_budget_percent: float = 0.3
+
+
+@dataclass
+class AttemptCtx:
+    """Context for a retry attempt."""
+
+    route_label: str
+    path: str
+    config: TimeoutConfig
+    budget: RetryBudget
+    attempts_done: int
+    attempt: int
 
 
 @dataclass
@@ -105,7 +185,7 @@ ENDPOINT_TIMEOUTS = {
         max_retries=2,
         retry_budget_percent=0.25,
     ),
-    "/v1/health": TimeoutConfig(
+    "/health": TimeoutConfig(
         read_timeout=1.0,
         write_timeout=1.0,
         total_timeout=3.0,
@@ -217,87 +297,90 @@ class RetryMiddleware(BaseHTTPMiddleware):
         config = get_timeout_config(path)
         budget = get_retry_budget(path, config)
 
-        last_exception = None
+        _clamp_timeouts_from_settings(config)
+        _init_deadline_if_missing(request, config.total_timeout)
+
+        last_exception: Exception | None = None
+        ctx = AttemptCtx(
+            route_label=route_label,
+            path=path,
+            config=config,
+            budget=budget,
+            attempts_done=0,
+            attempt=0,
+        )
 
         for attempt in range(config.max_retries + 1):
+            ctx.attempt = attempt
+            did_finish, last_exception, response = await self._attempt_once(request, call_next, ctx)
+            if did_finish:
+                return response or self._final_timeout_response(
+                    request, config, budget, ctx.attempts_done, last_exception
+                )
+
+        return self._final_timeout_response(
+            request,
+            config,
+            budget,
+            ctx.attempts_done,
+            last_exception,
+        )
+
+    async def _attempt_once(
+        self,
+        request: Request,
+        call_next: Any,
+        ctx: AttemptCtx,
+    ) -> tuple[bool, Exception | None, StarletteResponse | None]:
+        """Execute a single attempt; return (finished, last_exc, response)."""
+        finished = False
+        response: StarletteResponse | None = None
+        last_exception: Exception | None = None
+
+        if _get_remaining_deadline(request) <= 0:
+            APIGW_RETRY_ATTEMPTS_TOTAL.labels(route=ctx.route_label, result="blocked").inc()
+            _record_retry_block(ctx.route_label, "deadline_exceeded")
+            finished = True
+        else:
             try:
-                # Check if we can retry based on budget
-                if attempt > 0:
-                    estimated_delay = calculate_retry_delay(attempt - 1, config)
-                    if not budget.can_retry(estimated_delay):
-                        log.warning(
-                            "Retry budget exhausted",
-                            extra={
-                                "path": path,
-                                "attempt": attempt,
-                                "budget_used": budget.used_budget,
-                                "budget_total": budget.total_budget,
-                                "trace_id": getattr(request.state, "trace_id", None),
-                            },
-                        )
-                        # Track budget exhaustion
-                        APIGW_RETRY_BUDGET_EXHAUSTED_TOTAL.labels(route=route_label).inc()
-                        APIGW_RETRY_ATTEMPTS_TOTAL.labels(route=route_label, result="blocked").inc()
-                        break
+                if ctx.attempt > 0 and await _apply_backoff_or_block(ctx):
+                    finished = True
 
-                    # Wait before retry
-                    await asyncio.sleep(estimated_delay)
-                    budget.consume_budget(estimated_delay)
-
-                # Attempt the request
-                response = await call_next(request)
-
-                # If successful, return response
-                if response.status_code < HTTP_STATUS_SERVER_ERROR_MIN:
-                    return response
-
-                # Server error - might retry
-                last_exception = Exception(f"Server error: {response.status_code}")
-                # Count allowed retry decision if we will attempt again
-                if attempt < config.max_retries:
-                    APIGW_RETRY_ATTEMPTS_TOTAL.labels(route=route_label, result="allowed").inc()
+                if not finished:
+                    resp = await call_next(request)
+                    finished, last_exception, response = _process_response(ctx, resp)
 
             except TimeoutError as e:
                 last_exception = e
-                log.warning(
-                    "Request timeout",
-                    extra={
-                        "path": path,
-                        "attempt": attempt,
-                        "timeout": config.total_timeout,
-                        "trace_id": getattr(request.state, "trace_id", None),
-                    },
-                )
-                # Count allowed retry decision if we will attempt again
-                if attempt < config.max_retries:
-                    APIGW_RETRY_ATTEMPTS_TOTAL.labels(route=route_label, result="allowed").inc()
-
+                if ctx.attempt < ctx.config.max_retries:
+                    APIGW_RETRY_ATTEMPTS_TOTAL.labels(route=ctx.route_label, result="allowed").inc()
+                ctx.attempts_done = ctx.attempt
             except Exception as e:
+                APIGW_RETRY_ATTEMPTS_TOTAL.labels(route=ctx.route_label, result="blocked").inc()
+                _record_retry_block(ctx.route_label, "non_retryable")
                 last_exception = e
-                log.error(
-                    "Request failed",
-                    extra={
-                        "path": path,
-                        "attempt": attempt,
-                        "error": str(e),
-                        "trace_id": getattr(request.state, "trace_id", None),
-                    },
-                )
-                # Non-timeout generic exceptions are not retried
-                break
+                finished = True
 
-        # All retries exhausted
+        return finished, last_exception, response
+
+    def _final_timeout_response(
+        self,
+        request: Request,
+        config: TimeoutConfig,
+        budget: RetryBudget,
+        attempts_done: int,
+        last_exception: Exception | None,
+    ) -> StarletteResponse:
         log.error(
             "All retries exhausted",
             extra={
-                "path": path,
+                "path": request.url.path,
                 "max_retries": config.max_retries,
                 "budget_used": budget.used_budget,
                 "trace_id": getattr(request.state, "trace_id", None),
             },
         )
-
-        return create_error_response(
+        response = create_error_response(
             status_code=504,
             code="GATEWAY_TIMEOUT",
             message="Request timeout after retries",
@@ -308,6 +391,8 @@ class RetryMiddleware(BaseHTTPMiddleware):
                 "last_error": str(last_exception) if last_exception else "Unknown",
             },
         )
+        response.headers["X-Retry-Count"] = str(attempts_done)
+        return response
 
 
 @dataclass

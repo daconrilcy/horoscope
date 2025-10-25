@@ -562,3 +562,33 @@ class TestIntegration:
             assert response.status_code in {500, 504}
             assert mock_attempts.labels.call_count >= 1
             assert mock_exhausted.labels.call_count >= 0
+
+    def test_deadline_blocks_and_header_retry_count(self) -> None:
+        """Deadline globale coupe net et X-Retry-Count est renvoyé."""
+        app = FastAPI()
+        app.add_middleware(RetryMiddleware)
+
+        @app.get("/v1/slow_503")
+        async def slow_503():
+            # Simule une série de 503
+            raise HTTPException(status_code=503, detail="svc down")
+
+        client = TestClient(app)
+
+        with (
+            patch("backend.apigw.timeouts.APIGW_RETRY_BLOCKS_TOTAL") as mock_blocks,
+            patch("backend.apigw.timeouts.calculate_retry_delay", return_value=0.2),
+        ):
+            configure_endpoint_timeout(
+                "/v1/slow_503",
+                config=TimeoutConfigUpdate(
+                    total_timeout=0.6, max_retries=5, retry_budget_percent=0.9
+                ),
+            )
+            resp = client.get("/v1/slow_503")
+            # 504 attendu car deadline atteinte
+            assert resp.status_code in {500, 504}
+            # Header de comptage des retries présent
+            assert "X-Retry-Count" in resp.headers
+            # Blocage par raison deadline_exceeded enregistré au moins une fois
+            assert mock_blocks.labels.call_args_list

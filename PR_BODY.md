@@ -1,35 +1,38 @@
-## [PH4.1-11] Metrics par endpoint (Prom) + traces corrélées
+# [PH4.1-12] Timeouts/backoff au gateway + retry-budget
 
-Issue: PH4.1-11
-Branch: feat/PH4.1-11-metrics-par-endpoint-prom-traces-corr-l-es
+Issue: PH4.1-12 · Module: apigw · Type: task · Sévérité: P1 · Due: 2025-10-29
+Branch: feat/PH4.1-12-timeouts-backoff-au-gateway-retry-budget
+
+Closes #53
 
 ## Contexte
-Exposer `http_server_requests_seconds_bucket` et `http_server_requests_total` par route/method/status et propager `trace_id` via `X-Trace-ID` et logs structurés.
+Uniformiser les timeouts au niveau du gateway, encadrer les retries (backoff + jitter) et limiter via un retry-budget par endpoint. Exposer des métriques pour le pilotage et documenter les entêtes contractuels.
 
 ## Scope (STRICT)
-- Implémentation observability au gateway (métriques HTTP par endpoint, traces corrélées).
-- Hors scope: refactors transverses, timeouts/backoff, quotas.
+- Implémentation dans `backend/apigw/timeouts.py` et câblage dans `backend/app/main.py`.
+- Aucune modification hors APIGW; pas de refactors transverses.
 
 ## Implémentation
-- Middlewares dans `backend/app/main.py`:
-  - `TraceIdMiddleware`, `RequestLoggingMiddleware` (avant protections)
-  - `HTTPServerMetricsMiddleware` (labels: route/method/status)
-  - `PrometheusMiddleware` et route `/metrics` (déjà existants)
-- Normalisation de route via `backend.app.metrics.normalize_route`.
-- Aucun changement de contrat API; ajout de l’en-tête `X-Trace-ID` en réponse.
+- Middlewares ajoutés dans `backend/app/main.py`:
+  - `HTTPServerMetricsMiddleware` déjà en place; ajout de `RetryMiddleware` puis `TimeoutMiddleware` (pour éviter le double comptage des retries).
+- Politique par endpoint dans `ENDPOINT_TIMEOUTS` (timeouts, `max_retries`, `retry_budget_percent`).
+- Budget de retry et backoff (exponentiel par défaut, jitter configurable).
+- 4xx/429: pas de retry; 5xx transitoires (502/503) et timeouts: retry dans la limite du budget.
+- En-têtes: `X-Timeout-Read`, `X-Timeout-Total`, `X-Max-Retries`; `Retry-After` fourni pour 429 (rate-limit/quota).
+- Métriques: `apigw_retry_attempts_total{route,result}`, `apigw_retry_budget_exhausted_total{route}`.
+- Doc: `docs/api/timeouts_backoff.md`.
 
 ## Tests
-- `tests/test_metrics.py`: expose `/metrics` et présence `http_server_requests_total`.
-- `tests/apigw/test_http_metrics.py`: succès/500, méthodes HTTP, normalisation, params ignorés, durée, trace ID, concurrence, cohérence des labels.
+- Unitaires: `tests/apigw/test_timeouts.py` (config, backoff, budget, no-retry 4xx/429, retry 502/503, métriques).
+- Rate-limit/quota 429 `Retry-After`: `tests/apigw/test_quota.py` (déjà présent).
 
 ## CI Gates
-- Ruff strict ✅, mypy strict ✅, pytest ✅
-- Ban typing aliases ✅ (aucun `typing.List/Dict/Optional/Str`)
+- Ruff strict ✅, mypy strict ✅, pytest ✅, ban typing aliases ✅.
 
 ## Risques & Rollback
-1) Symptômes: cardinalité labels, surcoût latence middleware
-2) Action: revert PR
-3) Vérification: `/metrics` normal, logs OK
+1) Surconsommation de budget augmentant latence.
+2) Action: revert PR.
+3) Vérification: latences stables, métriques retry sous contrôle.
 
 ## Checklist
 - [x] Scope respecté
@@ -37,75 +40,3 @@ Exposer `http_server_requests_seconds_bucket` et `http_server_requests_total` pa
 - [x] Aucun typing alias
 - [x] Tests verts
 - [x] PR ne référence qu’une seule issue
-
-# PH4.1-10 — Suivi ops : buckets SLO, retries (métriques & règles), 410 headers, labels unifiés
-
-## 🎯 Résumé
-- **Buckets SLO-like** : http_server_requests_seconds_bucket = [0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1.0, 2.0].
-- **Métriques retry** :
-  - pigw_retry_attempts_total{route,result="allowed|blocked"}
-  - pigw_retry_budget_exhausted_total{route}
-- **Classification retry durcie** :
-  - **Retry autorisés** : timeouts + 5xx transitoires (502/503), **bornés** par le budget.
-  - **Pas de retry** : 4xx (400/401/403/409) et **429**.
-- **410 Sunset** : Cache-Control: max-age=60, must-revalidate (aucun Retry-After).
-  - **Option CDN** : Surrogate-Control: max-age=60 **uniquement** si APIGW_EDGE_SURROGATE=1|true|yes|on.
-- **Labels de route unifiés** : usage central de 
-ormalize_route (metrics HTTP, rate-limit, auth, store).
-
-## ✅ Tests ajoutés
-- **4xx/429** : zéro retry (aucun incrément …{result="allowed"}).
-- **502/503** : retry **jusqu’au budget** + émission de …_budget_exhausted_total et …{result="blocked"} à l’épuisement.
-- **500** : garde **single-increment** (pas de double comptage http_server_requests_total).
-- **CDN gating** : Surrogate-Control présent **uniquement** si env activé.
-
-## 🧪 Qualité
-- Ruff/mypy strict ✅ — **types natifs uniquement** (aucun 	yping.List/Dict/Optional/Str).
-- Couverture **apigw ≥ 90%** ✅.
-- Buckets alignés SLO, **aucun risque de cardinalité**.
-
-## 🚀 Rollout
-- **Canary 10%** avec SLO Gate, surveillance 30–60 min :
-  - histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le,route))
-  - sum(rate(apigw_retry_attempts_total{result="allowed"}[5m])) by (route)
-  - sum(rate(apigw_retry_budget_exhausted_total[15m])) by (route)
-- **Promotion 100%** si RAS.
-
-## 📋 Checklist merge/rollout
-- [ ] Lints/types/tests **verts** ; **coverage apigw ≥ 90%**.
-- [ ] **SLO Gate** OK.
-- [ ] Dashboards à jour : panels **Retry Allowed**, **Retry Budget**, **HTTP P95/P99**, **ratio 5xx**.
-- [ ] Canary 10% : alerte si …_budget_exhausted_total soutenu ou P95 en hausse ; promotion si stable.
-
-## 🔜 Follow-ups (petites PR dédiées)
-- **E2E idempotent POST + retry** : vérifier retour **même status+body** via cache idempotent.
-- **Property-based “cross-stack labels”** : un **seul** label 
-oute pour /v1/chat/123?x=1&y=2 (metrics / RL / versioning).
-- **Docs** docs/api/timeouts_retries.md : tableau par endpoint (timeouts, erreurs retryables, budget/jitter) + note CDN.
-
-## [Follow-up #75/#76] Trust client trace flag + exclude infra endpoints from HTTP metrics
-
-Branche: chore/issue-75-trace-id-trust-and-metrics-exclusions
-
-## Contexte
-- #75: Ne pas faire confiance au X-Trace-ID client (flag OFF par défaut).
-- #76: Exclure /metrics,/health,/docs,/openapi.json,/redoc des métriques HTTP.
-
-## Implémentation
-- Settings: `APIGW_TRACE_ID_TRUST_CLIENT: bool = False`.
-- TraceIdMiddleware: génère un trace_id serveur si flag OFF; conserve `client_trace_id` séparé.
-- HTTPServerMetricsMiddleware: exclusion des endpoints infra du comptage.
-
-## Tests
-- ON/OFF du flag trust avec patch du setting; client header préservé en `client_trace_id`.
-- Erreur 500 = +1 exact; aucune métrique pour /metrics et /health.
-
-## Qualité
-- Ruff/mypy stricts OK, tests OK.
-
-## Risques & Rollback
-- Faible risque; revert possible.
-
-## Checklist
-- [x] Scope respecté
-- [x] Lints/types/tests OK

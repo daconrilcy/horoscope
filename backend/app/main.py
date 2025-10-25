@@ -21,6 +21,7 @@ from backend.api.routes_horoscope import router as horoscope_router
 from backend.apigw.http_metrics import HTTPServerMetricsMiddleware
 from backend.apigw.middleware import RequestLoggingMiddleware, TraceIdMiddleware
 from backend.apigw.rate_limit import QuotaMiddleware, TenantRateLimitMiddleware
+from backend.apigw.timeouts import RetryMiddleware, TimeoutMiddleware
 from backend.app.metrics import PrometheusMiddleware, metrics_router
 from backend.app.tracing import setup_tracing
 from backend.core.container import container
@@ -51,6 +52,9 @@ def create_app() -> FastAPI:
     app.add_middleware(QuotaMiddleware)
     # Per-endpoint HTTP server metrics (Prometheus histogram/counter)
     app.add_middleware(HTTPServerMetricsMiddleware)
+    # Timeouts/backoff + retry-budget (placed inside metrics to avoid double counting retries)
+    app.add_middleware(RetryMiddleware)
+    app.add_middleware(TimeoutMiddleware)
     app.add_middleware(PrometheusMiddleware)
     app.add_middleware(TimingMiddleware)
     app.include_router(health_router)
