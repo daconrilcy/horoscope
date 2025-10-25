@@ -1,7 +1,7 @@
-"""Configuration des timeouts et stratégies de backoff pour l'API Gateway.
+"""Configurer les timeouts et le backoff au gateway.
 
-Ce module définit les timeouts cohérents et les stratégies de retry avec backoff pour tous les
-endpoints de l'API Gateway selon les spécifications PH4.1-10.
+Ce module définit des timeouts cohérents et des stratégies de retry avec backoff ainsi qu'un
+retry-budget par endpoint pour l'API Gateway, selon les spécifications PH4.1-12.
 """
 
 from __future__ import annotations
@@ -105,7 +105,7 @@ ENDPOINT_TIMEOUTS = {
         max_retries=2,
         retry_budget_percent=0.25,
     ),
-    "/v1/health": TimeoutConfig(
+    "/health": TimeoutConfig(
         read_timeout=1.0,
         write_timeout=1.0,
         total_timeout=3.0,
