@@ -17,3 +17,7 @@ def test_metrics_exposed():
     r = c.get("/metrics")
     assert r.status_code == TEST_HTTP_STATUS_OK
     assert b"http_requests_total" in r.content
+    # Les métriques par endpoint de l'API Gateway doivent être présentes
+    # même si le histogram Prom utilise *_bucket interne, le nom logique
+    # est exposé via le client comme indiqué dans l'app.
+    assert b"http_server_requests_total" in r.content
