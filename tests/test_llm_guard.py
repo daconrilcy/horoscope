@@ -110,14 +110,14 @@ def test_sanitize_input_empty_question() -> None:
         # Test avec question vide
         try:
             sanitize_input({"question": ""})
-            assert False, "Should have raised ValueError"
+            raise AssertionError("Should have raised ValueError")
         except ValueError as e:
             assert str(e) == "empty_question"
 
         # Test avec question contenant seulement des espaces
         try:
             sanitize_input({"question": "   "})
-            assert False, "Should have raised ValueError"
+            raise AssertionError("Should have raised ValueError")
         except ValueError as e:
             assert str(e) == "empty_question"
 
@@ -146,7 +146,7 @@ def test_sanitize_input_max_len_invalid_setting() -> None:
         long_question = "A" * 1001
         try:
             sanitize_input({"question": long_question})
-            assert False, "Should have raised ValueError"
+            raise AssertionError("Should have raised ValueError")
         except ValueError as e:
             assert str(e) == "question_too_long"
 
@@ -174,7 +174,7 @@ def test_sanitize_input_prompt_injection_patterns() -> None:
         for pattern in injection_patterns:
             try:
                 sanitize_input({"question": pattern})
-                assert False, f"Should have detected injection for: {pattern}"
+                raise AssertionError(f"Should have detected injection for: {pattern}")
             except ValueError as e:
                 assert str(e) == "prompt_injection_detected"
 

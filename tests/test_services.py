@@ -83,7 +83,7 @@ def test_compute_natal_chart_save() -> None:
         time_certainty="morning",
     )
 
-    result = service.compute_natal(birth)
+    service.compute_natal(birth)
 
     # Vérifier que save a été appelé avec les bonnes données
     chart_repo.save.assert_called_once()
@@ -148,7 +148,7 @@ def test_get_today_chart_not_found() -> None:
 
     try:
         service.get_today("non-existent-chart")
-        assert False, "KeyError should have been raised"
+        raise AssertionError("KeyError should have been raised")
     except KeyError as e:
         assert str(e) == "'chart_not_found'"
 
@@ -204,7 +204,7 @@ def test_get_today_without_snippet_id() -> None:
 
     service = HoroscopeService(astro_engine, content_repo, chart_repo)
 
-    result = service.get_today(chart_id)
+    service.get_today(chart_id)
 
     # Vérifier que get_snippet n'est appelé que pour les transits avec snippet_id
     assert content_repo.get_snippet.call_count == 1

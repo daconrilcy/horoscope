@@ -160,7 +160,7 @@ def test_advise_with_default_precision() -> None:
 
     orchestrator = ChatOrchestrator(retriever=mock_retriever, llm=mock_llm)
 
-    result_text, result_usage = orchestrator.advise(chart, today, question)
+    _result_text, _result_usage = orchestrator.advise(chart, today, question)
 
     # Vérifier que precision=1 est utilisé par défaut
     call_args = mock_llm.generate.call_args[0][0]
@@ -182,7 +182,7 @@ def test_advise_with_empty_context() -> None:
 
     orchestrator = ChatOrchestrator(retriever=mock_retriever, llm=mock_llm)
 
-    result_text, result_usage = orchestrator.advise(chart, today, question)
+    _result_text, _result_usage = orchestrator.advise(chart, today, question)
 
     # Vérifier que le contexte est vide
     call_args = mock_llm.generate.call_args[0][0]
@@ -209,7 +209,7 @@ def test_advise_with_multiple_documents() -> None:
 
     orchestrator = ChatOrchestrator(retriever=mock_retriever, llm=mock_llm)
 
-    result_text, result_usage = orchestrator.advise(chart, today, question)
+    _result_text, _result_usage = orchestrator.advise(chart, today, question)
 
     # Vérifier que tous les documents sont dans le contexte
     call_args = mock_llm.generate.call_args[0][0]

@@ -130,7 +130,7 @@ def test_pick_today_sorting_order() -> None:
         {"weight": 3.0, "intensity": 1.0, "friction": 0.0},  # score: 3.0
         {"weight": 2.0, "intensity": 1.0, "friction": 0.0},  # score: 2.0
     ]
-    leaders, influences = pick_today(transits)
+    leaders, _influences = pick_today(transits)
     assert leaders[0]["weight"] == 3.0
     assert leaders[1]["weight"] == 2.0
     assert leaders[2]["weight"] == 1.0

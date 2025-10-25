@@ -64,7 +64,6 @@ from backend.domain.retrieval_types import Document, Query
 from backend.infra.vecstores.faiss_store import FaissMultiTenantAdapter
 from backend.infra.vecstores.memory_adapter import MemoryMultiTenantAdapter
 
-
 # Import circulaire évité - import local dans les fonctions
 # from backend.services import retrieval_target as rtarget
 
