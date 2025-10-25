@@ -364,8 +364,8 @@ class TestTraceIdMiddlewareMethods:
         middleware = TraceIdMiddleware(app)
         assert middleware.app == app
 
-    def test_trace_id_middleware_dispatch_with_header(self) -> None:
-        """Test TraceIdMiddleware dispatch with existing trace ID."""
+    def test_trace_id_middleware_dispatch_with_header_trust_on(self) -> None:
+        """Test TraceIdMiddleware dispatch trusting existing trace ID when enabled."""
         app = FastAPI()
         middleware = TraceIdMiddleware(app)
 
@@ -382,20 +382,22 @@ class TestTraceIdMiddlewareMethods:
 
         # Test dispatch
 
-        asyncio.run(middleware.dispatch(request, call_next))
+        # Emulate trusting client header
+        with patch("backend.apigw.middleware.container.settings.APIGW_TRACE_ID_TRUST_CLIENT", True):
+            asyncio.run(middleware.dispatch(request, call_next))
 
         # Verify trace ID was set
         assert request.state.trace_id == "existing-trace-123"
         assert response.headers["X-Trace-ID"] == "existing-trace-123"
 
-    def test_trace_id_middleware_dispatch_generate_new(self) -> None:
-        """Test TraceIdMiddleware dispatch generating new trace ID."""
+    def test_trace_id_middleware_dispatch_generate_new_or_override_when_trust_off(self) -> None:
+        """Generate new trace ID when trust is OFF, even if header present."""
         app = FastAPI()
         middleware = TraceIdMiddleware(app)
 
-        # Mock request without trace ID
+        # Mock request with client-provided header but trust OFF
         request = MagicMock()
-        request.headers = {}
+        request.headers = {"X-Trace-ID": "client-trace-123"}
         request.state = MagicMock()
 
         # Mock call_next
@@ -406,12 +408,19 @@ class TestTraceIdMiddlewareMethods:
 
         # Test dispatch
 
-        asyncio.run(middleware.dispatch(request, call_next))
+        with patch(
+            "backend.apigw.middleware.container.settings.APIGW_TRACE_ID_TRUST_CLIENT",
+            False,
+        ):
+            asyncio.run(middleware.dispatch(request, call_next))
 
-        # Verify new trace ID was generated
+        # Verify new server trace ID generated, not equal to client header
         assert request.state.trace_id is not None
+        assert request.state.trace_id != "client-trace-123"
         assert len(request.state.trace_id) == TEST_UUID_LENGTH  # UUID length
         assert response.headers["X-Trace-ID"] == request.state.trace_id
+        # Client trace preserved separately
+        assert getattr(request.state, "client_trace_id", None) == "client-trace-123"
 
 
 class TestRequestLoggingMiddlewareMethods:
