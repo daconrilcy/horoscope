@@ -11,6 +11,7 @@ Proxy pour l'accès aux services de récupération et d'embeddings.
 
 Ce module fournit une interface unifiée pour accéder aux différents backends de recherche
 vectorielle (FAISS, Weaviate, etc.) avec support pour la migration et le shadow reading.
+
 """
 
 from __future__ import annotations
