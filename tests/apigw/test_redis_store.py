@@ -30,7 +30,7 @@ class TestRedisRateLimitStore:
     def setup_method(self) -> None:
         """Set up test environment."""
         self.store = RedisRateLimitStore()
-        self.store._redis = Mock(spec=redis.Redis)
+        self.store._redis = Mock()
         self.store._script_hash = "test_script_hash"
 
     def test_tenant_hashing(self) -> None:
