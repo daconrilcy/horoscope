@@ -18,6 +18,8 @@ from backend.api.routes_auth import router as auth_router
 from backend.api.routes_chat import router as chat_router
 from backend.api.routes_health import router as health_router
 from backend.api.routes_horoscope import router as horoscope_router
+from backend.apigw.http_metrics import HTTPServerMetricsMiddleware
+from backend.apigw.middleware import RequestLoggingMiddleware, TraceIdMiddleware
 from backend.apigw.rate_limit import QuotaMiddleware, TenantRateLimitMiddleware
 from backend.app.metrics import PrometheusMiddleware, metrics_router
 from backend.app.tracing import setup_tracing
@@ -40,9 +42,15 @@ def create_app() -> FastAPI:
     setup_tracing()
     settings = container.settings
     app = FastAPI(title=settings.APP_NAME, debug=settings.APP_DEBUG)
+    # Tracing and request identifiers first so downstream middlewares have access
+    app.add_middleware(TraceIdMiddleware)
     app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(RequestLoggingMiddleware)
+    # Gateway protections
     app.add_middleware(TenantRateLimitMiddleware)
     app.add_middleware(QuotaMiddleware)
+    # Per-endpoint HTTP server metrics (Prometheus histogram/counter)
+    app.add_middleware(HTTPServerMetricsMiddleware)
     app.add_middleware(PrometheusMiddleware)
     app.add_middleware(TimingMiddleware)
     app.include_router(health_router)

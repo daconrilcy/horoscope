@@ -14,6 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
 from backend.apigw.http_metrics import HTTPServerMetricsMiddleware
+from backend.apigw.middleware import TraceIdMiddleware
 
 # Constantes pour éviter les erreurs PLR2004 (Magic values)
 HTTP_OK = 200
@@ -44,6 +45,7 @@ class TestHTTPServerMetricsMiddleware:
     def test_successful_request_metrics(self) -> None:
         """Test métriques pour requête réussie."""
         app = FastAPI()
+        app.add_middleware(TraceIdMiddleware)
         app.add_middleware(HTTPServerMetricsMiddleware)
 
         @app.get("/v1/test")
@@ -79,6 +81,7 @@ class TestHTTPServerMetricsMiddleware:
     def test_error_request_metrics(self) -> None:
         """Test métriques pour requête avec erreur (no double count)."""
         app = FastAPI()
+        app.add_middleware(TraceIdMiddleware)
         app.add_middleware(HTTPServerMetricsMiddleware)
 
         @app.get("/v1/error")
@@ -120,6 +123,7 @@ class TestHTTPServerMetricsMiddleware:
     def test_different_http_methods(self) -> None:
         """Test métriques pour différentes méthodes HTTP."""
         app = FastAPI()
+        app.add_middleware(TraceIdMiddleware)
         app.add_middleware(HTTPServerMetricsMiddleware)
 
         @app.get("/v1/test")
@@ -167,6 +171,7 @@ class TestHTTPServerMetricsMiddleware:
     def test_route_normalization(self) -> None:
         """Test normalisation des routes pour les métriques."""
         app = FastAPI()
+        app.add_middleware(TraceIdMiddleware)
         app.add_middleware(HTTPServerMetricsMiddleware)
 
         @app.get("/v1/chat/{chat_id}")
@@ -192,6 +197,7 @@ class TestHTTPServerMetricsMiddleware:
     def test_query_parameters_ignored(self) -> None:
         """Test que les paramètres de requête sont ignorés dans la normalisation."""
         app = FastAPI()
+        app.add_middleware(TraceIdMiddleware)
         app.add_middleware(HTTPServerMetricsMiddleware)
 
         @app.get("/v1/test")
@@ -217,6 +223,7 @@ class TestHTTPServerMetricsMiddleware:
     def test_duration_measurement(self) -> None:
         """Test mesure de la durée des requêtes."""
         app = FastAPI()
+        app.add_middleware(TraceIdMiddleware)
         app.add_middleware(HTTPServerMetricsMiddleware)
 
         @app.get("/v1/slow")
