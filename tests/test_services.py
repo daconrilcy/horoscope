@@ -132,7 +132,7 @@ def test_get_today_success() -> None:
     assert "influences" in result
     assert "eao" in result
     assert "snippets" in result
-    assert result["precision_score"]  == EXPECTED_COUNT_5
+    assert result["precision_score"] == EXPECTED_COUNT_5
 
     # Vérifier que les méthodes ont été appelées
     chart_repo.get.assert_called_once_with(chart_id)
@@ -182,7 +182,7 @@ def test_get_today_with_user() -> None:
     result = service.get_today(chart_id, user)
 
     # Vérifier que le résultat est correct
-    assert result["precision_score"]  == EXPECTED_COUNT_3
+    assert result["precision_score"] == EXPECTED_COUNT_3
     assert result["date"] == date.today().isoformat()
 
 

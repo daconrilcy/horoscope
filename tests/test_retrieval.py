@@ -47,7 +47,7 @@ def test_retriever_index() -> None:
     ]
 
     count = retriever.index(docs)
-    assert count  == EXPECTED_COUNT_2
+    assert count == EXPECTED_COUNT_2
 
 
 def test_retriever_query() -> None:
@@ -66,7 +66,7 @@ def test_retriever_query() -> None:
     query = Query(text="astrologie", k=2)
     results = retriever.query(query)
 
-    assert len(results)  == EXPECTED_COUNT_2
+    assert len(results) == EXPECTED_COUNT_2
     assert all(isinstance(result.doc, Document) for result in results)
     assert all(hasattr(result, 'score') for result in results)
 

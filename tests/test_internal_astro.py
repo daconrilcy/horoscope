@@ -47,10 +47,10 @@ def test_compute_natal_chart_basic() -> None:
     result = engine.compute_natal_chart(birth)
 
     assert result["name"] == "Test User"
-    assert result["precision_score"]  == EXPECTED_COUNT_5  # exact time
+    assert result["precision_score"] == EXPECTED_COUNT_5  # exact time
     assert "birth" in result
     assert "factors" in result
-    assert len(result["factors"])  == EXPECTED_COUNT_3
+    assert len(result["factors"]) == EXPECTED_COUNT_3
     assert result["factors"][0]["axis"] == "SUN"
     assert result["factors"][1]["axis"] == "ASC"
     assert result["factors"][2]["axis"] == "MC"
@@ -71,7 +71,7 @@ def test_compute_natal_chart_morning_certainty() -> None:
 
     result = engine.compute_natal_chart(birth)
 
-    assert result["precision_score"]  == EXPECTED_COUNT_3  # morning time
+    assert result["precision_score"] == EXPECTED_COUNT_3  # morning time
 
 
 def test_compute_natal_chart_unknown_certainty() -> None:
@@ -99,7 +99,7 @@ def test_compute_daily_transits_deterministic() -> None:
 
     result = engine.compute_daily_transits(natal, "2024-01-01")
 
-    assert len(result)  == EXPECTED_COUNT_6
+    assert len(result) == EXPECTED_COUNT_6
     for transit in result:
         assert "axis" in transit
         assert "intensity" in transit
@@ -107,7 +107,7 @@ def test_compute_daily_transits_deterministic() -> None:
         assert "weight" in transit
         assert "snippet_id" in transit
         assert SCORE_0_5 <= transit["intensity"] <= SCORE_1_5
-        assert 0.0  <= transit["friction"]  <= SCORE_0_6
+        assert 0.0 <= transit["friction"] <= SCORE_0_6
         assert transit["weight"] == 1.0
         assert transit["snippet_id"].startswith("TODAY_")
         assert transit["snippet_id"].endswith("_EN")
@@ -164,9 +164,9 @@ def test_compute_daily_transits_numeric_precision() -> None:
         friction_str = str(transit["friction"])
 
         if "." in intensity_str:
-            assert len(intensity_str.split(".")[1])   <= EXPECTED_COUNT_2
+            assert len(intensity_str.split(".")[1]) <= EXPECTED_COUNT_2
         if "." in friction_str:
-            assert len(friction_str.split(".")[1])  <= EXPECTED_COUNT_2
+            assert len(friction_str.split(".")[1]) <= EXPECTED_COUNT_2
 
 
 def test_compute_daily_transits_ignores_natal() -> None:

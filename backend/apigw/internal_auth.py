@@ -134,9 +134,7 @@ class InternalAuthVerifier:
         message = f"{version}:{timestamp}:{nonce}:{method}:{path}"
 
         # Generate HMAC-SHA256 signature
-        signature = hmac.new(
-            secret_key.encode(), message.encode(), hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(secret_key.encode(), message.encode(), hashlib.sha256).hexdigest()
 
         return signature
 
@@ -160,9 +158,7 @@ class InternalAuthVerifier:
         # Clean expired nonces
         current_time = time.time()
         expired_nonces = [
-            n
-            for n, t in self._nonce_cache.items()
-            if current_time - t > self._nonce_ttl
+            n for n, t in self._nonce_cache.items() if current_time - t > self._nonce_ttl
         ]
         for expired_nonce in expired_nonces:
             del self._nonce_cache[expired_nonce]

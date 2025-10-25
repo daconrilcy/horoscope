@@ -491,12 +491,8 @@ class RetrievalProxy:
             if ff_retrieval_shadow_read():
                 allow = tenant_allowlist()
                 ten = tenant or "default"
-                if (
-                    not allow or ten in allow
-                ) and _rand.random() <= shadow_sample_rate():
-                    rtarget = importlib.import_module(
-                        "backend.services.retrieval_target"
-                    )
+                if (not allow or ten in allow) and _rand.random() <= shadow_sample_rate():
+                    rtarget = importlib.import_module("backend.services.retrieval_target")
                     target_name = rtarget.get_target_backend_name()
                     _shadow_submit(
                         target_name=target_name,
@@ -718,9 +714,7 @@ def _process_shadow_task(task: dict) -> None:
     start = _t.perf_counter()
     try:
         rtarget = importlib.import_module("backend.services.retrieval_target")
-        shadow = rtarget.get_target_adapter().search(
-            query=query, top_k=top_k, tenant=tenant
-        )
+        shadow = rtarget.get_target_adapter().search(query=query, top_k=top_k, tenant=tenant)
         elapsed = _t.perf_counter() - start
         RETRIEVAL_SHADOW_LATENCY.labels(target_name, "true").observe(elapsed)
 

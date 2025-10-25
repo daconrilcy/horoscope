@@ -55,7 +55,7 @@ def test_score_factor_partial_values() -> None:
 
     factor = {"friction": 0.5}
     result = score_factor(factor)
-    assert result  == SCORE_0_5  # 1.0 * 1.0 - 0.5
+    assert result == SCORE_0_5  # 1.0 * 1.0 - 0.5
 
 
 def test_score_factor_negative_result() -> None:
@@ -131,7 +131,7 @@ def test_pick_today_more_than_six_factors() -> None:
     leaders, influences = pick_today(transits)
     assert len(leaders) == EXPECTED_COUNT_3
     assert len(influences) == EXPECTED_COUNT_3
-    assert leaders[0]["weight"]  == SCORE_7_0
+    assert leaders[0]["weight"] == SCORE_7_0
     assert leaders[1]["weight"] == SCORE_6_0
     assert leaders[2]["weight"] == SCORE_5_0
     assert influences[0]["weight"] == SCORE_4_0

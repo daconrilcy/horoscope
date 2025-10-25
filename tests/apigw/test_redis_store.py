@@ -89,9 +89,7 @@ class TestRedisRateLimitStore:
         """Test fail-open en cas d'erreur de connexion Redis."""
         self.store._redis.evalsha.side_effect = ConnectionError("Redis unavailable")
 
-        with patch(
-            "backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS"
-        ) as mock_metrics:
+        with patch("backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS") as mock_metrics:
             result = self.store.check_rate_limit("/v1/chat/123", "tenant1")
 
             # Fail-open: should allow request
@@ -108,9 +106,7 @@ class TestRedisRateLimitStore:
         """Test fail-open en cas de timeout Redis."""
         self.store._redis.evalsha.side_effect = TimeoutError("Redis timeout")
 
-        with patch(
-            "backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS"
-        ) as mock_metrics:
+        with patch("backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS") as mock_metrics:
             result = self.store.check_rate_limit("/v1/chat/123", "tenant1")
 
             # Fail-open: should allow request
@@ -127,9 +123,7 @@ class TestRedisRateLimitStore:
         """Test fail-open en cas d'erreur inattendue."""
         self.store._redis.evalsha.side_effect = Exception("Unexpected error")
 
-        with patch(
-            "backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS"
-        ) as mock_metrics:
+        with patch("backend.apigw.redis_store.APIGW_RATE_LIMIT_STORE_ERRORS") as mock_metrics:
             result = self.store.check_rate_limit("/v1/chat/123", "tenant1")
 
             # Fail-open: should allow request
@@ -146,9 +140,7 @@ class TestRedisRateLimitStore:
         """Test avec fenêtre et limite personnalisées."""
         self.store._redis.evalsha.return_value = [1, 1, 29, 1234567890.0]
 
-        self.store.check_rate_limit(
-            "/v1/chat/123", "tenant1", window_seconds=30, max_requests=30
-        )
+        self.store.check_rate_limit("/v1/chat/123", "tenant1", window_seconds=30, max_requests=30)
 
         # Vérifier que les paramètres ont été passés à Redis
         call_args = self.store._redis.evalsha.call_args
@@ -201,9 +193,7 @@ class TestRedisStoreIntegration:
             # Simuler des requêtes concurrentes
             results = []
             for i in range(10):
-                result = store.check_rate_limit(
-                    "/v1/chat/123", f"tenant{i}", max_requests=5
-                )
+                result = store.check_rate_limit("/v1/chat/123", f"tenant{i}", max_requests=5)
                 results.append(result)
 
             # Vérifier que exactement 5 requêtes ont été autorisées
@@ -256,9 +246,7 @@ class TestRedisStoreIntegration:
             assert result.allowed is False
             assert result.retry_after is not None
             assert result.retry_after >= 1
-            assert (
-                result.retry_after <= retry_after_seconds + 1
-            )  # Tolérance de 1 seconde
+            assert result.retry_after <= retry_after_seconds + 1  # Tolérance de 1 seconde
 
 
 class TestRateLimitResult:
