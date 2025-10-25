@@ -4,6 +4,21 @@ Ce module teste les fonctions de scoring et de sélection des facteurs astrologi
 pour les horoscopes quotidiens.
 """
 
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_COUNT_2 = 2
+EXPECTED_COUNT_3 = 3
+EXPECTED_COUNT_4 = 4
+EXPECTED_COUNT_5 = 5
+EXPECTED_COUNT_6 = 6
+SCORE_2_5 = 2.5
+SCORE_3_0 = 3.0
+SCORE_2_0 = 2.0
+SCORE_0_5 = 0.5
+SCORE_4_0 = 4.0
+SCORE_5_0 = 5.0
+SCORE_6_0 = 6.0
+SCORE_7_0 = 7.0
+
 from __future__ import annotations
 
 from backend.domain.today_heuristic import (
@@ -17,7 +32,7 @@ def test_score_factor_basic() -> None:
     """Teste le calcul de score de base pour un facteur."""
     factor = {"weight": 2.0, "intensity": 1.5, "friction": 0.5}
     result = score_factor(factor)
-    assert result == 2.5  # 2.0 * 1.5 - 0.5
+    assert result == SCORE_2_5  # 2.0 * 1.5 - 0.5
 
 
 def test_score_factor_default_values() -> None:
@@ -31,15 +46,15 @@ def test_score_factor_partial_values() -> None:
     """Teste le calcul de score avec des valeurs partielles."""
     factor = {"weight": 3.0}
     result = score_factor(factor)
-    assert result == 3.0  # 3.0 * 1.0 - 0.0
+    assert result == SCORE_3_0  # 3.0 * 1.0 - 0.0
 
     factor = {"intensity": 2.0}
     result = score_factor(factor)
-    assert result == 2.0  # 1.0 * 2.0 - 0.0
+    assert result == SCORE_2_0  # 1.0 * 2.0 - 0.0
 
     factor = {"friction": 0.5}
     result = score_factor(factor)
-    assert result == 0.5  # 1.0 * 1.0 - 0.5
+    assert result  == SCORE_0_5  # 1.0 * 1.0 - 0.5
 
 
 def test_score_factor_negative_result() -> None:
@@ -73,10 +88,10 @@ def test_pick_today_three_factors() -> None:
         {"weight": 1.0, "intensity": 1.0, "friction": 0.0},  # score: 1.0
     ]
     leaders, influences = pick_today(transits)
-    assert len(leaders) == 3
+    assert len(leaders) == EXPECTED_COUNT_3
     assert len(influences) == 0
-    assert leaders[0]["weight"] == 3.0
-    assert leaders[1]["weight"] == 2.0
+    assert leaders[0]["weight"] == SCORE_3_0
+    assert leaders[1]["weight"] == SCORE_2_0
     assert leaders[2]["weight"] == 1.0
 
 
@@ -91,13 +106,13 @@ def test_pick_today_six_factors() -> None:
         {"weight": 1.0, "intensity": 1.0, "friction": 0.0},  # score: 1.0
     ]
     leaders, influences = pick_today(transits)
-    assert len(leaders) == 3
-    assert len(influences) == 3
-    assert leaders[0]["weight"] == 6.0
-    assert leaders[1]["weight"] == 5.0
-    assert leaders[2]["weight"] == 4.0
-    assert influences[0]["weight"] == 3.0
-    assert influences[1]["weight"] == 2.0
+    assert len(leaders) == EXPECTED_COUNT_3
+    assert len(influences) == EXPECTED_COUNT_3
+    assert leaders[0]["weight"] == SCORE_6_0
+    assert leaders[1]["weight"] == SCORE_5_0
+    assert leaders[2]["weight"] == SCORE_4_0
+    assert influences[0]["weight"] == SCORE_3_0
+    assert influences[1]["weight"] == SCORE_2_0
     assert influences[2]["weight"] == 1.0
 
 
@@ -113,14 +128,14 @@ def test_pick_today_more_than_six_factors() -> None:
         {"weight": 1.0, "intensity": 1.0, "friction": 0.0},  # score: 1.0
     ]
     leaders, influences = pick_today(transits)
-    assert len(leaders) == 3
-    assert len(influences) == 3
-    assert leaders[0]["weight"] == 7.0
-    assert leaders[1]["weight"] == 6.0
-    assert leaders[2]["weight"] == 5.0
-    assert influences[0]["weight"] == 4.0
-    assert influences[1]["weight"] == 3.0
-    assert influences[2]["weight"] == 2.0
+    assert len(leaders) == EXPECTED_COUNT_3
+    assert len(influences) == EXPECTED_COUNT_3
+    assert leaders[0]["weight"]  == SCORE_7_0
+    assert leaders[1]["weight"] == SCORE_6_0
+    assert leaders[2]["weight"] == SCORE_5_0
+    assert influences[0]["weight"] == SCORE_4_0
+    assert influences[1]["weight"] == SCORE_3_0
+    assert influences[2]["weight"] == SCORE_2_0
 
 
 def test_pick_today_sorting_order() -> None:
@@ -131,8 +146,8 @@ def test_pick_today_sorting_order() -> None:
         {"weight": 2.0, "intensity": 1.0, "friction": 0.0},  # score: 2.0
     ]
     leaders, _influences = pick_today(transits)
-    assert leaders[0]["weight"] == 3.0
-    assert leaders[1]["weight"] == 2.0
+    assert leaders[0]["weight"] == SCORE_3_0
+    assert leaders[1]["weight"] == SCORE_2_0
     assert leaders[2]["weight"] == 1.0
 
 

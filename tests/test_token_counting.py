@@ -1,3 +1,8 @@
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_COUNT_3 = 3
+EXPECTED_COUNT_4 = 4
+TOKEN_COUNT_123 = 123
+TOKEN_COUNT_456 = 456
 """Tests for token counting strategies.
 
 Covers API usage, tiktoken path (with fake module), fallback to words, and auto preference for API
@@ -22,7 +27,7 @@ def test_strategy_api_uses_usage_when_available(monkeypatch: Any) -> None:
     usage = {"total_tokens": 123}
 
     result = estimate_tokens(text, model, usage)
-    assert result == 123
+    assert result  == TOKEN_COUNT_123
 
 
 def test_strategy_tiktoken_import_ok(monkeypatch: Any) -> None:
@@ -47,7 +52,7 @@ def test_strategy_tiktoken_import_ok(monkeypatch: Any) -> None:
     usage = None
 
     result = estimate_tokens(text, model, usage)
-    assert result == 3  # 3 words
+    assert result  == EXPECTED_COUNT_3  # 3 words
 
 
 def test_strategy_tiktoken_import_fail_fallback_words(monkeypatch: Any) -> None:
@@ -61,7 +66,7 @@ def test_strategy_tiktoken_import_fail_fallback_words(monkeypatch: Any) -> None:
     usage = None
 
     result = estimate_tokens(text, model, usage)
-    assert result == 4  # 4 words
+    assert result  == EXPECTED_COUNT_4  # 4 words
 
 
 def test_strategy_auto_prefers_api_over_tiktoken(monkeypatch: Any) -> None:
@@ -87,4 +92,4 @@ def test_strategy_auto_prefers_api_over_tiktoken(monkeypatch: Any) -> None:
     usage = {"total_tokens": 456}
 
     result = estimate_tokens(text, model, usage)
-    assert result == 456  # Should use API usage, not tiktoken
+    assert result  == TOKEN_COUNT_456  # Should use API usage, not tiktoken

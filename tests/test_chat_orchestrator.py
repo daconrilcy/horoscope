@@ -10,6 +10,11 @@ from unittest.mock import Mock
 from backend.domain.chat_orchestrator import ChatOrchestrator, _ctx
 from backend.domain.retrieval_types import Document, ScoredDocument
 
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_LINES_COUNT = 6
+EXPECTED_MESSAGES_COUNT = 2
+DEFAULT_K_VALUE = 6
+
 
 def test_ctx_function_basic() -> None:
     """Teste la fonction _ctx avec des documents de base."""
@@ -45,7 +50,7 @@ def test_ctx_function_more_than_six() -> None:
 
     # Vérifier que seuls les 6 premiers sont utilisés
     lines = result.split("\n")
-    assert len(lines) == 6
+    assert len(lines) == EXPECTED_LINES_COUNT
     assert "- Document 0" in result
     assert "- Document 5" in result
     assert "- Document 6" not in result
@@ -110,7 +115,7 @@ def test_advise_basic() -> None:
 
     # Vérifier le contenu des messages
     call_args = mock_llm.generate.call_args[0][0]
-    assert len(call_args) == 2
+    assert len(call_args) == EXPECTED_MESSAGES_COUNT
     assert call_args[0]["role"] == "system"
     assert "conseiller astrologique" in call_args[0]["content"]
     assert call_args[1]["role"] == "user"
@@ -241,4 +246,4 @@ def test_advise_query_parameters() -> None:
     mock_retriever.query.assert_called_once()
     query_arg = mock_retriever.query.call_args[0][0]
     assert query_arg.text == question
-    assert query_arg.k == 6
+    assert query_arg.k == DEFAULT_K_VALUE

@@ -13,6 +13,16 @@ from redis.exceptions import ConnectionError, TimeoutError
 
 from backend.apigw.redis_store import RateLimitResult, RedisRateLimitStore
 
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+HASH_LENGTH = 16
+REMAINING_DEFAULT = 59
+RESET_TIME_TEST = 1234567890.0
+WINDOW_SECONDS_TEST = 30
+MAX_REQUESTS_TEST = 30
+ALLOWED_COUNT_TEST = 5
+PERFORMANCE_THRESHOLD = 0.02
+RETRY_AFTER_TEST = 30
+
 
 class TestRedisRateLimitStore:
     """Tests pour RedisRateLimitStore."""
@@ -34,7 +44,7 @@ class TestRedisRateLimitStore:
 
         assert hash1 == hash1_again  # Cohérent
         assert hash1 != hash2  # Différent pour différents tenants
-        assert len(hash1) == 16  # Longueur fixe
+        assert len(hash1) == HASH_LENGTH  # Longueur fixe
 
     def test_key_generation(self) -> None:
         """Test la génération des clés Redis."""
@@ -58,8 +68,8 @@ class TestRedisRateLimitStore:
         result = self.store.check_rate_limit("/v1/chat/123", "tenant1")
 
         assert result.allowed is True
-        assert result.remaining == 59
-        assert result.reset_time == 1234567890.0
+        assert result.remaining == REMAINING_DEFAULT
+        assert result.reset_time == RESET_TIME_TEST
         assert result.retry_after is None
 
     def test_rate_limit_blocked(self) -> None:
@@ -71,7 +81,7 @@ class TestRedisRateLimitStore:
 
         assert result.allowed is False
         assert result.remaining == 0
-        assert result.reset_time == 1234567890.0
+        assert result.reset_time == RESET_TIME_TEST
         assert result.retry_after is not None
         assert result.retry_after >= 1
 
@@ -142,8 +152,8 @@ class TestRedisRateLimitStore:
 
         # Vérifier que les paramètres ont été passés à Redis
         call_args = self.store._redis.evalsha.call_args
-        assert call_args[0][3] == 30  # window_seconds (4ème argument)
-        assert call_args[0][4] == 30  # max_requests (5ème argument)
+        assert call_args[0][3] == WINDOW_SECONDS_TEST  # window_seconds (4ème argument)
+        assert call_args[0][4] == MAX_REQUESTS_TEST  # max_requests (5ème argument)
 
     def test_script_hash_caching(self) -> None:
         """Test que le hash du script est mis en cache."""
@@ -198,11 +208,11 @@ class TestRedisStoreIntegration:
 
             # Vérifier que exactement 5 requêtes ont été autorisées
             allowed_count = sum(1 for r in results if r.allowed)
-            assert allowed_count == 5
+            assert allowed_count == ALLOWED_COUNT_TEST
 
             # Vérifier que les 5 dernières ont été bloquées
             blocked_results = [r for r in results[5:] if not r.allowed]
-            assert len(blocked_results) == 5
+            assert len(blocked_results) == ALLOWED_COUNT_TEST
 
     def test_performance_evaluation_time(self) -> None:
         """Test que le temps d'évaluation est acceptable."""
@@ -224,7 +234,7 @@ class TestRedisStoreIntegration:
             assert result.allowed is True
 
             # Vérifier que le temps d'évaluation est acceptable (< 20ms)
-            assert evaluation_time < 0.02  # 20ms
+            assert evaluation_time < PERFORMANCE_THRESHOLD  # 20ms
 
     def test_retry_after_calculation(self) -> None:
         """Test le calcul du Retry-After."""
@@ -264,8 +274,8 @@ class TestRateLimitResult:
         )
 
         assert result.allowed is True
-        assert result.remaining == 59
-        assert result.reset_time == 1234567890.0
+        assert result.remaining == REMAINING_DEFAULT
+        assert result.reset_time == RESET_TIME_TEST
         assert result.retry_after is None
 
     def test_blocked_result(self) -> None:
@@ -279,5 +289,5 @@ class TestRateLimitResult:
 
         assert result.allowed is False
         assert result.remaining == 0
-        assert result.reset_time == 1234567890.0
-        assert result.retry_after == 30
+        assert result.reset_time == RESET_TIME_TEST
+        assert result.retry_after == RETRY_AFTER_TEST
