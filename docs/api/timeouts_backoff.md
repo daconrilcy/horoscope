@@ -1,52 +1,128 @@
-# Timeouts, backoff et retry-budget (API Gateway)
+# Timeouts & Retries — API Gateway
 
-Ce document décrit la politique de timeouts et de backoff avec budget de retry au niveau du gateway.
+## Objectif
+Fournir un comportement cohérent et maîtrisé des timeouts et retries au niveau API Gateway :
+- Deadline globale par requête (temps total maximum).
+- Backoff exponentiel avec jitter par tentative.
+- Retry-budget bornant le nombre/poids des tentatives.
+- Whitelist stricte des erreurs retryables.
+- Observabilité via métriques Prometheus low-cardinality.
+- Entêtes contractuels côté client.
 
-## Principes
+---
 
-- Timeouts cohérents par endpoint via `backend/apigw/timeouts.py`.
-- Retries autorisés uniquement sur erreurs transitoires (ex. 502/503) et timeouts.
-- AUCUN retry sur 4xx/429.
-- Budget de retry par endpoint: fraction du `total_timeout` (ex. 30%).
-- Backoff configurable: exponentiel (défaut), linéaire, ou fixe, avec jitter.
+## Modèle de temps
+- Deadline globale: le Gateway calcule `deadline = now + X-Timeout-Total`.
+  Chaque tentative vérifie le temps restant; si `<= 0`, le retry est bloqué (`reason=deadline_exceeded`).
+- Read timeout par tentative: `min(X-Timeout-Read, temps_restant)`.
+- Clamps: les valeurs effectives sont bornées par la configuration (max absolus).
 
-## En-têtes de réponse
+Important: aucun header client ne peut augmenter les timeouts. Les valeurs sont côté serveur.
 
-- `X-Timeout-Read`: budget de lecture prévu (s).
-- `X-Timeout-Total`: timeout total prévu (s).
-- `X-Max-Retries`: nombre de tentatives autorisées.
-- `Retry-After`: présent uniquement pour 429 (rate-limit/quota), exprimé en secondes.
+---
 
-## Métriques (Prometheus)
+## Politique de retry
+- Retryables:
+  - Timeout de connexion/lecture,
+  - 502, 503 (transitoires).
+- Non-retryables:
+  - 4xx (400/401/403/409),
+  - 429 (respecter `Retry-After` côté client),
+  - 500, 504 (par défaut).
+- Budget:
+  - Limite de tentatives par endpoint (ex. `max_retries`) et/ou pourcentage de budget (`retry_budget_percent`).
+  - Si budget atteint → blocage `reason=budget_exhausted`.
 
-- `apigw_retry_attempts_total{route,result="allowed|blocked"}`
-- `apigw_retry_budget_exhausted_total{route}`
-- `http_server_requests_seconds_bucket{route,method,status}` (latence par tentative)
+---
 
-## Configuration
+## Entêtes de réponse
+- `X-Timeout-Read`: read timeout effectif (s).
+- `X-Timeout-Total`: total timeout effectif (s).
+- `X-Max-Retries`: nombre max de retries autorisés pour l’endpoint.
+- `X-Retry-Count`: nombre de tentatives effectivement réalisées (0 = aucun retry).
+- `Retry-After` (seulement pour 429): délai recommandé (secondes).
 
-- Par défaut dans `ENDPOINT_TIMEOUTS` (extraits):
-  - `/v1/chat/answer`: total=15s, max_retries=2, retry_budget=20%
-  - `/v1/retrieval/search`: total=10s, max_retries=3, retry_budget=30%
-  - `/health`: total=3s, max_retries=1, retry_budget=10%
+---
 
-### Mise à jour à chaud (exemple)
+## Métriques Prometheus
+Labels stables, pas de tenant en labels.
 
-```python
-from backend.apigw.timeouts import configure_endpoint_timeout, TimeoutConfigUpdate
+- Durée HTTP  
+  `http_server_requests_seconds_bucket{route,method,status,le}`  
+  Buckets SLO-like: `[0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1.0, 2.0]`.
 
-configure_endpoint_timeout(
-    "/v1/chat/answer",
-    config=TimeoutConfigUpdate(total_timeout=12.0, max_retries=3, retry_budget_percent=0.25),
-)
+- Volume HTTP  
+  `http_server_requests_total{route,method,status}`
+
+- Retries  
+  `apigw_retry_attempts_total{route,result="allowed|blocked"}`  
+  `apigw_retry_budget_exhausted_total{route}`  
+  `apigw_retry_blocks_total{route,reason="non_retryable|deadline_exceeded|budget_exhausted"}`
+
+### PromQL utiles
+```promql
+sum(rate(apigw_retry_attempts_total{result="allowed"}[5m])) by (route)
+sum(rate(apigw_retry_blocks_total[5m])) by (route, reason)
+sum(rate(apigw_retry_budget_exhausted_total[15m])) by (route)
+histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le,route))
 ```
 
-## Ordre des middlewares
+### Exemples cURL
+Succès sans retry
+```bash
+curl -i https://api.example.com/v1/chat/answer
+# X-Timeout-Read, X-Timeout-Total, X-Max-Retries, X-Retry-Count: 0
+```
 
-- `HTTPServerMetricsMiddleware` puis `RetryMiddleware` puis `TimeoutMiddleware` pour éviter de compter deux fois les retries côté métriques agrégées.
+429 (rate-limit/quota)
+```bash
+curl -i https://api.example.com/v1/chat/answer
+# HTTP/1.1 429 Too Many Requests
+# Retry-After: 12
+# X-Retry-Count: 0
+# Body: {"code":"RATE_LIMITED","message":"...","trace_id":"..."}
+```
 
-## Tests
+Erreur transitoire (retry effectué)
+```bash
+curl -i https://api.example.com/v1/horoscope/generate
+# X-Retry-Count: 1    # une tentative de retry a été effectuée
+```
 
-- Voir `tests/apigw/test_timeouts.py`: stratégies de backoff, budget, 4xx/429 sans retry, 502/503 avec retry borné et métriques.
+### Notes CDN (optionnel)
+Si un CDN/edge est présent, le Gateway peut ajouter pour certaines réponses (ex. 410 Gone post-sunset) :
 
+```
+Surrogate-Control: max-age=60
+Cache-Control: max-age=60, must-revalidate
+```
 
+Ces entêtes sont gérés par flag côté Gateway et n’affectent pas les timeouts/retries.
+
+### Sécurité
+- Pas de propagation de timeouts depuis le client.
+- Pas de PII en labels Prometheus; `trace_id` pour corrélation via logs.
+- Jitter activé pour éviter la synchronisation des retries.
+
+### Tableau (exemple)
+
+Endpoint | Read (s) | Total (s) | Max Retries | Retryables | Non-retryables
+---|---:|---:|---:|---|---
+GET /v1/chat/answer | 3 | 5 | 2 | timeout, 502,503 | 4xx, 429, 500, 504
+POST /v1/chat/answer | 5 | 8 | 2 | timeout, 502,503 | 4xx, 429, 500, 504
+
+(Les valeurs effectives dépendent de la configuration `ENDPOINT_TIMEOUTS`.)
+
+### Changelog
+- Ajout deadline globale et consommation du temps restant par tentative.
+- Exposition `X-Retry-Count`.
+- Nouvelle métrique `apigw_retry_blocks_total{route,reason}`.
+- Clarification whitelist/blacklist d’erreurs retryables.
+- PromQL d’observabilité et exemples cURL.
+
+---
+
+### Prochain pas
+- Poster le commentaire PR associé et ajouter ce fichier doc.
+- Lancer la CI; en staging, vérifier `X-Retry-Count` et la stabilité du P95.
+- Un runbook incident “tempête de retries” peut être ajouté (signaux, actions, rollback).
