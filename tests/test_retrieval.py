@@ -1,4 +1,5 @@
-"""Tests pour la récupération de documents.
+"""
+Tests pour la récupération de documents.
 
 Ce module teste les fonctionnalités de recherche vectorielle et de récupération de documents dans
 l'application.
@@ -8,6 +9,9 @@ from backend.domain.retrieval_types import Document, Query
 from backend.domain.retriever import Retriever
 from backend.infra.vecstores.faiss_store import FAISSVectorStore
 from tests.fakes import FakeEmbeddings
+
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_COUNT_2 = 2
 
 
 def test_retrieval_deterministic(monkeypatch):
@@ -43,7 +47,7 @@ def test_retriever_index() -> None:
     ]
 
     count = retriever.index(docs)
-    assert count == 2
+    assert count == EXPECTED_COUNT_2
 
 
 def test_retriever_query() -> None:
@@ -62,7 +66,7 @@ def test_retriever_query() -> None:
     query = Query(text="astrologie", k=2)
     results = retriever.query(query)
 
-    assert len(results) == 2
+    assert len(results) == EXPECTED_COUNT_2
     assert all(isinstance(result.doc, Document) for result in results)
     assert all(hasattr(result, 'score') for result in results)
 

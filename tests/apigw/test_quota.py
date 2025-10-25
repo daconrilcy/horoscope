@@ -1,4 +1,5 @@
-"""Tests unitaires pour le rate limiting et quotas par tenant.
+"""
+Tests unitaires pour le rate limiting et quotas par tenant.
 
 Ce module teste les fonctionnalités de rate limiting, quotas et gestion des erreurs 429 avec header
 Retry-After.
@@ -21,19 +22,24 @@ from backend.apigw.rate_limit import (
 )
 from backend.app.metrics import normalize_route
 
-# Constantes pour les tests
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
 HTTP_OK = 200
 HTTP_TOO_MANY_REQUESTS = 429
-DEFAULT_REQUESTS_PER_MINUTE = 60
-DEFAULT_REQUESTS_PER_HOUR = 1000
-DEFAULT_BURST_LIMIT = 10
-DEFAULT_WINDOW_SIZE = 60
-TEST_RESET_TIME = 1234567890.0
-TEST_RETRY_AFTER = 30
-TEST_REMAINING_REQUESTS = 59
-TEST_QUOTA_LIMIT = 100
-TEST_CHAT_QUOTA = 100
-TEST_RETRIEVAL_QUOTA = 500
+EXPECTED_COUNT_2 = 2
+EXPECTED_COUNT_4 = 4
+REQUESTS_PER_MINUTE_DEFAULT = 60
+REQUESTS_PER_HOUR_DEFAULT = 1000
+BURST_LIMIT_DEFAULT = 10
+WINDOW_SIZE_DEFAULT = 60
+CUSTOM_REQUESTS_PER_MINUTE = 30
+CUSTOM_REQUESTS_PER_HOUR = 500
+CUSTOM_BURST_LIMIT = 5
+CUSTOM_WINDOW_SIZE = 30
+QUOTA_VALUE = 100
+RESET_TIME_TEST = 1234567890.0
+RETRY_AFTER_TEST = 30
+CHAT_REQUESTS_PER_HOUR = 100
+RETRIEVAL_REQUESTS_PER_HOUR = 500
 
 
 class TestSlidingWindowRateLimiter:
@@ -46,7 +52,7 @@ class TestSlidingWindowRateLimiter:
 
         result = limiter.check_rate_limit("tenant1")
         assert result.allowed is True
-        assert result.remaining == config.requests_per_minute - 1  # requests_per_minute - 1
+        assert result.remaining == EXPECTED_COUNT_4  # requests_per_minute - 1
         assert result.retry_after is None
 
     def test_rate_limit_exceeded(self) -> None:
@@ -149,7 +155,7 @@ class TestTenantRateLimitMiddleware:
     """Tests pour TenantRateLimitMiddleware."""
 
     def setup_method(self) -> None:
-        """Configure l'environnement de test."""
+        """Set up test environment."""
         # Mock extract_tenant_secure for all tests in this class
         self.extract_patcher = patch("backend.apigw.rate_limit.extract_tenant_secure")
         self.mock_extract = self.extract_patcher.start()
@@ -304,7 +310,7 @@ class TestQuotaManager:
         manager = QuotaManager()
         manager.set_quota("tenant1", "requests", 100)
 
-        assert manager.get_quota("tenant1", "requests") == TEST_QUOTA_LIMIT
+        assert manager.get_quota("tenant1", "requests") == QUOTA_VALUE
         assert manager.get_quota("tenant1", "unknown") == 0
 
     def test_check_quota(self) -> None:
@@ -327,7 +333,7 @@ class TestQuotaMiddleware:
     """Tests pour QuotaMiddleware."""
 
     def setup_method(self) -> None:
-        """Configure l'environnement de test."""
+        """Set up test environment."""
         # Mock extract_tenant_secure for all tests in this class
         self.extract_patcher = patch("backend.apigw.rate_limit.extract_tenant_secure")
         self.mock_extract = self.extract_patcher.start()
@@ -406,10 +412,10 @@ class TestRateLimitConfig:
     def test_default_config(self) -> None:
         """Test la configuration par défaut."""
         config = RateLimitConfig()
-        assert config.requests_per_minute == DEFAULT_REQUESTS_PER_MINUTE
-        assert config.requests_per_hour == DEFAULT_REQUESTS_PER_HOUR
-        assert config.burst_limit == DEFAULT_BURST_LIMIT
-        assert config.window_size_seconds == DEFAULT_WINDOW_SIZE
+        assert config.requests_per_minute == REQUESTS_PER_MINUTE_DEFAULT
+        assert config.requests_per_hour == REQUESTS_PER_HOUR_DEFAULT
+        assert config.burst_limit == BURST_LIMIT_DEFAULT
+        assert config.window_size_seconds == WINDOW_SIZE_DEFAULT
 
     def test_custom_config(self) -> None:
         """Test la configuration personnalisée."""
@@ -419,10 +425,10 @@ class TestRateLimitConfig:
             burst_limit=5,
             window_size_seconds=30,
         )
-        assert config.requests_per_minute == 30
-        assert config.requests_per_hour == 500
-        assert config.burst_limit == 5
-        assert config.window_size_seconds == 30
+        assert config.requests_per_minute == CUSTOM_REQUESTS_PER_MINUTE
+        assert config.requests_per_hour == CUSTOM_REQUESTS_PER_HOUR
+        assert config.burst_limit == CUSTOM_BURST_LIMIT
+        assert config.window_size_seconds == CUSTOM_WINDOW_SIZE
 
 
 class TestRateLimitResult:
@@ -436,8 +442,8 @@ class TestRateLimitResult:
             reset_time=1234567890.0,
         )
         assert result.allowed is True
-        assert result.remaining == 5
-        assert result.reset_time == TEST_RESET_TIME
+        assert result.remaining == CUSTOM_BURST_LIMIT
+        assert result.reset_time == RESET_TIME_TEST
         assert result.retry_after is None
 
     def test_blocked_result(self) -> None:
@@ -450,8 +456,8 @@ class TestRateLimitResult:
         )
         assert result.allowed is False
         assert result.remaining == 0
-        assert result.reset_time == TEST_RESET_TIME
-        assert result.retry_after == TEST_RETRY_AFTER
+        assert result.reset_time == RESET_TIME_TEST
+        assert result.retry_after == RETRY_AFTER_TEST
 
 
 class TestDefaultQuotas:
@@ -468,14 +474,16 @@ class TestDefaultQuotas:
         test_manager.set_quota("default", "chat_requests_per_hour", 100)
         test_manager.set_quota("default", "retrieval_requests_per_hour", 500)
 
-        assert (
-            test_manager.get_quota("default", "requests_per_minute") == DEFAULT_REQUESTS_PER_MINUTE
-        )
-        assert test_manager.get_quota("default", "requests_per_hour") == DEFAULT_REQUESTS_PER_HOUR
-        assert test_manager.get_quota("default", "chat_requests_per_hour") == TEST_CHAT_QUOTA
-        assert (
-            test_manager.get_quota("default", "retrieval_requests_per_hour") == TEST_RETRIEVAL_QUOTA
-        )
+        # Vérifier les quotas par défaut
+        quota_minute = test_manager.get_quota("default", "requests_per_minute")
+        quota_hour = test_manager.get_quota("default", "requests_per_hour")
+        quota_chat = test_manager.get_quota("default", "chat_requests_per_hour")
+        quota_retrieval = test_manager.get_quota("default", "retrieval_requests_per_hour")
+
+        assert quota_minute == REQUESTS_PER_MINUTE_DEFAULT
+        assert quota_hour == REQUESTS_PER_HOUR_DEFAULT
+        assert quota_chat == CHAT_REQUESTS_PER_HOUR
+        assert quota_retrieval == RETRIEVAL_REQUESTS_PER_HOUR
 
 
 class TestRouteNormalization:
@@ -513,7 +521,7 @@ class TestIntegration:
     """Tests d'intégration pour le rate limiting."""
 
     def setup_method(self) -> None:
-        """Configure l'environnement de test."""
+        """Set up test environment."""
         # Mock extract_tenant_secure for all tests in this class
         self.extract_patcher = patch("backend.apigw.rate_limit.extract_tenant_secure")
         self.mock_extract = self.extract_patcher.start()
@@ -672,7 +680,7 @@ class TestIntegration:
             # Vérifier que la requête a été bloquée
             assert response.status_code == HTTP_TOO_MANY_REQUESTS
             assert "Retry-After" in response.headers
-            assert response.headers["Retry-After"] == "30"
+            assert response.headers["Retry-After"] == str(RETRY_AFTER_TEST)
 
     @pytest.mark.asyncio
     async def test_redis_store_fail_open(self) -> None:

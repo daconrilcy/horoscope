@@ -1,4 +1,5 @@
-"""Rate limiting et quotas par tenant pour l'API Gateway.
+"""
+Rate limiting et quotas par tenant pour l'API Gateway.
 
 Ce module implémente un système de rate limiting basé sur des fenêtres glissantes avec support des
 quotas par tenant, métriques Prometheus et gestion des erreurs 429 avec Retry-After.

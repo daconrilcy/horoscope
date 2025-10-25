@@ -95,12 +95,13 @@ curl -s "${COMMON_HEADERS[@]}" \
 
 # Test 7: Test avec JWT invalide
 echo "7. Test avec JWT invalide:"
-echo "Pour tester avec un JWT invalide, utilisez:"
-echo "curl -s -H \"Authorization: Bearer votre-token-invalide\" \\"
-echo "     -H \"Content-Type: application/json\" \\"
-echo "     \"\$API_BASE_URL/v1/chat/message\" \\"
-echo "     -d '{\"message\": \"Test with invalid JWT\"}'"
-echo ""
+curl -s -H "Authorization: Bearer invalid-token" \
+     -H "Content-Type: application/json" \
+     "$API_BASE_URL/v1/chat/message" \
+     -d '{"message": "Test with invalid JWT"}' \
+     -w "\nHTTP Status: %{http_code}\n" \
+     -w "Response Body:\n" \
+     -w "%{response_body}\n\n"
 
 # Test 8: Test de respect du Retry-After
 echo "8. Test de respect du Retry-After:"

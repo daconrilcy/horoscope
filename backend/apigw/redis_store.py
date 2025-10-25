@@ -1,4 +1,5 @@
-"""Store Redis atomique pour le rate limiting distribué.
+"""
+Store Redis atomique pour le rate limiting distribué.
 
 Ce module implémente un store Redis avec opérations atomiques pour le rate limiting en multi-pods,
 utilisant des scripts Lua pour garantir la cohérence.
@@ -109,7 +110,8 @@ class RedisRateLimitStore:
         window_seconds: int | None = None,
         max_requests: int | None = None,
     ) -> RateLimitResult:
-        """Check rate limit atomically using Redis sliding window.
+        """
+        Check rate limit atomically using Redis sliding window.
 
         Args:
             route: Normalized route path

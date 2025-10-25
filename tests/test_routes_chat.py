@@ -1,4 +1,5 @@
-"""Tests pour les routes de chat.
+"""
+Tests pour les routes de chat.
 
 Ce module teste les endpoints de chat, les conseils astrologiques et la gestion des tokens.
 """
@@ -9,6 +10,13 @@ from unittest.mock import Mock, patch
 
 from backend.api.routes_chat import estimate_tokens
 
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_COUNT_2 = 2
+EXPECTED_COUNT_3 = 3
+EXPECTED_COUNT_5 = 5
+TOKEN_COUNT_150 = 150
+TOKEN_COUNT_100 = 100
+
 
 def test_estimate_tokens_api_strategy() -> None:
     """Teste l'estimation de tokens avec la stratégie API."""
@@ -18,12 +26,12 @@ def test_estimate_tokens_api_strategy() -> None:
         # Test avec usage valide
         usage = {"total_tokens": 150}
         result = estimate_tokens("test text", "gpt-4", usage)
-        assert result == 150
+        assert result == TOKEN_COUNT_150
 
         # Test avec usage invalide (fallback vers words)
         usage_invalid = {"total_tokens": "invalid"}
         result = estimate_tokens("test text", "gpt-4", usage_invalid)
-        assert result == 2  # "test text" = 2 mots
+        assert result == EXPECTED_COUNT_2  # "test text" = 2 mots
 
 
 def test_estimate_tokens_tiktoken_strategy() -> None:
@@ -37,7 +45,7 @@ def test_estimate_tokens_tiktoken_strategy() -> None:
             mock_tiktoken.encoding_for_model.return_value = mock_encoding
 
             result = estimate_tokens("test text", "gpt-4", None)
-            assert result == 5
+            assert result == EXPECTED_COUNT_5
 
 
 def test_estimate_tokens_tiktoken_fallback() -> None:
@@ -49,7 +57,7 @@ def test_estimate_tokens_tiktoken_fallback() -> None:
             mock_tiktoken.encoding_for_model.side_effect = Exception("Encoding error")
 
             result = estimate_tokens("test text", "gpt-4", None)
-            assert result == 2  # fallback vers words
+            assert result == EXPECTED_COUNT_2  # fallback vers words
 
 
 def test_estimate_tokens_words_strategy() -> None:
@@ -58,7 +66,7 @@ def test_estimate_tokens_words_strategy() -> None:
         mock_settings.return_value.TOKEN_COUNT_STRATEGY = "words"
 
         result = estimate_tokens("hello world test", "gpt-4", None)
-        assert result == 3
+        assert result == EXPECTED_COUNT_3
 
 
 def test_estimate_tokens_auto_strategy() -> None:
@@ -69,7 +77,7 @@ def test_estimate_tokens_auto_strategy() -> None:
         # Test avec usage disponible (priorité API)
         usage = {"total_tokens": 100}
         result = estimate_tokens("test", "gpt-4", usage)
-        assert result == 100
+        assert result == TOKEN_COUNT_100
 
 
 def test_estimate_tokens_empty_text() -> None:
@@ -101,7 +109,7 @@ def test_estimate_tokens_default_model_encoding() -> None:
             mock_tiktoken.get_encoding.return_value = mock_encoding
 
             result = estimate_tokens("test text", None, None)
-            assert result == 3
+            assert result == EXPECTED_COUNT_3
             mock_tiktoken.get_encoding.assert_called_with("cl100k_base")
 
 
@@ -111,7 +119,7 @@ def test_estimate_tokens_strategy_none() -> None:
         mock_settings.return_value.TOKEN_COUNT_STRATEGY = None
 
         result = estimate_tokens("hello world", "gpt-4", None)
-        assert result == 2  # fallback vers words
+        assert result == EXPECTED_COUNT_2  # fallback vers words
 
 
 def test_estimate_tokens_strategy_empty() -> None:
@@ -120,7 +128,7 @@ def test_estimate_tokens_strategy_empty() -> None:
         mock_settings.return_value.TOKEN_COUNT_STRATEGY = ""
 
         result = estimate_tokens("hello world", "gpt-4", None)
-        assert result == 2  # fallback vers words
+        assert result == EXPECTED_COUNT_2  # fallback vers words
 
 
 def test_estimate_tokens_usage_float() -> None:
@@ -130,7 +138,7 @@ def test_estimate_tokens_usage_float() -> None:
 
         usage = {"total_tokens": 150.5}
         result = estimate_tokens("test text", "gpt-4", usage)
-        assert result == 150  # converti en int
+        assert result == TOKEN_COUNT_150  # converti en int
 
 
 def test_estimate_tokens_usage_none() -> None:
@@ -139,7 +147,7 @@ def test_estimate_tokens_usage_none() -> None:
         mock_settings.return_value.TOKEN_COUNT_STRATEGY = "api"
 
         result = estimate_tokens("test text", "gpt-4", None)
-        assert result == 2  # fallback vers words
+        assert result == EXPECTED_COUNT_2  # fallback vers words
 
 
 def test_estimate_tokens_usage_invalid_type() -> None:
@@ -149,4 +157,4 @@ def test_estimate_tokens_usage_invalid_type() -> None:
 
         usage = {"total_tokens": "not_a_number"}
         result = estimate_tokens("test text", "gpt-4", usage)
-        assert result == 2  # fallback vers words
+        assert result == EXPECTED_COUNT_2  # fallback vers words

@@ -6,6 +6,7 @@ dans l'application.
 
 from __future__ import annotations
 
+from backend.apigw.rate_limit import RateLimitConfig, SlidingWindowRateLimiter
 from backend.app.cost_controls import BudgetManager, degraded_response
 from backend.app.metrics import LLM_COST_USD, RATE_LIMIT_BLOCKS
 from backend.core.constants import (
@@ -15,8 +16,6 @@ from backend.core.constants import (
 
 def test_qps_rate_limit_per_tenant(monkeypatch) -> None:
     """Teste que la limitation de débit par tenant fonctionne correctement."""
-    from backend.apigw.rate_limit import RateLimitConfig, SlidingWindowRateLimiter
-
     # Test direct du rate limiter
     config = RateLimitConfig(requests_per_minute=1)
     limiter = SlidingWindowRateLimiter(config)

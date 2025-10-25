@@ -1,4 +1,5 @@
-"""Tests pour le service métier principal des horoscopes.
+"""
+Tests pour le service métier principal des horoscopes.
 
 Ce module teste le service HoroscopeService qui orchestre les calculs astrologiques.
 """
@@ -10,6 +11,10 @@ from unittest.mock import Mock
 
 from backend.domain.entities import BirthInput, User
 from backend.domain.services import HoroscopeService
+
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_COUNT_3 = 3
+EXPECTED_COUNT_5 = 5
 
 
 def test_horoscope_service_init() -> None:
@@ -83,7 +88,7 @@ def test_compute_natal_chart_save() -> None:
         time_certainty="morning",
     )
 
-    result = service.compute_natal(birth)
+    service.compute_natal(birth)
 
     # Vérifier que save a été appelé avec les bonnes données
     chart_repo.save.assert_called_once()
@@ -127,7 +132,7 @@ def test_get_today_success() -> None:
     assert "influences" in result
     assert "eao" in result
     assert "snippets" in result
-    assert result["precision_score"] == 5
+    assert result["precision_score"] == EXPECTED_COUNT_5
 
     # Vérifier que les méthodes ont été appelées
     chart_repo.get.assert_called_once_with(chart_id)
@@ -148,7 +153,7 @@ def test_get_today_chart_not_found() -> None:
 
     try:
         service.get_today("non-existent-chart")
-        assert False, "KeyError should have been raised"
+        raise AssertionError("KeyError should have been raised")
     except KeyError as e:
         assert str(e) == "'chart_not_found'"
 
@@ -177,7 +182,7 @@ def test_get_today_with_user() -> None:
     result = service.get_today(chart_id, user)
 
     # Vérifier que le résultat est correct
-    assert result["precision_score"] == 3
+    assert result["precision_score"] == EXPECTED_COUNT_3
     assert result["date"] == date.today().isoformat()
 
 
@@ -204,7 +209,7 @@ def test_get_today_without_snippet_id() -> None:
 
     service = HoroscopeService(astro_engine, content_repo, chart_repo)
 
-    result = service.get_today(chart_id)
+    service.get_today(chart_id)
 
     # Vérifier que get_snippet n'est appelé que pour les transits avec snippet_id
     assert content_repo.get_snippet.call_count == 1

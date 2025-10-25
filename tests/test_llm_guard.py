@@ -13,9 +13,10 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import patch
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
+from backend.app.middleware_llm_guard import enforce_policies, sanitize_input, validate_output
 from backend.core.constants import (
     TEST_HTTP_STATUS_BAD_REQUEST,
     TEST_HTTP_STATUS_OK,
@@ -62,8 +63,6 @@ def _token(client: TestClient, mock_verify_password, mock_container) -> str:
 def test_guard_blocks_prompt_injection(monkeypatch: Any) -> None:
     """Teste que les garde-fous bloquent l'injection de prompts."""
     # Create a test app with a mocked endpoint
-    from fastapi import HTTPException
-    from fastapi.testclient import TestClient
 
     test_app = FastAPI()
 
@@ -83,7 +82,6 @@ def test_guard_blocks_prompt_injection(monkeypatch: Any) -> None:
 def test_guard_masks_pii_in_output(monkeypatch: Any) -> None:
     """Teste que les garde-fous masquent les données personnelles dans la sortie."""
     # Create a test app with a mocked endpoint
-    from fastapi.testclient import TestClient
 
     test_app = FastAPI()
 
@@ -102,30 +100,26 @@ def test_guard_masks_pii_in_output(monkeypatch: Any) -> None:
 
 def test_sanitize_input_empty_question() -> None:
     """Teste la détection de question vide."""
-    from backend.app.middleware_llm_guard import sanitize_input
-
     with patch("backend.app.middleware_llm_guard.get_settings") as mock_settings:
         mock_settings.return_value.LLM_GUARD_ENABLE = True
 
         # Test avec question vide
         try:
             sanitize_input({"question": ""})
-            assert False, "Should have raised ValueError"
+            raise AssertionError("Should have raised ValueError")
         except ValueError as e:
             assert str(e) == "empty_question"
 
         # Test avec question contenant seulement des espaces
         try:
             sanitize_input({"question": "   "})
-            assert False, "Should have raised ValueError"
+            raise AssertionError("Should have raised ValueError")
         except ValueError as e:
             assert str(e) == "empty_question"
 
 
 def test_sanitize_input_guard_disabled() -> None:
     """Teste le comportement quand LLM_GUARD_ENABLE est False."""
-    from backend.app.middleware_llm_guard import sanitize_input
-
     with patch("backend.app.middleware_llm_guard.get_settings") as mock_settings:
         mock_settings.return_value.LLM_GUARD_ENABLE = False
 
@@ -136,8 +130,6 @@ def test_sanitize_input_guard_disabled() -> None:
 
 def test_sanitize_input_max_len_invalid_setting() -> None:
     """Teste la gestion d'un paramètre LLM_GUARD_MAX_INPUT_LEN invalide."""
-    from backend.app.middleware_llm_guard import sanitize_input
-
     with patch("backend.app.middleware_llm_guard.get_settings") as mock_settings:
         mock_settings.return_value.LLM_GUARD_ENABLE = True
         mock_settings.return_value.LLM_GUARD_MAX_INPUT_LEN = "invalid"
@@ -146,15 +138,13 @@ def test_sanitize_input_max_len_invalid_setting() -> None:
         long_question = "A" * 1001
         try:
             sanitize_input({"question": long_question})
-            assert False, "Should have raised ValueError"
+            raise AssertionError("Should have raised ValueError")
         except ValueError as e:
             assert str(e) == "question_too_long"
 
 
 def test_sanitize_input_prompt_injection_patterns() -> None:
     """Teste la détection de différents patterns d'injection de prompts."""
-    from backend.app.middleware_llm_guard import sanitize_input
-
     with patch("backend.app.middleware_llm_guard.get_settings") as mock_settings:
         mock_settings.return_value.LLM_GUARD_ENABLE = True
         mock_settings.return_value.LLM_GUARD_MAX_INPUT_LEN = 1000
@@ -174,15 +164,13 @@ def test_sanitize_input_prompt_injection_patterns() -> None:
         for pattern in injection_patterns:
             try:
                 sanitize_input({"question": pattern})
-                assert False, f"Should have detected injection for: {pattern}"
+                raise AssertionError(f"Should have detected injection for: {pattern}")
             except ValueError as e:
                 assert str(e) == "prompt_injection_detected"
 
 
 def test_sanitize_input_valid_question() -> None:
     """Teste qu'une question valide passe la validation."""
-    from backend.app.middleware_llm_guard import sanitize_input
-
     with patch("backend.app.middleware_llm_guard.get_settings") as mock_settings:
         mock_settings.return_value.LLM_GUARD_ENABLE = True
         mock_settings.return_value.LLM_GUARD_MAX_INPUT_LEN = 1000
@@ -193,8 +181,6 @@ def test_sanitize_input_valid_question() -> None:
 
 def test_validate_output_guard_disabled() -> None:
     """Teste le comportement quand LLM_GUARD_ENABLE est False."""
-    from backend.app.middleware_llm_guard import validate_output
-
     with patch("backend.app.middleware_llm_guard.get_settings") as mock_settings:
         mock_settings.return_value.LLM_GUARD_ENABLE = False
 
@@ -205,8 +191,6 @@ def test_validate_output_guard_disabled() -> None:
 
 def test_validate_output_email_masking() -> None:
     """Teste le masquage des emails."""
-    from backend.app.middleware_llm_guard import validate_output
-
     with patch("backend.app.middleware_llm_guard.get_settings") as mock_settings:
         mock_settings.return_value.LLM_GUARD_ENABLE = True
 
@@ -218,8 +202,6 @@ def test_validate_output_email_masking() -> None:
 
 def test_validate_output_phone_masking() -> None:
     """Teste le masquage des numéros de téléphone."""
-    from backend.app.middleware_llm_guard import validate_output
-
     with patch("backend.app.middleware_llm_guard.get_settings") as mock_settings:
         mock_settings.return_value.LLM_GUARD_ENABLE = True
 
@@ -231,8 +213,6 @@ def test_validate_output_phone_masking() -> None:
 
 def test_validate_output_multiple_pii() -> None:
     """Teste le masquage de plusieurs types de PII."""
-    from backend.app.middleware_llm_guard import validate_output
-
     with patch("backend.app.middleware_llm_guard.get_settings") as mock_settings:
         mock_settings.return_value.LLM_GUARD_ENABLE = True
 
@@ -246,8 +226,6 @@ def test_validate_output_multiple_pii() -> None:
 
 def test_validate_output_no_pii() -> None:
     """Teste le comportement avec du texte sans PII."""
-    from backend.app.middleware_llm_guard import validate_output
-
     with patch("backend.app.middleware_llm_guard.get_settings") as mock_settings:
         mock_settings.return_value.LLM_GUARD_ENABLE = True
 
@@ -258,8 +236,6 @@ def test_validate_output_no_pii() -> None:
 
 def test_enforce_policies() -> None:
     """Teste la fonction enforce_policies."""
-    from backend.app.middleware_llm_guard import enforce_policies
-
     context = {"key1": "value1", "key2": "value2"}
     result = enforce_policies(context)
     assert result == context  # Devrait retourner une copie du contexte

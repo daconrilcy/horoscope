@@ -10,12 +10,14 @@
 
 Ce module fournit une interface unifiée pour accéder aux différents backends de recherche
 vectorielle (FAISS, Weaviate, etc.) avec support pour la migration et le shadow reading.
+
 """
 
 from __future__ import annotations
 
 import atexit
 import contextlib
+import importlib
 import math
 import os
 import queue as _queue
@@ -62,14 +64,8 @@ from backend.domain.retrieval_types import Document, Query
 from backend.infra.vecstores.faiss_store import FaissMultiTenantAdapter
 from backend.infra.vecstores.memory_adapter import MemoryMultiTenantAdapter
 
-
 # Import circulaire évité - import local dans les fonctions
-def _get_retrieval_target():
-    """Import local pour éviter les imports circulaires."""
-    from backend.services import retrieval_target as rtarget  # noqa: PLC0415
-
-    return rtarget
-
+# from backend.services import retrieval_target as rtarget
 
 _hit_stats: dict[tuple[str, str], tuple[int, int]] = {}
 
@@ -496,7 +492,7 @@ class RetrievalProxy:
                 allow = tenant_allowlist()
                 ten = tenant or "default"
                 if (not allow or ten in allow) and _rand.random() <= shadow_sample_rate():
-                    rtarget = _get_retrieval_target()
+                    rtarget = importlib.import_module("backend.services.retrieval_target")
                     target_name = rtarget.get_target_backend_name()
                     _shadow_submit(
                         target_name=target_name,
@@ -539,7 +535,7 @@ class RetrievalProxy:
 
         # Dual-write to target if flag enabled
         if ff_retrieval_dual_write():
-            rtarget = _get_retrieval_target()
+            rtarget = importlib.import_module("backend.services.retrieval_target")
             target_name = rtarget.get_target_backend_name()
             lbl_tenant = labelize_tenant(t, getattr(container.settings, "ALLOWED_TENANTS", []))
             try:
@@ -717,7 +713,7 @@ def _process_shadow_task(task: dict) -> None:
 
     start = _t.perf_counter()
     try:
-        rtarget = _get_retrieval_target()
+        rtarget = importlib.import_module("backend.services.retrieval_target")
         shadow = rtarget.get_target_adapter().search(query=query, top_k=top_k, tenant=tenant)
         elapsed = _t.perf_counter() - start
         RETRIEVAL_SHADOW_LATENCY.labels(target_name, "true").observe(elapsed)

@@ -34,7 +34,7 @@ from backend.domain.services import HoroscopeService
 DEFAULT_MODEL_ENCODING = "cl100k_base"
 
 
-def estimate_tokens(text: str, model: str | None, usage: dict | None) -> int:
+def estimate_tokens(text: str | None, model: str | None, usage: dict | None) -> int:
     """Estimate tokens using configured strategy: auto|api|tiktoken|words.
 
     Never logs text; only counts. Falls back gracefully across methods.

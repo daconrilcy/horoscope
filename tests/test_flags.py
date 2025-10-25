@@ -6,6 +6,8 @@ d'environnement.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from backend.config import flags as f
 from backend.core.constants import (
     TEST_METRICS_SHADOW_SAMPLE_RATE,
@@ -101,8 +103,6 @@ def test_shadow_read_flag_fallback_env_var(monkeypatch) -> None:
 
 def test_dual_write_flag_fallback_settings() -> None:
     """Teste le fallback vers les settings du container pour dual-write."""
-    from unittest.mock import patch
-
     with patch("backend.config.flags.container") as mock_container:
         # Test avec setting bool True
         mock_container.settings.RETRIEVAL_DUAL_WRITE = True
@@ -127,8 +127,6 @@ def test_dual_write_flag_fallback_settings() -> None:
 
 def test_shadow_read_flag_fallback_settings() -> None:
     """Teste le fallback vers les settings du container pour shadow-read."""
-    from unittest.mock import patch
-
     with patch("backend.config.flags.container") as mock_container:
         # Test avec setting bool True
         mock_container.settings.RETRIEVAL_SHADOW_READ = True
@@ -149,8 +147,6 @@ def test_shadow_read_flag_fallback_settings() -> None:
 
 def test_dual_write_flag_settings_exception() -> None:
     """Teste la gestion d'exception lors de l'accès aux settings."""
-    from unittest.mock import patch
-
     with patch("backend.config.flags.container") as mock_container:
         # Simuler une exception lors de l'accès aux settings
         mock_container.settings = None
@@ -159,8 +155,6 @@ def test_dual_write_flag_settings_exception() -> None:
 
 def test_shadow_read_flag_settings_exception() -> None:
     """Teste la gestion d'exception lors de l'accès aux settings."""
-    from unittest.mock import patch
-
     with patch("backend.config.flags.container") as mock_container:
         # Simuler une exception lors de l'accès aux settings
         mock_container.settings = None
@@ -169,8 +163,6 @@ def test_shadow_read_flag_settings_exception() -> None:
 
 def test_tenant_allowlist_empty() -> None:
     """Teste la liste d'autorisation des tenants vide."""
-    from unittest.mock import patch
-
     with patch.dict("os.environ", {}, clear=True):
         vals = f.tenant_allowlist()
         assert vals == set()
@@ -178,8 +170,6 @@ def test_tenant_allowlist_empty() -> None:
 
 def test_tenant_allowlist_single_tenant() -> None:
     """Teste la liste d'autorisation avec un seul tenant."""
-    from unittest.mock import patch
-
     with patch.dict("os.environ", {"RETRIEVAL_TENANT_ALLOWLIST": "tenant1"}):
         vals = f.tenant_allowlist()
         assert vals == {"tenant1"}
@@ -187,8 +177,6 @@ def test_tenant_allowlist_single_tenant() -> None:
 
 def test_tenant_allowlist_whitespace_handling() -> None:
     """Teste la gestion des espaces dans la liste d'autorisation."""
-    from unittest.mock import patch
-
     with patch.dict("os.environ", {"RETRIEVAL_TENANT_ALLOWLIST": "  tenant1  ,  tenant2  ,  "}):
         vals = f.tenant_allowlist()
         assert vals == {"tenant1", "tenant2"}

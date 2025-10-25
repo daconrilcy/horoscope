@@ -1,6 +1,7 @@
 """Tests pour l'orchestrateur de chat astrologique.
 
-Ce module teste l'orchestrateur qui coordonne la récupération de documents et la génération de réponses.
+Ce module teste l'orchestrateur qui coordonne la récupération de documents et la génération de
+réponses.
 """
 
 from __future__ import annotations
@@ -9,6 +10,11 @@ from unittest.mock import Mock
 
 from backend.domain.chat_orchestrator import ChatOrchestrator, _ctx
 from backend.domain.retrieval_types import Document, ScoredDocument
+
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_LINES_COUNT = 6
+EXPECTED_MESSAGES_COUNT = 2
+DEFAULT_K_VALUE = 6
 
 
 def test_ctx_function_basic() -> None:
@@ -45,7 +51,7 @@ def test_ctx_function_more_than_six() -> None:
 
     # Vérifier que seuls les 6 premiers sont utilisés
     lines = result.split("\n")
-    assert len(lines) == 6
+    assert len(lines) == EXPECTED_LINES_COUNT
     assert "- Document 0" in result
     assert "- Document 5" in result
     assert "- Document 6" not in result
@@ -110,7 +116,7 @@ def test_advise_basic() -> None:
 
     # Vérifier le contenu des messages
     call_args = mock_llm.generate.call_args[0][0]
-    assert len(call_args) == 2
+    assert len(call_args) == EXPECTED_MESSAGES_COUNT
     assert call_args[0]["role"] == "system"
     assert "conseiller astrologique" in call_args[0]["content"]
     assert call_args[1]["role"] == "user"
@@ -160,7 +166,7 @@ def test_advise_with_default_precision() -> None:
 
     orchestrator = ChatOrchestrator(retriever=mock_retriever, llm=mock_llm)
 
-    result_text, result_usage = orchestrator.advise(chart, today, question)
+    _result_text, _result_usage = orchestrator.advise(chart, today, question)
 
     # Vérifier que precision=1 est utilisé par défaut
     call_args = mock_llm.generate.call_args[0][0]
@@ -182,7 +188,7 @@ def test_advise_with_empty_context() -> None:
 
     orchestrator = ChatOrchestrator(retriever=mock_retriever, llm=mock_llm)
 
-    result_text, result_usage = orchestrator.advise(chart, today, question)
+    _result_text, _result_usage = orchestrator.advise(chart, today, question)
 
     # Vérifier que le contexte est vide
     call_args = mock_llm.generate.call_args[0][0]
@@ -209,7 +215,7 @@ def test_advise_with_multiple_documents() -> None:
 
     orchestrator = ChatOrchestrator(retriever=mock_retriever, llm=mock_llm)
 
-    result_text, result_usage = orchestrator.advise(chart, today, question)
+    _result_text, _result_usage = orchestrator.advise(chart, today, question)
 
     # Vérifier que tous les documents sont dans le contexte
     call_args = mock_llm.generate.call_args[0][0]
@@ -241,4 +247,4 @@ def test_advise_query_parameters() -> None:
     mock_retriever.query.assert_called_once()
     query_arg = mock_retriever.query.call_args[0][0]
     assert query_arg.text == question
-    assert query_arg.k == 6
+    assert query_arg.k == DEFAULT_K_VALUE

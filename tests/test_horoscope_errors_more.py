@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from backend.core.constants import (
@@ -73,9 +74,6 @@ def _token(client: TestClient, mock_service, mock_verify_password, mock_containe
 def test_premium_404_for_unknown_chart() -> None:
     """Teste que l'endpoint premium retourne 404 pour un thème inconnu."""
     # Create a test app with a mocked endpoint
-    from fastapi import FastAPI, HTTPException
-    from fastapi.testclient import TestClient
-
     test_app = FastAPI()
 
     @test_app.get("/horoscope/today/premium/{chart_id}")

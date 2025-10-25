@@ -1,8 +1,9 @@
-"""Utilitaires d'authentification et extraction sécurisée des tenants.
+"""
+Utilitaires d'authentification et extraction sécurisée des tenants.
 
 Ce module implémente le trust model pour l'extraction des tenants :
 - JWT = source de vérité
-- Headers client ne surclassent jamais le JWT
+- Les headers client ne surclassent jamais le JWT
 - Détection et traçage des tentatives de spoof
 """
 
@@ -19,23 +20,13 @@ log = logging.getLogger(__name__)
 
 
 def extract_tenant_secure(request: Request) -> tuple[str, str, bool]:
-    """Extract tenant identifier with secure trust model.
+    """Extract tenant identifier with a secure trust model."""
+    # Trust model:
+    # 1. JWT claims (tenant_id) = source of truth
+    # 2. X-Tenant-ID header only accepted if internal traffic
+    # 3. Otherwise → default tenant
+    # 4. If header contradicts JWT non-internal → spoof detected
 
-    Trust model:
-    1. JWT claims (tenant_id) = source of truth
-    2. X-Tenant-ID header only accepted if internal traffic
-    3. Otherwise → default tenant
-    4. If header contradicts JWT non-internal → spoof detected
-
-    Args:
-        request: FastAPI request object
-
-    Returns:
-        Tuple of (tenant_id, source, is_spoof)
-        - tenant_id: extracted tenant identifier
-        - source: "jwt", "header", or "default"
-        - is_spoof: True if spoof attempt detected
-    """
     route = normalize_route(request.url.path)
     tenant_header = request.headers.get("X-Tenant-ID")
     is_internal = verify_internal_traffic(request)
@@ -59,7 +50,6 @@ def extract_tenant_secure(request: Request) -> tuple[str, str, bool]:
 
             # Increment spoof counter
             APIGW_TENANT_SPOOF_ATTEMPTS.labels(route=route).inc()
-
             return jwt_tenant, "jwt", True
 
         return jwt_tenant, "jwt", False
@@ -91,21 +81,14 @@ def _extract_tenant_from_jwt(request: Request) -> str | None:
 
 
 def _is_internal_traffic(request: Request) -> bool:
-    """Check if request is from internal/trusted source (legacy function).
-
-    This function is kept for backward compatibility but should not be used. Use
-    verify_internal_traffic from internal_auth module instead.
-    """
-    # This is a placeholder - implement based on your infrastructure
+    """Check if request is from internal/trusted source (legacy function)."""
+    # This is kept for backward compatibility; prefer verify_internal_traffic().
+    # Placeholder - implement based on your infrastructure
     return False
 
 
 def get_tenant_source_info(request: Request) -> dict[str, Any]:
-    """Get detailed tenant source information for logging.
-
-    Returns:
-        Dictionary with tenant source information
-    """
+    """Get detailed tenant source information for logging."""
     tenant, source, is_spoof = extract_tenant_secure(request)
 
     return {
