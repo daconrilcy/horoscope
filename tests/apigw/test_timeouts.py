@@ -7,6 +7,7 @@ des budgets de retry selon les spécifications PH4.1-10.
 from __future__ import annotations
 
 import time
+from math import isclose
 from unittest.mock import patch
 
 from fastapi import FastAPI, HTTPException
@@ -196,7 +197,8 @@ class TestCalculateRetryDelay:
         delay3 = calculate_retry_delay(2, config)
         assert delay1 == TWO_TENTHS
         assert delay2 == FOUR_TENTHS
-        assert delay3 == SIX_TENTHS
+        # float rounding tolerance
+        assert isclose(delay3, SIX_TENTHS, rel_tol=1e-12)
 
     def test_fixed_strategy(self) -> None:
         """Assert fixed delays without jitter."""
@@ -252,8 +254,10 @@ class TestRetryBudget:
         """Allow retries within remaining budget only."""
         budget = RetryBudget(total_budget=BUDGET_TOTAL_TEST)
         assert budget.can_retry(FIVE) is True
-        assert budget.can_retry(FIVE) is True
-        assert budget.can_retry(FIVE) is False
+        budget.consume_budget(FIVE)
+        assert budget.can_retry(FIVE) is True  # 5 + 5 == 10 allowed (<=)
+        budget.consume_budget(FIVE)
+        assert budget.can_retry(ONE_TENTH) is False
 
     def test_consume_budget(self) -> None:
         """Increase used budget when consumed."""
