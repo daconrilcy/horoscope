@@ -165,9 +165,7 @@ class TestTenantRateLimitMiddleware:
         """Cleanup test environment."""
         self.extract_patcher.stop()
 
-    def create_mock_request(
-        self, path: str = "/v1/test", method: str = "GET"
-    ) -> Request:
+    def create_mock_request(self, path: str = "/v1/test", method: str = "GET") -> Request:
         """Create a mock request for testing."""
         request = Mock(spec=Request)
         request.url.path = path
@@ -516,9 +514,7 @@ class TestRouteNormalization:
 
     def test_normalize_route_multiple_ids(self) -> None:
         """Test normalisation avec plusieurs IDs."""
-        assert (
-            normalize_route("/v1/chat/123/message/456") == "/v1/chat/{id}/message/{id}"
-        )
+        assert normalize_route("/v1/chat/123/message/456") == "/v1/chat/{id}/message/{id}"
 
 
 class TestIntegration:
@@ -540,13 +536,9 @@ class TestIntegration:
         """Test que les métriques s'incrémentent correctement."""
         with (
             patch("backend.apigw.rate_limit.redis_store") as mock_redis_store,
-            patch(
-                "backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS"
-            ) as mock_decisions,
+            patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS") as mock_decisions,
             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_BLOCKS") as mock_blocks,
-            patch(
-                "backend.apigw.rate_limit.APIGW_RATE_LIMIT_EVALUATION_TIME"
-            ) as mock_eval_time,
+            patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_EVALUATION_TIME") as mock_eval_time,
         ):
             # Mock Redis store responses
             mock_result1 = Mock()
@@ -575,9 +567,7 @@ class TestIntegration:
             await middleware.dispatch(request1, call_next1)
 
             # Check decisions metric
-            mock_decisions.labels.assert_called_with(
-                route="/v1/chat/{id}", result="allow"
-            )
+            mock_decisions.labels.assert_called_with(route="/v1/chat/{id}", result="allow")
             mock_decisions.labels().inc.assert_called_once()
 
             # Check evaluation time metric
@@ -598,12 +588,8 @@ class TestIntegration:
             response = await middleware.dispatch(request2, call_next2)
 
             # Check block metrics
-            mock_decisions.labels.assert_called_with(
-                route="/v1/chat/{id}", result="block"
-            )
-            mock_blocks.labels.assert_called_with(
-                route="/v1/chat/{id}", reason="rate_exceeded"
-            )
+            mock_decisions.labels.assert_called_with(route="/v1/chat/{id}", result="block")
+            mock_blocks.labels.assert_called_with(route="/v1/chat/{id}", reason="rate_exceeded")
 
             # Check response
             assert response.status_code == HTTP_TOO_MANY_REQUESTS
@@ -616,9 +602,7 @@ class TestIntegration:
         """Test que les métriques de quota s'incrémentent quand quota est dépassé."""
         with (
             patch("backend.apigw.rate_limit.quota_manager") as mock_quota_manager,
-            patch(
-                "backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS"
-            ) as mock_decisions,
+            patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS") as mock_decisions,
             patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_BLOCKS") as mock_blocks,
         ):
             # Mock quota exceeded for chat endpoint (non-zero means quota is set and exceeded)
@@ -634,12 +618,8 @@ class TestIntegration:
             response = await middleware.dispatch(request, call_next)
 
             # Check metrics
-            mock_decisions.labels.assert_called_with(
-                route="/v1/chat/{id}", result="block"
-            )
-            mock_blocks.labels.assert_called_with(
-                route="/v1/chat/{id}", reason="quota_exceeded"
-            )
+            mock_decisions.labels.assert_called_with(route="/v1/chat/{id}", result="block")
+            mock_blocks.labels.assert_called_with(route="/v1/chat/{id}", reason="quota_exceeded")
 
             # Check response
             assert response.status_code == HTTP_TOO_MANY_REQUESTS
@@ -668,9 +648,7 @@ class TestIntegration:
             response = await middleware.dispatch(request, call_next)
 
             # Vérifier que Redis store a été appelé
-            mock_redis_store.check_rate_limit.assert_called_once_with(
-                "/v1/chat/{id}", "default"
-            )
+            mock_redis_store.check_rate_limit.assert_called_once_with("/v1/chat/{id}", "default")
 
             # Vérifier la réponse
             assert response.status_code == HTTP_OK
@@ -734,9 +712,7 @@ class TestIntegration:
         """Test que les métriques sont émises lors des blocages."""
         with (
             patch("backend.apigw.rate_limit.redis_store") as mock_redis_store,
-            patch(
-                "backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS"
-            ) as mock_metrics,
+            patch("backend.apigw.rate_limit.APIGW_RATE_LIMIT_DECISIONS") as mock_metrics,
         ):
             # Mock Redis store responses
             mock_result1 = Mock()
