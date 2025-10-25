@@ -21,6 +21,7 @@ from backend.core.constants import (
     HTTP_STATUS_SUCCESS_MAX,
     HTTP_STATUS_SUCCESS_MIN,
 )
+from backend.core.container import container
 
 log = logging.getLogger(__name__)
 
@@ -160,13 +161,16 @@ class TraceIdMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Any) -> StarletteResponse:
         """Add trace ID to request state."""
-        # Extract or generate trace ID
-        trace_id = request.headers.get("X-Trace-ID")
-        if not trace_id:
-            trace_id = str(uuid.uuid4())
+        # Policy: trust client header only if explicitly allowed
+        trust_client = bool(getattr(container.settings, "APIGW_TRACE_ID_TRUST_CLIENT", False))
+        client_trace_id = request.headers.get("X-Trace-ID")
+        trace_id = client_trace_id if (trust_client and client_trace_id) else str(uuid.uuid4())
 
         # Add to request state
         request.state.trace_id = trace_id
+        if client_trace_id and not trust_client:
+            # Preserve client-provided value separately for correlation, not used as official trace
+            request.state.client_trace_id = client_trace_id
 
         # Process request
         response = await call_next(request)

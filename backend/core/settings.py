@@ -95,6 +95,9 @@ class Settings(BaseSettings):
     FAISS_DATA_DIR: str = "./var/faiss"
     STORAGE_REGION: str = "eu"
 
+    # API Gateway - confiance dans le X-Trace-ID client (OFF par défaut)
+    APIGW_TRACE_ID_TRUST_CLIENT: bool = False
+
     # Internal authentication keys for HMAC verification
     INTERNAL_AUTH_KEY: str = "default-internal-key-change-in-production"
     INTERNAL_AUTH_KEY_V2: str | None = None

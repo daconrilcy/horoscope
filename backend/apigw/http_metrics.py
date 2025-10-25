@@ -46,18 +46,20 @@ class HTTPServerMetricsMiddleware(BaseHTTPMiddleware):
         route = normalize_route(request.url.path)
         method = request.method
 
-        # Record metrics
-        HTTP_SERVER_REQUESTS_SECONDS.labels(
-            route=route,
-            method=method,
-            status=status,
-        ).observe(duration)
+        # Exclude infra endpoints from metrics to avoid biasing latency/error rates
+        if not route.startswith(('/metrics', '/health', '/docs', '/openapi.json', '/redoc')):
+            # Record metrics
+            HTTP_SERVER_REQUESTS_SECONDS.labels(
+                route=route,
+                method=method,
+                status=status,
+            ).observe(duration)
 
-        HTTP_SERVER_REQUESTS_TOTAL.labels(
-            route=route,
-            method=method,
-            status=status,
-        ).inc()
+            HTTP_SERVER_REQUESTS_TOTAL.labels(
+                route=route,
+                method=method,
+                status=status,
+            ).inc()
 
         # Re-raise exception if it occurred
         if response is None:
