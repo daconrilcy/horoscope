@@ -13,10 +13,12 @@ from __future__ import annotations
 
 # Retries & acks
 task_acks_late = True
+task_reject_on_worker_lost = True
+worker_prefetch_multiplier = 1
 task_time_limit = 300  # secondes
 broker_pool_limit = 10
 
-# Exemple de politique de retry (à appliquer par task)
+# Politique de retry par défaut (à spécialiser par tâche)
 max_retries = 5
 retry_backoff = True
 retry_backoff_max = 60  # secondes
