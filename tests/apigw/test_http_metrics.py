@@ -220,6 +220,34 @@ class TestHTTPServerMetricsMiddleware:
                 status=str(HTTP_OK),
             )
 
+    def test_infra_endpoints_excluded_from_metrics(self) -> None:
+        """Test que /metrics et /health ne comptent pas dans les métriques HTTP."""
+        app = FastAPI()
+        app.add_middleware(TraceIdMiddleware)
+        app.add_middleware(HTTPServerMetricsMiddleware)
+
+        @app.get("/metrics")
+        async def metrics_endpoint():
+            return {"ok": True}
+
+        @app.get("/health")
+        async def health_endpoint():
+            return {"status": "ok"}
+
+        client = TestClient(app)
+
+        with (
+            patch("backend.apigw.http_metrics.HTTP_SERVER_REQUESTS_SECONDS") as mock_histogram,
+            patch("backend.apigw.http_metrics.HTTP_SERVER_REQUESTS_TOTAL") as mock_total,
+        ):
+            r1 = client.get("/metrics")
+            r2 = client.get("/health")
+            assert r1.status_code == HTTP_OK
+            assert r2.status_code == HTTP_OK
+            # No metric calls for infra endpoints
+            assert mock_histogram.labels.call_count == 0
+            assert mock_total.labels.call_count == 0
+
     def test_duration_measurement(self) -> None:
         """Test mesure de la durée des requêtes."""
         app = FastAPI()
