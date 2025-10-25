@@ -23,6 +23,32 @@ metrics_router = APIRouter()
 REQUEST_COUNT = Counter("http_requests_total", "Total HTTP requests", ["method", "route", "status"])
 REQUEST_LATENCY = Histogram("http_request_duration_seconds", "Latency of HTTP requests", ["route"])
 
+# API Gateway specific metrics for PH4.1-10
+HTTP_SERVER_REQUESTS_SECONDS = Histogram(
+    "http_server_requests_seconds_bucket",
+    "HTTP server request duration in seconds",
+    ["route", "method", "status"],
+    buckets=[0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1.0, 2.0],
+)
+HTTP_SERVER_REQUESTS_TOTAL = Counter(
+    "http_server_requests_total",
+    "Total HTTP server requests",
+    ["route", "method", "status"],
+)
+
+# Retry metrics (API Gateway)
+APIGW_RETRY_ATTEMPTS_TOTAL = Counter(
+    "apigw_retry_attempts_total",
+    "Total retry decisions by the gateway",
+    ["route", "result"],  # result: allowed | blocked
+)
+
+APIGW_RETRY_BUDGET_EXHAUSTED_TOTAL = Counter(
+    "apigw_retry_budget_exhausted_total",
+    "Total times retry was blocked due to budget exhaustion",
+    ["route"],
+)
+
 # Retrieval-specific metrics
 RETRIEVAL_REQUESTS = Counter(
     "retrieval_requests_total",
