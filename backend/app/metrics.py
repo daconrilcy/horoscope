@@ -49,6 +49,13 @@ APIGW_RETRY_BUDGET_EXHAUSTED_TOTAL = Counter(
     ["route"],
 )
 
+# Retry block reasons (low-cardinality)
+APIGW_RETRY_BLOCKS_TOTAL = Counter(
+    "apigw_retry_blocks_total",
+    "Total retry blocks by reason",
+    ["route", "reason"],  # reason: non_retryable | deadline_exceeded | budget_exhausted
+)
+
 # Retrieval-specific metrics
 RETRIEVAL_REQUESTS = Counter(
     "retrieval_requests_total",
