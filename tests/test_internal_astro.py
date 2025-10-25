@@ -1,12 +1,5 @@
-# Constantes pour éviter les erreurs PLR2004 (Magic values)
-EXPECTED_COUNT_2 = 2
-EXPECTED_COUNT_3 = 3
-EXPECTED_COUNT_5 = 5
-EXPECTED_COUNT_6 = 6
-SCORE_0_5 = 0.5
-SCORE_1_5 = 1.5
-SCORE_0_6 = 0.6
-"""Tests pour le moteur astrologique interne.
+"""
+Tests pour le moteur astrologique interne.
 
 Ce module teste le moteur astrologique interne avec génération pseudo-aléatoire.
 """
@@ -15,6 +8,15 @@ from __future__ import annotations
 
 from backend.domain.entities import BirthInput
 from backend.infra.astro.internal_astro import InternalAstroEngine
+
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_COUNT_2 = 2
+EXPECTED_COUNT_3 = 3
+EXPECTED_COUNT_5 = 5
+EXPECTED_COUNT_6 = 6
+SCORE_0_5 = 0.5
+SCORE_1_5 = 1.5
+SCORE_0_6 = 0.6
 
 
 def test_internal_astro_engine_init_without_seed() -> None:

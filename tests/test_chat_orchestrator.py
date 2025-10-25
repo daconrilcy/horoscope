@@ -1,6 +1,7 @@
 """Tests pour l'orchestrateur de chat astrologique.
 
-Ce module teste l'orchestrateur qui coordonne la récupération de documents et la génération de réponses.
+Ce module teste l'orchestrateur qui coordonne la récupération de documents et la génération de
+réponses.
 """
 
 from __future__ import annotations

@@ -1,8 +1,3 @@
-# Constantes pour éviter les erreurs PLR2004 (Magic values)
-HTTP_OK = 200
-HTTP_TOO_MANY_REQUESTS = 429
-EXPECTED_COUNT_2 = 2
-EXPECTED_COUNT_4 = 4
 """
 Tests unitaires pour le rate limiting et quotas par tenant.
 
@@ -30,6 +25,8 @@ from backend.app.metrics import normalize_route
 # Constantes pour éviter les erreurs PLR2004 (Magic values)
 HTTP_OK = 200
 HTTP_TOO_MANY_REQUESTS = 429
+EXPECTED_COUNT_2 = 2
+EXPECTED_COUNT_4 = 4
 REQUESTS_PER_MINUTE_DEFAULT = 60
 REQUESTS_PER_HOUR_DEFAULT = 1000
 BURST_LIMIT_DEFAULT = 10
@@ -55,7 +52,7 @@ class TestSlidingWindowRateLimiter:
 
         result = limiter.check_rate_limit("tenant1")
         assert result.allowed is True
-        assert result.remaining  == EXPECTED_COUNT_4  # requests_per_minute - 1
+        assert result.remaining == EXPECTED_COUNT_4  # requests_per_minute - 1
         assert result.retry_after is None
 
     def test_rate_limit_exceeded(self) -> None:
@@ -158,7 +155,7 @@ class TestTenantRateLimitMiddleware:
     """Tests pour TenantRateLimitMiddleware."""
 
     def setup_method(self) -> None:
-        """Setup test environment."""
+        """Set up test environment."""
         # Mock extract_tenant_secure for all tests in this class
         self.extract_patcher = patch("backend.apigw.rate_limit.extract_tenant_secure")
         self.mock_extract = self.extract_patcher.start()
@@ -249,7 +246,7 @@ class TestTenantRateLimitMiddleware:
                 return Response("OK", status_code=200)
 
             response1 = await middleware.dispatch(request1, call_next1)
-            assert response1.status_code  == HTTP_OK
+            assert response1.status_code == HTTP_OK
 
             # Second request should be blocked
             request2 = self.create_mock_request()
@@ -258,7 +255,7 @@ class TestTenantRateLimitMiddleware:
                 return Response("OK", status_code=200)
 
             response2 = await middleware.dispatch(request2, call_next2)
-            assert response2.status_code  == HTTP_TOO_MANY_REQUESTS
+            assert response2.status_code == HTTP_TOO_MANY_REQUESTS
             assert "Retry-After" in response2.headers
 
     def test_tenant_extraction_from_header(self) -> None:
@@ -338,7 +335,7 @@ class TestQuotaMiddleware:
     """Tests pour QuotaMiddleware."""
 
     def setup_method(self) -> None:
-        """Setup test environment."""
+        """Set up test environment."""
         # Mock extract_tenant_secure for all tests in this class
         self.extract_patcher = patch("backend.apigw.rate_limit.extract_tenant_secure")
         self.mock_extract = self.extract_patcher.start()
@@ -479,10 +476,16 @@ class TestDefaultQuotas:
         test_manager.set_quota("default", "chat_requests_per_hour", 100)
         test_manager.set_quota("default", "retrieval_requests_per_hour", 500)
 
-        assert test_manager.get_quota("default", "requests_per_minute") == REQUESTS_PER_MINUTE_DEFAULT
-        assert test_manager.get_quota("default", "requests_per_hour") == REQUESTS_PER_HOUR_DEFAULT
-        assert test_manager.get_quota("default", "chat_requests_per_hour") == CHAT_REQUESTS_PER_HOUR
-        assert test_manager.get_quota("default", "retrieval_requests_per_hour") == RETRIEVAL_REQUESTS_PER_HOUR
+        # Vérifier les quotas par défaut
+        quota_minute = test_manager.get_quota("default", "requests_per_minute")
+        quota_hour = test_manager.get_quota("default", "requests_per_hour")
+        quota_chat = test_manager.get_quota("default", "chat_requests_per_hour")
+        quota_retrieval = test_manager.get_quota("default", "retrieval_requests_per_hour")
+
+        assert quota_minute == REQUESTS_PER_MINUTE_DEFAULT
+        assert quota_hour == REQUESTS_PER_HOUR_DEFAULT
+        assert quota_chat == CHAT_REQUESTS_PER_HOUR
+        assert quota_retrieval == RETRIEVAL_REQUESTS_PER_HOUR
 
 
 class TestRouteNormalization:
@@ -522,7 +525,7 @@ class TestIntegration:
     """Tests d'intégration pour le rate limiting."""
 
     def setup_method(self) -> None:
-        """Setup test environment."""
+        """Set up test environment."""
         # Mock extract_tenant_secure for all tests in this class
         self.extract_patcher = patch("backend.apigw.rate_limit.extract_tenant_secure")
         self.mock_extract = self.extract_patcher.start()

@@ -1,9 +1,5 @@
-# Constantes pour éviter les erreurs PLR2004 (Magic values)
-EXPECTED_COUNT_3 = 3
-EXPECTED_COUNT_4 = 4
-TOKEN_COUNT_123 = 123
-TOKEN_COUNT_456 = 456
-"""Tests for token counting strategies.
+"""
+Tests for token counting strategies.
 
 Covers API usage, tiktoken path (with fake module), fallback to words, and auto preference for API
 over tiktoken.
@@ -15,6 +11,12 @@ import sys
 from typing import Any
 
 from backend.api.routes_chat import estimate_tokens
+
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_COUNT_3 = 3
+EXPECTED_COUNT_4 = 4
+TOKEN_COUNT_123 = 123
+TOKEN_COUNT_456 = 456
 
 
 def test_strategy_api_uses_usage_when_available(monkeypatch: Any) -> None:

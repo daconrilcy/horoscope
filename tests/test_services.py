@@ -1,7 +1,5 @@
-# Constantes pour éviter les erreurs PLR2004 (Magic values)
-EXPECTED_COUNT_3 = 3
-EXPECTED_COUNT_5 = 5
-"""Tests pour le service métier principal des horoscopes.
+"""
+Tests pour le service métier principal des horoscopes.
 
 Ce module teste le service HoroscopeService qui orchestre les calculs astrologiques.
 """
@@ -13,6 +11,10 @@ from unittest.mock import Mock
 
 from backend.domain.entities import BirthInput, User
 from backend.domain.services import HoroscopeService
+
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_COUNT_3 = 3
+EXPECTED_COUNT_5 = 5
 
 
 def test_horoscope_service_init() -> None:

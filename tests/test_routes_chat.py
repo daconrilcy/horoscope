@@ -1,10 +1,5 @@
-# Constantes pour éviter les erreurs PLR2004 (Magic values)
-EXPECTED_COUNT_2 = 2
-EXPECTED_COUNT_3 = 3
-EXPECTED_COUNT_5 = 5
-TOKEN_COUNT_150 = 150
-TOKEN_COUNT_100 = 100
-"""Tests pour les routes de chat.
+"""
+Tests pour les routes de chat.
 
 Ce module teste les endpoints de chat, les conseils astrologiques et la gestion des tokens.
 """
@@ -14,6 +9,13 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 from backend.api.routes_chat import estimate_tokens
+
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_COUNT_2 = 2
+EXPECTED_COUNT_3 = 3
+EXPECTED_COUNT_5 = 5
+TOKEN_COUNT_150 = 150
+TOKEN_COUNT_100 = 100
 
 
 def test_estimate_tokens_api_strategy() -> None:

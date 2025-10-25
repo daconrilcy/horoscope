@@ -1,7 +1,5 @@
-# Constantes pour éviter les erreurs PLR2004 (Magic values)
-EXPECTED_COUNT_3 = 3
-EXPECTED_COUNT_5 = 5
-"""Tests pour le calcul du score de précision basé sur la certitude temporelle.
+"""
+Tests pour le calcul du score de précision basé sur la certitude temporelle.
 
 Ce module teste les fonctions de calcul de score de précision pour les horoscopes.
 """
@@ -9,6 +7,10 @@ Ce module teste les fonctions de calcul de score de précision pour les horoscop
 from __future__ import annotations
 
 from backend.domain.uncertainty import precision_score
+
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_COUNT_3 = 3
+EXPECTED_COUNT_5 = 5
 
 
 def test_precision_score_exact() -> None:

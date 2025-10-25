@@ -1,8 +1,17 @@
-"""Tests pour les heuristiques de sélection des facteurs du jour.
+"""
+Tests pour les heuristiques de sélection des facteurs du jour.
 
 Ce module teste les fonctions de scoring et de sélection des facteurs astrologiques
 pour les horoscopes quotidiens.
 """
+
+from __future__ import annotations
+
+from backend.domain.today_heuristic import (
+    energy_attention_opportunity,
+    pick_today,
+    score_factor,
+)
 
 # Constantes pour éviter les erreurs PLR2004 (Magic values)
 EXPECTED_COUNT_2 = 2
@@ -18,14 +27,6 @@ SCORE_4_0 = 4.0
 SCORE_5_0 = 5.0
 SCORE_6_0 = 6.0
 SCORE_7_0 = 7.0
-
-from __future__ import annotations
-
-from backend.domain.today_heuristic import (
-    energy_attention_opportunity,
-    pick_today,
-    score_factor,
-)
 
 
 def test_score_factor_basic() -> None:

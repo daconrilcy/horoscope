@@ -1,6 +1,5 @@
-# Constantes pour éviter les erreurs PLR2004 (Magic values)
-EXPECTED_COUNT_2 = 2
-"""Tests pour la récupération de documents.
+"""
+Tests pour la récupération de documents.
 
 Ce module teste les fonctionnalités de recherche vectorielle et de récupération de documents dans
 l'application.
@@ -10,6 +9,9 @@ from backend.domain.retrieval_types import Document, Query
 from backend.domain.retriever import Retriever
 from backend.infra.vecstores.faiss_store import FAISSVectorStore
 from tests.fakes import FakeEmbeddings
+
+# Constantes pour éviter les erreurs PLR2004 (Magic values)
+EXPECTED_COUNT_2 = 2
 
 
 def test_retrieval_deterministic(monkeypatch):
