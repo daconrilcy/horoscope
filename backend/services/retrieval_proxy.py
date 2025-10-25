@@ -25,13 +25,9 @@ import random as _rand
 import threading as _th
 import time as _t
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
 
 import httpx
 import structlog
-
-if TYPE_CHECKING:
-    pass
 
 from backend.app.metrics import (
     RETRIEVAL_DUAL_WRITE_ERRORS,
@@ -544,7 +540,9 @@ class RetrievalProxy:
                 if (
                     not allow or ten in allow
                 ) and _rand.random() <= shadow_sample_rate():
-                    rtarget = importlib.import_module("backend.services.retrieval_target")
+                    rtarget = importlib.import_module(
+                        "backend.services.retrieval_target"
+                    )
                     target_name = rtarget.get_target_backend_name()
                     _shadow_submit(
                         target_name=target_name,
