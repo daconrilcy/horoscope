@@ -8,7 +8,6 @@ import time
 from unittest.mock import Mock, patch
 
 import pytest
-import redis
 from redis.exceptions import ConnectionError, TimeoutError
 
 from backend.apigw.redis_store import RateLimitResult, RedisRateLimitStore
