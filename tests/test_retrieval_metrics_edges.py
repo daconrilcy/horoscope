@@ -1,5 +1,4 @@
-"""
-Tests pour les cas limites des métriques de récupération.
+"""Tests pour les cas limites des métriques de récupération.
 
 Ce module teste les cas limites et les cas particuliers des métriques de récupération (accord et
 NDCG).

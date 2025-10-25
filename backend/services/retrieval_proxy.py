@@ -6,8 +6,7 @@
 #  - Aucune logique d'état persistant ici.
 #  - Les adaptateurs implémentent la même interface minimale.
 # ============================================================
-"""
-Proxy pour l'accès aux services de récupération et d'embeddings.
+"""Proxy pour l'accès aux services de récupération et d'embeddings.
 
 Ce module fournit une interface unifiée pour accéder aux différents backends de recherche
 vectorielle (FAISS, Weaviate, etc.) avec support pour la migration et le shadow reading.
@@ -65,6 +64,7 @@ from backend.domain.retrieval_types import Document, Query
 from backend.infra.vecstores.faiss_store import FaissMultiTenantAdapter
 from backend.infra.vecstores.memory_adapter import MemoryMultiTenantAdapter
 
+
 # Import circulaire évité - import local dans les fonctions
 # from backend.services import retrieval_target as rtarget
 
@@ -72,8 +72,7 @@ _hit_stats: dict[tuple[str, str], tuple[int, int]] = {}
 
 
 class BaseRetrievalAdapter(ABC):
-    """
-    Interface minimale pour un store vectoriel.
+    """Interface minimale pour un store vectoriel.
 
     Méthodes à implémenter :
       - embed_texts
@@ -82,8 +81,7 @@ class BaseRetrievalAdapter(ABC):
 
     @abstractmethod
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        """
-        Génère des embeddings factices pour les textes.
+        """Génère des embeddings factices pour les textes.
 
         Args:
             texts: Liste des textes à convertir en embeddings.
@@ -94,8 +92,7 @@ class BaseRetrievalAdapter(ABC):
         Raises:
             ValueError: Si la liste de textes est vide.
         """
-        """
-        Retourne des embeddings pour une liste de textes.
+        """Retourne des embeddings pour une liste de textes.
 
         Args:
             texts: Liste de textes bruts.
@@ -107,11 +104,8 @@ class BaseRetrievalAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def search(
-        self, query: str, top_k: int = 5, tenant: str | None = None
-    ) -> list[dict]:
-        """
-        Recherche des documents similaires à une requête.
+    def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        """Recherche des documents similaires à une requête.
 
         Args:
             query: Texte de la requête de recherche.
@@ -121,8 +115,7 @@ class BaseRetrievalAdapter(ABC):
         Returns:
             list[dict]: Liste des documents trouvés avec métadonnées.
         """
-        """
-        Recherche les items les plus proches de la requête.
+        """Recherche les items les plus proches de la requête.
 
         Args:
             query: Texte de requête.
@@ -137,6 +130,8 @@ class BaseRetrievalAdapter(ABC):
 class FAISSAdapter(BaseRetrievalAdapter):
     """Adaptateur FAISS multi-tenant via FaissMultiTenantAdapter."""
 
+    _adapter: MemoryMultiTenantAdapter | FaissMultiTenantAdapter
+
     def __init__(self) -> None:
         """Initialize FAISS adapter with automatic backend selection."""
         backend = (
@@ -147,15 +142,12 @@ class FAISSAdapter(BaseRetrievalAdapter):
         if backend == "memory":
             self._adapter = MemoryMultiTenantAdapter()
             with contextlib.suppress(Exception):
-                structlog.get_logger(__name__).warning(
-                    "vecstore_memory_fallback", backend=backend
-                )
+                structlog.get_logger(__name__).warning("vecstore_memory_fallback", backend=backend)
         else:
             self._adapter = FaissMultiTenantAdapter()
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        """
-        Génère des embeddings factices pour les textes.
+        """Génère des embeddings factices pour les textes.
 
         Args:
             texts: Liste des textes à convertir en embeddings.
@@ -170,11 +162,8 @@ class FAISSAdapter(BaseRetrievalAdapter):
             raise ValueError("texts ne doit pas être vide")
         return [[0.0, 0.0, 0.0] for _ in texts]
 
-    def search(
-        self, query: str, top_k: int = 5, tenant: str | None = None
-    ) -> list[dict]:
-        """
-        Recherche des documents similaires à une requête.
+    def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        """Recherche des documents similaires à une requête.
 
         Args:
             query: Texte de la requête de recherche.
@@ -216,8 +205,7 @@ class RetrievalBackendHTTPError(RuntimeError):
 
 
 class WeaviateAdapter(BaseRetrievalAdapter):
-    """
-    Adaptateur Weaviate via API HTTP (GraphQL).
+    """Adaptateur Weaviate via API HTTP (GraphQL).
 
     Variables d'environnement utilisées:
       - `WEAVIATE_URL`: URL de l'instance (ex: https://demo.weaviate.network)
@@ -243,8 +231,7 @@ class WeaviateAdapter(BaseRetrievalAdapter):
         self._client = httpx.Client(headers=headers, timeout=timeout, limits=limits)
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        """
-        Génère des embeddings factices pour les textes.
+        """Génère des embeddings factices pour les textes.
 
         Args:
             texts: Liste des textes à convertir en embeddings.
@@ -255,8 +242,7 @@ class WeaviateAdapter(BaseRetrievalAdapter):
         Raises:
             ValueError: Si la liste de textes est vide.
         """
-        """
-        Retourne des embeddings placeholder (à brancher sur un provider externe).
+        """Retourne des embeddings placeholder (à brancher sur un provider externe).
 
         Pour #2, l'accent est mis sur la recherche managée Weaviate; la génération d'embeddings sera
         utilisée par les scripts d'ingest ultérieurement.
@@ -284,14 +270,8 @@ class WeaviateAdapter(BaseRetrievalAdapter):
             try:
                 resp = self._client.post(url, json=graphql)
                 if resp.status_code == HTTP_STATUS_TOO_MANY_REQUESTS:
-                    raise RetrievalBackendHTTPError(
-                        HTTP_STATUS_TOO_MANY_REQUESTS, "rate-limited"
-                    )
-                if (
-                    HTTP_STATUS_CLIENT_ERROR_MIN
-                    <= resp.status_code
-                    < HTTP_STATUS_CLIENT_ERROR_MAX
-                ):
+                    raise RetrievalBackendHTTPError(HTTP_STATUS_TOO_MANY_REQUESTS, "rate-limited")
+                if HTTP_STATUS_CLIENT_ERROR_MIN <= resp.status_code < HTTP_STATUS_CLIENT_ERROR_MAX:
                     raise RetrievalBackendHTTPError(resp.status_code, "client error")
                 resp.raise_for_status()
                 return resp.json()
@@ -318,9 +298,7 @@ class WeaviateAdapter(BaseRetrievalAdapter):
                     continue
                 raise RetrievalNetworkError(str(exc)) from exc
 
-    def _parse_weaviate_response(
-        self, data: dict, tenant: str | None, top_k: int
-    ) -> list[dict]:
+    def _parse_weaviate_response(self, data: dict, tenant: str | None, top_k: int) -> list[dict]:
         """Parse Weaviate response into standardized format."""
         hits: list[dict] = []
         try:
@@ -339,11 +317,8 @@ class WeaviateAdapter(BaseRetrievalAdapter):
             )
         return hits[: max(0, top_k)]
 
-    def search(
-        self, query: str, top_k: int = 5, tenant: str | None = None
-    ) -> list[dict]:
-        """
-        Recherche des documents similaires à une requête.
+    def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        """Recherche des documents similaires à une requête.
 
         Args:
             query: Texte de la requête de recherche.
@@ -364,8 +339,7 @@ class PineconeAdapter(BaseRetrievalAdapter):
     """Adaptateur Pinecone (squelette)."""
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        """
-        Génère des embeddings factices pour les textes.
+        """Génère des embeddings factices pour les textes.
 
         Args:
             texts: Liste des textes à convertir en embeddings.
@@ -380,11 +354,8 @@ class PineconeAdapter(BaseRetrievalAdapter):
             raise ValueError("texts ne doit pas être vide")
         return [[0.0, 0.0, 0.0] for _ in texts]
 
-    def search(
-        self, query: str, top_k: int = 5, tenant: str | None = None
-    ) -> list[dict]:
-        """
-        Recherche des documents similaires à une requête.
+    def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        """Recherche des documents similaires à une requête.
 
         Args:
             query: Texte de la requête de recherche.
@@ -396,17 +367,14 @@ class PineconeAdapter(BaseRetrievalAdapter):
         """
         if not query:
             return []
-        return [
-            {"id": "p_doc_1", "score": 0.9, "metadata": {"tenant": tenant or "default"}}
-        ]
+        return [{"id": "p_doc_1", "score": 0.9, "metadata": {"tenant": tenant or "default"}}]
 
 
 class ElasticVectorAdapter(BaseRetrievalAdapter):
     """Adaptateur Elasticsearch v8 (squelette)."""
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        """
-        Génère des embeddings factices pour les textes.
+        """Génère des embeddings factices pour les textes.
 
         Args:
             texts: Liste des textes à convertir en embeddings.
@@ -421,11 +389,8 @@ class ElasticVectorAdapter(BaseRetrievalAdapter):
             raise ValueError("texts ne doit pas être vide")
         return [[0.0, 0.0, 0.0] for _ in texts]
 
-    def search(
-        self, query: str, top_k: int = 5, tenant: str | None = None
-    ) -> list[dict]:
-        """
-        Recherche des documents similaires à une requête.
+    def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        """Recherche des documents similaires à une requête.
 
         Args:
             query: Texte de la requête de recherche.
@@ -437,14 +402,11 @@ class ElasticVectorAdapter(BaseRetrievalAdapter):
         """
         if not query:
             return []
-        return [
-            {"id": "e_doc_1", "score": 0.9, "metadata": {"tenant": tenant or "default"}}
-        ]
+        return [{"id": "e_doc_1", "score": 0.9, "metadata": {"tenant": tenant or "default"}}]
 
 
 class RetrievalProxy:
-    """
-    Proxy stateless exposant `embed_texts` et `search`.
+    """Proxy stateless exposant `embed_texts` et `search`.
 
     Sélectionne dynamiquement l'adaptateur via variable d'environnement RETRIEVAL_BACKEND in
     {"faiss", "weaviate", "pinecone", "elastic"}.
@@ -456,9 +418,7 @@ class RetrievalProxy:
         self._backend = backend
         if backend == "weaviate":
             if not (os.getenv("WEAVIATE_URL") or "").strip():
-                raise RuntimeError(
-                    "WEAVIATE_URL est requis quand RETRIEVAL_BACKEND=weaviate"
-                )
+                raise RuntimeError("WEAVIATE_URL est requis quand RETRIEVAL_BACKEND=weaviate")
             self._adapter: BaseRetrievalAdapter = WeaviateAdapter()
         elif backend == "pinecone":
             self._adapter = PineconeAdapter()
@@ -468,8 +428,7 @@ class RetrievalProxy:
             self._adapter = FAISSAdapter()
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        """
-        Génère des embeddings factices pour les textes.
+        """Génère des embeddings factices pour les textes.
 
         Args:
             texts: Liste des textes à convertir en embeddings.
@@ -480,8 +439,7 @@ class RetrievalProxy:
         Raises:
             ValueError: Si la liste de textes est vide.
         """
-        """
-        Délègue à l'adaptateur courant.
+        """Délègue à l'adaptateur courant.
 
         Args:
             texts: Liste des textes à encoder.
@@ -490,11 +448,8 @@ class RetrievalProxy:
         """
         return self._adapter.embed_texts(texts)
 
-    def search(
-        self, query: str, top_k: int = 5, tenant: str | None = None
-    ) -> list[dict]:
-        """
-        Recherche des documents similaires à une requête.
+    def search(self, query: str, top_k: int = 5, tenant: str | None = None) -> list[dict]:
+        """Recherche des documents similaires à une requête.
 
         Args:
             query: Texte de la requête de recherche.
@@ -504,8 +459,7 @@ class RetrievalProxy:
         Returns:
             list[dict]: Liste des documents trouvés avec métadonnées.
         """
-        """
-        Délègue à l'adaptateur courant.
+        """Délègue à l'adaptateur courant.
 
         Args:
             query: Requête textuelle.
@@ -554,21 +508,16 @@ class RetrievalProxy:
                     )
             return results
         except RetrievalBackendHTTPError as exc:
-            RETRIEVAL_ERRORS.labels(
-                self._backend, str(exc.status_code), lbl_tenant
-            ).inc()
+            RETRIEVAL_ERRORS.labels(self._backend, str(exc.status_code), lbl_tenant).inc()
             raise
         except RetrievalNetworkError:
             RETRIEVAL_ERRORS.labels(self._backend, "network", lbl_tenant).inc()
             raise
         finally:
-            RETRIEVAL_LATENCY.labels(self._backend, lbl_tenant).observe(
-                _t.perf_counter() - start
-            )
+            RETRIEVAL_LATENCY.labels(self._backend, lbl_tenant).observe(_t.perf_counter() - start)
 
     def ingest(self, doc: dict, tenant: str | None = None) -> None:
-        """
-        Index a single document into primary (FAISS) and optionally target.
+        """Index a single document into primary (FAISS) and optionally target.
 
         Primary write: always FAISS. If dual-write flag is ON, also write to the
         configured target. Target errors are recorded in metrics and logs but do
@@ -582,21 +531,18 @@ class RetrievalProxy:
             # Minimal validation: ignore invalid docs quietly
             return
         try:
-            FaissMultiTenantAdapter().index_for_tenant(t, [d])
+            if t and isinstance(t, str):
+                FaissMultiTenantAdapter().index_for_tenant(t, [d])
         except Exception:
             # Primary failure should be rare; surface via log but do not raise here
-            structlog.get_logger(__name__).error(
-                "retrieval_ingest_primary_error", tenant=t
-            )
+            structlog.get_logger(__name__).error("retrieval_ingest_primary_error", tenant=t)
             return
 
         # Dual-write to target if flag enabled
         if ff_retrieval_dual_write():
             rtarget = importlib.import_module("backend.services.retrieval_target")
             target_name = rtarget.get_target_backend_name()
-            lbl_tenant = labelize_tenant(
-                t, getattr(container.settings, "ALLOWED_TENANTS", [])
-            )
+            lbl_tenant = labelize_tenant(t, getattr(container.settings, "ALLOWED_TENANTS", []))
             try:
                 rtarget.safe_write_to_target(doc, t)
             except Exception as exc:  # pragma: no cover - defensive
@@ -614,8 +560,7 @@ def _ids(results: list[dict]) -> list[str]:
 
 
 def agreement_at_k(primary: list[dict], shadow: list[dict], k: int = 5) -> float:
-    """
-    Compute agreement@k as intersection size divided by k.
+    """Compute agreement@k as intersection size divided by k.
 
     Deduplicates IDs preserving order; clamps to [0,1].
     """
@@ -683,8 +628,7 @@ def _compute_idcg(rels: list[float]) -> float:
 
 
 def ndcg_at_10(primary: list[dict], shadow: list[dict]) -> float:
-    """
-    Compute nDCG@10 using shadow ranking with binary relevance vs primary.
+    """Compute nDCG@10 using shadow ranking with binary relevance vs primary.
 
     - DCG on shadow top-10; rel=1 if ID present in primary list (any position).
     - IDCG is ideal DCG with all relevant items at top.
@@ -723,9 +667,9 @@ def _compare_and_emit_metrics(
         RETRIEVAL_SHADOW_AGREEMENT_AT_5.labels(
             target_name, str(min(10, len(primary))), "true"
         ).observe(agreement)
-        RETRIEVAL_SHADOW_NDCG_AT_10.labels(
-            target_name, str(min(10, len(primary))), "true"
-        ).observe(ndcg)
+        RETRIEVAL_SHADOW_NDCG_AT_10.labels(target_name, str(min(10, len(primary))), "true").observe(
+            ndcg
+        )
     except Exception:
         # Never raise from metrics computation
         pass
@@ -839,9 +783,11 @@ def _shadow_submit(
     primary_results: list[dict],
 ) -> None:
     _ensure_shadow_workers()
+    if not _shadow_state.queue:
+        return
     try:
         # Pack minimal task
-        _shadow_state.queue.put_nowait(
+        _shadow_state.queue.put_nowait(  # type: ignore[union-attr,attr-defined]
             {
                 "query": query,
                 "top_k": top_k,
@@ -865,6 +811,6 @@ def _shutdown_shadow_executor() -> None:  # pragma: no cover - process shutdown
             return
         for _ in _shadow_threads:
             with contextlib.suppress(Exception):
-                _shadow_state.queue.put_nowait({"__stop__": True})  # type: ignore[union-attr]
+                _shadow_state.queue.put_nowait({"__stop__": True})  # type: ignore[union-attr,attr-defined]
     except Exception:
         pass

@@ -1,8 +1,7 @@
-"""
-Tests pour le script de drill de rollback.
+"""Tests pour le script de drill de rollback.
 
 Ce module teste les fonctionnalités du script de rollback incluant la mise à jour des variables
-d'environnement et l'exécution en mode dry-run.
+d'environnement et l'exécution en mode dry- run.
 """
 
 from __future__ import annotations
@@ -16,8 +15,7 @@ from scripts.rollback_retrieval import _update_env_lines
 
 
 def test_update_env_lines_appends_and_overrides(tmp_path: Path) -> None:
-    """
-    Teste la mise à jour des lignes d'environnement pour le rollback.
+    """Teste la mise à jour des lignes d'environnement pour le rollback.
 
     Vérifie que les variables d'environnement sont correctement ajoutées et surchargées lors de la
     préparation du rollback.
@@ -31,8 +29,7 @@ def test_update_env_lines_appends_and_overrides(tmp_path: Path) -> None:
 
 
 def test_rollback_script_dry_run(tmp_path: Path) -> None:
-    """
-    Teste l'exécution du script de rollback en mode dry-run.
+    """Teste l'exécution du script de rollback en mode dry-run.
 
     Vérifie que le script de rollback fonctionne correctement en mode dry-run et génère les logs
     appropriés.

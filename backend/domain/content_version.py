@@ -1,5 +1,4 @@
-"""
-Modèle de gouvernance des contenus et embeddings (POPO).
+"""Modèle de gouvernance des contenus et embeddings (POPO).
 
 Ce module définit le modèle de domaine ContentVersion pour gérer les versions de contenu avec leurs
 métadonnées d'embedding et paramètres associés.
@@ -17,8 +16,7 @@ from dataclasses import dataclass
 
 @dataclass
 class ContentVersion:
-    """
-    Version de contenu et paramètres d'embedding (objet domaine).
+    """Version de contenu et paramètres d'embedding (objet domaine).
 
     Attributs
     - source: identifiant de la source.

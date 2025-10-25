@@ -1,5 +1,4 @@
-"""
-Tests pour le monitoring Celery.
+"""Tests pour le monitoring Celery.
 
 Ce module teste les métriques Prometheus générées par le monitoring des tâches Celery.
 """

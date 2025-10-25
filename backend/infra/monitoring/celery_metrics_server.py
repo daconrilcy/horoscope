@@ -17,6 +17,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
+from typing import Any
 from wsgiref.simple_server import make_server
 
 from backend.infra.monitoring.celery_exporter import metrics_wsgi_app
@@ -26,9 +28,8 @@ def _parse_allowlist(allowlist: str) -> set[str]:
     return {ip.strip() for ip in (allowlist or "").split(",") if ip.strip()}
 
 
-def build_metrics_app(allowlist: str) -> callable:  # type: ignore[no-any-explicit]
-    """
-    Construit une appli WSGI filtrant par IP avant d'exposer /metrics.
+def build_metrics_app(allowlist: str) -> Callable[[dict[str, Any], Callable], Any]:
+    """Construit une appli WSGI filtrant par IP avant d'exposer /metrics.
 
     - allowlist: liste d'IP séparées par des virgules (ex: "127.0.0.1,::1").
     """
@@ -49,8 +50,7 @@ def build_metrics_app(allowlist: str) -> callable:  # type: ignore[no-any-explic
 
 
 def main() -> None:
-    """
-    Point d'entrée CLI.
+    """Point d'entrée CLI.
 
     Démarre un serveur WSGI minimal pour exposer /metrics.
     """

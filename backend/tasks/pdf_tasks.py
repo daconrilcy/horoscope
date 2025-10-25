@@ -1,5 +1,4 @@
-"""
-Tâches Celery pour le rendu PDF.
+"""Tâches Celery pour le rendu PDF.
 
 Rend un PDF pour un thème natal existant identifié par `chart_id`, puis tente de
 le mettre en cache dans Redis (si disponible) pendant 24h.
@@ -15,8 +14,7 @@ from backend.infra.ops.idempotency import idempotency_store, make_idem_key
 
 @celery_app.task(name="backend.tasks.render_pdf")
 def render_pdf_task(chart_id: str) -> str:
-    """
-    Tâche Celery pour générer un PDF de thème natal.
+    """Tâche Celery pour générer un PDF de thème natal.
 
     Args:
         chart_id: Identifiant du thème natal à convertir en PDF.

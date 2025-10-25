@@ -1,5 +1,4 @@
-"""
-Target adapter resolution for retrieval migration (dual-write/shadow-read).
+"""Target adapter resolution for retrieval migration (dual-write/shadow-read).
 
 Resolves a secondary backend used as migration target. Defaults to "weaviate".
 """
@@ -17,11 +16,18 @@ from backend.app.metrics import (
     RETRIEVAL_DUAL_WRITE_OUTBOX_SIZE,
     RETRIEVAL_DUAL_WRITE_SKIPPED,
 )
-from backend.services.retrieval_proxy import (
-    ElasticVectorAdapter,
-    PineconeAdapter,
-    WeaviateAdapter,
-)
+
+
+# Import circulaire évité - import local dans les fonctions
+def _get_retrieval_proxy():
+    """Import local pour éviter les imports circulaires."""
+    from backend.services.retrieval_proxy import (  # noqa: PLC0415
+        ElasticVectorAdapter,
+        PineconeAdapter,
+        WeaviateAdapter,
+    )
+
+    return ElasticVectorAdapter, PineconeAdapter, WeaviateAdapter
 
 
 def get_target_backend_name() -> str:
@@ -34,13 +40,14 @@ def get_target_backend_name() -> str:
 
 
 def get_target_adapter():
-    """
-    Construct the adapter for the migration target backend.
+    """Construct the adapter for the migration target backend.
 
     Supports: weaviate | pinecone | elastic (defaults to weaviate).
     """
     name = get_target_backend_name()
     # Import adapters lazily to avoid circular import during module load
+
+    ElasticVectorAdapter, PineconeAdapter, WeaviateAdapter = _get_retrieval_proxy()
 
     if name == "pinecone":
         return PineconeAdapter()
@@ -52,8 +59,7 @@ def get_target_adapter():
 
 
 def write_to_target(_doc: dict, _tenant: str | None = None) -> None:
-    """
-    Write document to the target backend.
+    """Write document to the target backend.
 
     Intentionally no-op for now. Tests may monkeypatch this to simulate success/failure. Real
     implementations should index documents to the target.
@@ -69,9 +75,7 @@ class _DualWriteState:
         self.cb_fail_count: int = 0
         self.cb_open_until: float = 0.0
         self.outbox: list[tuple[dict, str | None, float]] = []
-        self.outbox_lock = (
-            None  # lazy to avoid threading import at import-time for tests
-        )
+        self.outbox_lock = None  # lazy to avoid threading import at import-time for tests
 
 
 _dw_state = _DualWriteState()
@@ -110,8 +114,7 @@ def _now() -> float:
 
 
 def safe_write_to_target(doc: dict, tenant: str | None = None) -> None:
-    """
-    Write to target with circuit-breaker and outbox fallback.
+    """Write to target with circuit-breaker and outbox fallback.
 
     - If circuit is open, skip write and enqueue to outbox.
     - On failure, increment fail count, open circuit when threshold reached,
@@ -155,8 +158,7 @@ def _enqueue_outbox(doc: dict, tenant: str | None) -> None:
 
 
 def replay_outbox(limit: int | None = None) -> int:
-    """
-    Replay items from outbox.
+    """Replay items from outbox.
 
     Returns number of successful replays.
     """

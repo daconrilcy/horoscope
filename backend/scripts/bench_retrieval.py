@@ -1,5 +1,4 @@
-"""
-Script de benchmark pour les performances de récupération.
+"""Script de benchmark pour les performances de récupération.
 
 Ce script mesure les performances (P50/P95/QPS/RAM) et l'agreement@k entre différents backends de
 récupération pour évaluer les performances.

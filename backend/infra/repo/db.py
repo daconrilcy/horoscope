@@ -1,5 +1,4 @@
-"""
-DB utilities for SQLAlchemy sessions/engine.
+"""DB utilities for SQLAlchemy sessions/engine.
 
 Uses `DATABASE_URL` env var or falls back to `sqlite+pysqlite:///:memory:` for tests.
 """
@@ -31,7 +30,12 @@ def get_session_factory(engine: Engine) -> sessionmaker:
 
 @contextmanager
 def session_scope(engine: Engine) -> Iterator[Session]:
-    """Fournit un contexte de session SQLAlchemy avec gestion automatique des transactions."""
+    """Contexte de session SQLAlchemy avec gestion automatique des transactions.
+
+    Cette fonction fournit un contexte de session SQLAlchemy avec gestion automatique des
+    transactions. Elle est utilisée pour exécuter les requêtes SQL de manière transparente et
+    sécurisée.
+    """
     SessionLocal = get_session_factory(engine)
     session = SessionLocal()
     try:

@@ -1,5 +1,4 @@
-"""
-In-memory multi-tenant vector store adapter.
+"""In-memory multi-tenant vector store adapter.
 
 Implements VectorStoreProtocol for environments without FAISS or when a lightweight backend is
 required. Provides isolation per tenant and integrates with vecstore metrics.
@@ -28,8 +27,7 @@ class MemoryMultiTenantAdapter(VectorStoreProtocol):
         self._docs: dict[str, list[Document]] = {}
 
     def index_for_tenant(self, tenant: str, docs: list[Document]) -> int:
-        """
-        Indexe des documents pour un tenant spécifique en mémoire.
+        """Indexe des documents pour un tenant spécifique en mémoire.
 
         Args:
             tenant: Identifiant du tenant.
@@ -48,8 +46,7 @@ class MemoryMultiTenantAdapter(VectorStoreProtocol):
         return len(docs)
 
     def search_for_tenant(self, tenant: str, q: Query) -> list[ScoredDocument]:
-        """
-        Recherche des documents pour un tenant spécifique en mémoire.
+        """Recherche des documents pour un tenant spécifique en mémoire.
 
         Args:
             tenant: Identifiant du tenant.
@@ -80,8 +77,7 @@ class MemoryMultiTenantAdapter(VectorStoreProtocol):
         return scored[: max(1, q.k)]
 
     def purge_tenant(self, tenant: str) -> None:
-        """
-        Supprime toutes les données d'un tenant en mémoire.
+        """Supprime toutes les données d'un tenant en mémoire.
 
         Args:
             tenant: Identifiant du tenant à purger.

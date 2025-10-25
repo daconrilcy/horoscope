@@ -1,5 +1,4 @@
-"""
-Tests pour l'isolation multi-tenant et RGPD.
+"""Tests pour l'isolation multi-tenant et RGPD.
 
 Ce module teste l'isolation des données entre tenants et les fonctionnalités de purge pour la
 conformité RGPD.
@@ -15,12 +14,8 @@ def test_multi_tenant_isolation_and_purge() -> None:
     """Teste l'isolation des données entre tenants et la purge RGPD."""
     store = MultiTenantFAISS()
     # Index docs for two tenants
-    store.index_for_tenant(
-        "t1", [Document(id="1", text="alpha"), Document(id="2", text="beta")]
-    )
-    store.index_for_tenant(
-        "t2", [Document(id="x", text="gamma"), Document(id="y", text="delta")]
-    )
+    store.index_for_tenant("t1", [Document(id="1", text="alpha"), Document(id="2", text="beta")])
+    store.index_for_tenant("t2", [Document(id="x", text="gamma"), Document(id="y", text="delta")])
 
     # Search must be isolated per tenant
     r1 = store.search_for_tenant("t1", Query(text="alpha", k=2))

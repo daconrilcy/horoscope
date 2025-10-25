@@ -1,5 +1,4 @@
-"""
-Tenancy utilities and RGPD helpers.
+"""Tenancy utilities and RGPD helpers.
 
 Provides simple helpers to derive a safe tenant label and constants for defaults. This module does
 not trust frontend headers in production; prefer deriving the tenant from authenticated user claims.
@@ -15,8 +14,7 @@ _SAFE_TENANT_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
 
 
 def tenant_from_context(user: dict[str, Any] | None, header_tenant: str | None) -> str:
-    """
-    Return a tenant label from context.
+    """Return a tenant label from context.
 
     Preference order:
     1) user["tenant"] if present (JWT/claims)
@@ -31,8 +29,7 @@ def tenant_from_context(user: dict[str, Any] | None, header_tenant: str | None) 
 
 
 def normalize_tenant(value: str | None) -> str | None:
-    """
-    Normalize tenant to lowercase trimmed string if it matches the safe regex.
+    """Normalize tenant to lowercase trimmed string if it matches the safe regex.
 
     Returns None if value is falsy or does not match the allowed pattern.
     """

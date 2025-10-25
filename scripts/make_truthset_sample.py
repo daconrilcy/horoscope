@@ -1,5 +1,4 @@
-"""
-Script de génération d'échantillon de jeu de données de vérité.
+"""Script de génération d'échantillon de jeu de données de vérité.
 
 Ce script génère un échantillon de jeu de données de vérité avec des requêtes astrologiques et des
 résultats simulés pour les tests de cutover.
@@ -12,17 +11,14 @@ import random
 
 
 def faiss_topk(query: str, k: int) -> list[dict]:
-    """
-    Return a simulated FAISS top-k for the demo.
+    """Return a simulated FAISS top-k for the demo.
 
     Replace with the real adapter call in staging if desired.
     """
     random.seed(hash(query) % 10_000)
     res: list[dict] = []
     for i in range(k):
-        res.append(
-            {"id": f"doc_{random.randint(1, 6000):04d}", "score": 1.0 - i * 0.01}
-        )
+        res.append({"id": f"doc_{random.randint(1, 6000):04d}", "score": 1.0 - i * 0.01})
     return res
 
 

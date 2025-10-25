@@ -1,5 +1,4 @@
-"""
-Constantes centrales de l'application.
+"""Constantes centrales de l'application.
 
 Ce module contient toutes les constantes utilisées dans l'application, incluant les codes de statut
 HTTP, les valeurs par défaut et les seuils.

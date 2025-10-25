@@ -1,5 +1,4 @@
-"""
-Script de serveur de développement avec LLM factice.
+"""Script de serveur de développement avec LLM factice.
 
 Ce script lance un serveur de développement avec un LLM factice pour les tests et le développement
 local sans dépendances externes.
@@ -20,8 +19,7 @@ from backend.domain.chat_orchestrator import ChatOrchestrator
 
 
 def main():
-    """
-    Point d'entrée principal pour le serveur avec LLM factice.
+    """Point d'entrée principal pour le serveur avec LLM factice.
 
     Lance l'application FastAPI avec un LLM simulé pour faciliter le développement et les tests.
     """

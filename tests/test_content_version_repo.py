@@ -2,8 +2,7 @@
 # Tests : tests/test_content_version_repo.py
 # Objet  : CRUD ContentVersion via SQLAlchemy (sqlite mémoire).
 # ============================================================
-"""
-Tests pour le repository des versions de contenu.
+"""Tests pour le repository des versions de contenu.
 
 Ce module teste les opérations CRUD sur les ContentVersion via SQLAlchemy avec une base de données
 SQLite en mémoire.

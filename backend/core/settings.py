@@ -1,5 +1,4 @@
-"""
-Définition et chargement des paramètres de configuration applicative.
+"""Définition et chargement des paramètres de configuration applicative.
 
 Objectif du module
 ------------------
@@ -20,17 +19,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _cwd = Path.cwd()
 _env_file_from_env = os.getenv("ENV_FILE")
 if _env_file_from_env:
-    _ENV_FILE_PATH = _env_file_from_env
+    _ENV_FILE_PATH = str(_env_file_from_env).strip()
 else:
     _app_env = os.getenv("APP_ENV", "dev")
     _candidate_specific = _cwd / f".env.{_app_env}"
     _candidate_default = _cwd / ".env"
     if _candidate_specific.exists():
-        _ENV_FILE_PATH = _candidate_specific
+        _ENV_FILE_PATH = str(_candidate_specific).strip()
     elif _candidate_default.exists():
-        _ENV_FILE_PATH = _candidate_default
+        _ENV_FILE_PATH = str(_candidate_default).strip()
     else:
-        _ENV_FILE_PATH = _candidate_default
+        _ENV_FILE_PATH = str(_candidate_default).strip()
 
 
 class Settings(BaseSettings):

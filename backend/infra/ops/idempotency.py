@@ -1,5 +1,4 @@
-"""
-Task idempotency and failure tracking helpers (Redis or in-memory).
+"""Task idempotency and failure tracking helpers (Redis or in-memory).
 
 - IdempotencyStore: simple `acquire(key, ttl)` to deduplicate task execution.
 - FailureTracker: counts failures per task-id and emits to a poison queue
@@ -127,8 +126,7 @@ class FailureTracker:
         max_failures: int | None = None,
         reason: str = "max_failures",
     ) -> bool:
-        """
-        Record a failure and push to DLQ if threshold exceeded.
+        """Record a failure and push to DLQ if threshold exceeded.
 
         Threshold comes from `CELERY_MAX_FAILURES_BEFORE_DLQ` env when not provided.
         DLQ entry is a JSON with {task, task_id, reason, ts}.
@@ -136,9 +134,7 @@ class FailureTracker:
         TASK_FAILURE.labels(task=task).inc()
         if max_failures is None:
             try:
-                max_failures = int(
-                    os.getenv("CELERY_MAX_FAILURES_BEFORE_DLQ", "3") or 3
-                )
+                max_failures = int(os.getenv("CELERY_MAX_FAILURES_BEFORE_DLQ", "3") or 3)
             except Exception:
                 max_failures = 3
         key = f"celery:fail:{task}:{task_id}"

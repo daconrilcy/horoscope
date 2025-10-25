@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Migration Alembic pour créer la table content_versions.
 
@@ -36,9 +37,7 @@ def upgrade() -> None:
         sa.Column("embed_params", sa.JSON(), nullable=False),
         sa.Column("tenant", sa.String(length=64), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.UniqueConstraint(
-            "source", "version", "tenant", name="uq_source_version_tenant"
-        ),
+        sa.UniqueConstraint("source", "version", "tenant", name="uq_source_version_tenant"),
     )
 
 

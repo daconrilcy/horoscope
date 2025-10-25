@@ -1,0 +1,47 @@
+# Configuration Gitleaks pour ignorer les faux positifs dans la documentation
+# Ce fichier permet d'exclure les patterns de test/demo qui ne sont pas de vrais secrets
+
+[allowlist]
+description = "Allowlist pour les exemples de documentation et tests"
+
+# Ignorer les fichiers/dossiers de documentation (REGEX RE2, pas de glob)
+paths = [
+  "^docs/api/examples/.*$",
+  "^docs/.*\\.sh$",
+  "^docs/.*\\.md$"
+]
+
+# Ignorer les patterns de test courants
+regexes = [
+  "Authorization: Bearer .*",
+  "Bearer .*",
+  "your-token-here",
+  "YOUR_TOKEN_HERE",
+  "REPLACE_WITH_YOUR_TOKEN",
+  "votre-token-invalide",
+  "invalid-token",
+  "test-token",
+  "demo-token",
+  "example-token",
+  "placeholder-token"
+]
+
+# Ignorer des commits spécifiques avec des exemples
+commits = [
+  "a207c805d94cd75b5a0d0f4dfb4453a066fda645",
+  "c67b39c798d7b2f12f80643b5bc72559163b9b49",
+  "d194e2e1608f797829345aa015b60dfff976063b"
+]
+
+# Configuration des règles pour être plus strictes sur les vrais secrets
+[[rules]]
+description = "Règles strictes pour les vrais secrets"
+id = "strict-secrets"
+regex = '''(?i)(?:password|passwd|pwd)\s*[:=]\s*['"]?[a-zA-Z0-9_!@#$%^&*()]{8,}['"]?'''
+severity = "error"
+
+[[rules]]
+description = "Clés API réelles"
+id = "real-api-keys"
+regex = '''(?i)(?:api[_-]?key|apikey|access[_-]?token|secret[_-]?key)\s*[:=]\s*['"]?[a-zA-Z0-9]{20,}['"]?'''
+severity = "error"

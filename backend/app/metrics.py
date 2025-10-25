@@ -1,5 +1,4 @@
-"""
-Métriques Prometheus pour l'application.
+"""Métriques Prometheus pour l'application.
 
 Ce module définit toutes les métriques Prometheus utilisées pour le monitoring de l'application
 astrologique.
@@ -21,12 +20,8 @@ from starlette.responses import Response
 
 metrics_router = APIRouter()
 
-REQUEST_COUNT = Counter(
-    "http_requests_total", "Total HTTP requests", ["method", "route", "status"]
-)
-REQUEST_LATENCY = Histogram(
-    "http_request_duration_seconds", "Latency of HTTP requests", ["route"]
-)
+REQUEST_COUNT = Counter("http_requests_total", "Total HTTP requests", ["method", "route", "status"])
+REQUEST_LATENCY = Histogram("http_request_duration_seconds", "Latency of HTTP requests", ["route"])
 
 # Retrieval-specific metrics
 RETRIEVAL_REQUESTS = Counter(
@@ -265,13 +260,12 @@ VECSTORE_OP_LATENCY = Histogram(
 
 @metrics_router.get("/metrics")
 def metrics():
-    """
-    Expose les métriques Prometheus au format texte.
+    """Expose les métriques Prometheus au format texte.
 
     Returns:
         Response: Réponse HTTP contenant les métriques au format Prometheus.
     """
-    from starlette.responses import Response  # noqa: PLC0415
+    from starlette.responses import Response  # noqa
 
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
@@ -280,16 +274,14 @@ def metrics():
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware Prometheus pour mesurer les métriques HTTP.
+    """Middleware Prometheus pour mesurer les métriques HTTP.
 
     Collecte les métriques de comptage des requêtes et de latence par route pour l'exposition
     Prometheus.
     """
 
     async def dispatch(self, request: Request, call_next):
-        """
-        Traite une requête HTTP et collecte les métriques.
+        """Traite une requête HTTP et collecte les métriques.
 
         Args:
             request: Requête HTTP entrante.

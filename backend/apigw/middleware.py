@@ -1,5 +1,4 @@
-"""
-Middlewares pour l'API Gateway avec support idempotence et tracing.
+"""Middlewares pour l'API Gateway avec support idempotence et tracing.
 
 Ce module implémente les middlewares essentiels pour l'API Gateway : idempotence des requêtes POST,
 génération de trace IDs, logging structuré et gestion des versions d'API.
@@ -100,9 +99,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
         return hashlib.sha256(content.encode()).hexdigest()
 
-    def _create_response_from_cache(
-        self, cached_data: dict[str, Any]
-    ) -> StarletteResponse:
+    def _create_response_from_cache(self, cached_data: dict[str, Any]) -> StarletteResponse:
         """Create a response from cached data."""
         response = StarletteResponse(
             content=cached_data.get("body", ""),
@@ -124,9 +121,7 @@ class IdempotencyStore:
         """Get cached response for idempotency key and request hash."""
         raise NotImplementedError
 
-    async def set(
-        self, key: str, request_hash: str, response_data: dict[str, Any]
-    ) -> None:
+    async def set(self, key: str, request_hash: str, response_data: dict[str, Any]) -> None:
         """Cache response data for idempotency key and request hash."""
         raise NotImplementedError
 
@@ -154,9 +149,7 @@ class InMemoryIdempotencyStore(IdempotencyStore):
 
         return cached_data
 
-    async def set(
-        self, key: str, request_hash: str, response_data: dict[str, Any]
-    ) -> None:
+    async def set(self, key: str, request_hash: str, response_data: dict[str, Any]) -> None:
         """Cache response data in memory."""
         cache_key = f"{key}:{request_hash}"
         self._cache[cache_key] = response_data

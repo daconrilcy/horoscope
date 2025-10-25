@@ -2,8 +2,7 @@
 # Tests : tests/test_cost_controls.py
 # Objet  : Guardrails de coût.
 # ============================================================
-"""
-Tests pour les contrôles de coût.
+"""Tests pour les contrôles de coût.
 
 Ce module teste les garde-fous de coût et les budgets des tenants dans l'application.
 """

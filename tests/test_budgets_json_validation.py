@@ -1,5 +1,4 @@
-"""
-Tests pour la validation des budgets JSON.
+"""Tests pour la validation des budgets JSON.
 
 Ce module teste la gestion des erreurs dans la configuration des budgets des tenants.
 """

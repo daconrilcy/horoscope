@@ -1,5 +1,4 @@
-"""
-Tests pour le script de benchmark multi-tenant.
+"""Tests pour le script de benchmark multi-tenant.
 
 Ce module teste les classes et fonctionnalités du script de benchmark multi-tenant incluant la
 configuration, simulation de tenants et calculs de métriques.
@@ -38,6 +37,7 @@ from scripts.bench_multitenant import (
     MultiTenantBenchmark,
     TenantSimulator,
 )
+
 """Tests for multi-tenant benchmark script."""
 
 
@@ -216,8 +216,7 @@ class TestMultiTenantBenchmark:
         )
         assert len(metrics["tenant_metrics"]) == TEST_BENCHMARK_TENANT_COUNT
         assert (
-            metrics["tenant_metrics"]["tenant_1"]["request_count"]
-            == TEST_BENCHMARK_TENANT_REQUESTS
+            metrics["tenant_metrics"]["tenant_1"]["request_count"] == TEST_BENCHMARK_TENANT_REQUESTS
         )
 
     def test_calculate_variance(self) -> None:
@@ -347,10 +346,7 @@ class TestBenchmarkIntegration:
         parsed = json.loads(json_str)
 
         assert parsed["config"]["qps"] == TEST_DEFAULT_QPS
-        assert (
-            parsed["overall_metrics"]["total_requests"]
-            == TEST_BENCHMARK_EXPECTED_REQUESTS
-        )
+        assert parsed["overall_metrics"]["total_requests"] == TEST_BENCHMARK_EXPECTED_REQUESTS
 
 
 class TestBenchmarkDeterministic:
@@ -386,6 +382,4 @@ class TestBenchmarkDeterministic:
         assert (
             abs(p95_manual - 0.57) < TEST_METRICS_PRECISION_TOLERANCE_SMALL
         )  # 95th percentile of [0.1, 0.2, 0.3, 0.4, 0.5]
-        assert (
-            abs(p99_manual - 0.594) < TEST_METRICS_PRECISION_TOLERANCE_SMALL
-        )  # 99th percentile
+        assert abs(p99_manual - 0.594) < TEST_METRICS_PRECISION_TOLERANCE_SMALL  # 99th percentile

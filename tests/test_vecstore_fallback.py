@@ -1,5 +1,4 @@
-"""
-Tests pour le fallback des vector stores.
+"""Tests pour le fallback des vector stores.
 
 Ce module teste l'isolation et la purge des adaptateurs mémoire, ainsi que la factory backend avec
 l'environnement mémoire.
@@ -13,8 +12,7 @@ from backend.services.retrieval_proxy import FAISSAdapter
 
 
 def test_memory_adapter_isolation_and_purge() -> None:
-    """
-    Teste l'isolation et la purge des adaptateurs mémoire.
+    """Teste l'isolation et la purge des adaptateurs mémoire.
 
     Vérifie que les adaptateurs mémoire isolent correctement les données entre tenants et que la
     purge fonctionne comme attendu.
@@ -31,8 +29,7 @@ def test_memory_adapter_isolation_and_purge() -> None:
 
 
 def test_factory_backend_env_memory(monkeypatch) -> None:
-    """
-    Teste la factory backend avec l'environnement mémoire.
+    """Teste la factory backend avec l'environnement mémoire.
 
     Vérifie que la factory backend utilise correctement l'adaptateur mémoire quand configuré via les
     variables d'environnement.

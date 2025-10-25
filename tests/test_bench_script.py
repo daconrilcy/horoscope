@@ -2,8 +2,7 @@
 # Tests : tests/test_bench_script.py
 # Objet  : Vérifier l'exécution du bench (squelette).
 # ============================================================
-"""
-Tests pour les scripts de benchmark.
+"""Tests pour les scripts de benchmark.
 
 Ce module teste l'exécution des scripts de benchmark pour vérifier leur fonctionnement de base.
 """

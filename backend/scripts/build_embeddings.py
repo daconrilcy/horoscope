@@ -44,9 +44,7 @@ def _iter_texts(content_dir: Path) -> list[tuple[str, str]]:
         return pairs
     for p in sorted(content_dir.rglob("*.txt")):
         try:
-            pairs.append(
-                (str(p.relative_to(content_dir)), p.read_text(encoding="utf-8"))
-            )
+            pairs.append((str(p.relative_to(content_dir)), p.read_text(encoding="utf-8")))
         except Exception:
             continue
     return pairs
@@ -94,9 +92,7 @@ def main() -> None:
         "content_hash": content_hash,
         "timestamp": ts,
     }
-    outfile.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    outfile.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     # Insert ContentVersion
     db_url = os.getenv("DATABASE_URL", "sqlite:///./embeddings.db")
