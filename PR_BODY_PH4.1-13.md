@@ -32,6 +32,9 @@ Hors scope: Transactional Outbox complète (documentée et recommandée)
 
 ## Artefacts
 - Doc: `docs/ops/idempotency.md` (clé canonique, métriques, Celery, runbook)
+- Exports metrics: 
+  - `artifacts/metrics/postcommit_metrics.prom`
+  - `artifacts/metrics/worker_idempotency_metrics.prom`
 
 ## Revue ops/qualité
 - Validé: post-commit enqueue (pas d’émission sur rollback); décorateur d’idempotence sur worker

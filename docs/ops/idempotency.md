@@ -74,6 +74,11 @@ Avec Transactional Outbox (recommandé):
 - Clé canonique: invariance à l'ordre des dicts/kwargs; sets triés; bytes→base64.
 - Crash simulé entre commit et publish: avec outbox, rattrapage automatique.
 
+## Artefacts exemples
+
+- Producer (Prometheus): `artifacts/metrics/postcommit_metrics.prom`
+- Worker (Prometheus): `artifacts/metrics/worker_idempotency_metrics.prom`
+
 ## FAQ
 
 - « Peut-on atteindre exactly-once ? » — Non sur systèmes distribués sans store coordonné; viser
