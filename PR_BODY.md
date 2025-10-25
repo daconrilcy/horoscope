@@ -82,3 +82,30 @@ ormalize_route (metrics HTTP, rate-limit, auth, store).
 - **Property-based “cross-stack labels”** : un **seul** label 
 oute pour /v1/chat/123?x=1&y=2 (metrics / RL / versioning).
 - **Docs** docs/api/timeouts_retries.md : tableau par endpoint (timeouts, erreurs retryables, budget/jitter) + note CDN.
+
+## [Follow-up #75/#76] Trust client trace flag + exclude infra endpoints from HTTP metrics
+
+Branche: chore/issue-75-trace-id-trust-and-metrics-exclusions
+
+## Contexte
+- #75: Ne pas faire confiance au X-Trace-ID client (flag OFF par défaut).
+- #76: Exclure /metrics,/health,/docs,/openapi.json,/redoc des métriques HTTP.
+
+## Implémentation
+- Settings: `APIGW_TRACE_ID_TRUST_CLIENT: bool = False`.
+- TraceIdMiddleware: génère un trace_id serveur si flag OFF; conserve `client_trace_id` séparé.
+- HTTPServerMetricsMiddleware: exclusion des endpoints infra du comptage.
+
+## Tests
+- ON/OFF du flag trust avec patch du setting; client header préservé en `client_trace_id`.
+- Erreur 500 = +1 exact; aucune métrique pour /metrics et /health.
+
+## Qualité
+- Ruff/mypy stricts OK, tests OK.
+
+## Risques & Rollback
+- Faible risque; revert possible.
+
+## Checklist
+- [x] Scope respecté
+- [x] Lints/types/tests OK
